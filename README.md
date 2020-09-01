@@ -1,5 +1,8 @@
-Sharing Cart
-============
+Sharing Cart RECIT
+==================
+
+Branche adoptée par le service national de la formation à distance.
+Optimisée pour fonctionner avec le thème RÉCIT, le format de cours treetopics RÉCIT et la version 3.9.1 de Moodle
 
 Version 3.8, release 3 - 2020.04.12
 
@@ -12,6 +15,8 @@ The "master" branch is no longer compatible with Moodle 3.2 or earlier.
 Change Log
 ----------
 <<<<<<< HEAD
+ 3.9, release 01   comming soon 2020/10
+
 * 3.8, release 16   2020.08.28
     * Added warnings when making a restore or backup on multiple items at once.
     * Make the backup support check use the built in Moodle function and secure the module class.
