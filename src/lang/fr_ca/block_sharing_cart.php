@@ -22,8 +22,8 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-$string['pluginname'] = 'Pannier d\'activités';
-$string['sharing_cart'] = 'Pannier d\'activités';
+$string['pluginname'] = 'Panier d\'activités';
+$string['sharing_cart'] = 'Panier d\'activités';
 $string['sharing_cart_help'] = '<h2 class="helpheading">Opération</h2>
 <dl style="margin-left:0.5em;">
 <dt>Copying from course to Sharing Cart</dt>
@@ -40,9 +40,9 @@ $string['sharing_cart_help'] = '<h2 class="helpheading">Opération</h2>
         Or you can select an existing folder in drop-down list.
         Which will be replaced with an input box if you click "Edit" icon.</dd>
 </dl>';
-$string['sharing_cart:addinstance'] = 'Ajouter un nouveau block pannier d\'activité.';
+$string['sharing_cart:addinstance'] = 'Ajouter un nouveau block Panier d\'activité.';
 
-$string['backup'] = 'Copier dans le pannier d\'activités';
+$string['backup'] = 'Copier dans le Panier d\'activités';
 $string['restore'] = 'Copier dans le cours';
 $string['movedir'] = 'Déplacer dans le répertoire';
 $string['clicktomove'] = 'Cliquer pour déplacer ici.';
@@ -50,7 +50,7 @@ $string['copyhere'] = 'Copier ici';
 $string['notarget'] = 'La cible n\a pas été trouvée.';
 $string['clipboard'] = 'En copie de cet item partagé.';
 $string['bulkdelete'] = 'Paquettage supprimé';
-$string['confirm_backup'] = 'Êtes-vous certains de vouloir copier cette activité dans le pannier d\'activité?';
+$string['confirm_backup'] = 'Êtes-vous certains de vouloir copier cette activité dans le Panier d\'activité?';
 $string['confirm_backup_section'] = 'Do you want to copy this course section and its activities / resources into Sharing Cart?';
 $string['confirm_userdata'] = 'Do you want to include user data in a copy of this activity/resource?
 OK - Copy *with* user data
