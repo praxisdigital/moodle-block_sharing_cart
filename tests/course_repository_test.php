@@ -41,17 +41,20 @@ class block_sharing_cart_course_repository_testcase extends advanced_testcase
         $item2 = $this->create_sharing_chart_record($user, $course2);
         $items = [
             (int)$item1->id => $item1,
-            (int)$item1->id => $item2,
+            (int)$item2->id => $item2,
         ];
 
         $repo = new course_repository($this->db());
         $actual_course_fullnames = $repo->get_course_fullnames_by_sharing_carts($items);
         $expect_course_fullnames = [
-            $course1->fullname,
-            $course2->fullname,
+            (int)$course1->id => $course1->fullname,
+            (int)$course2->id => $course2->fullname,
         ];
 
-        $this->assertEqualsCanonicalizing($expect_course_fullnames, $actual_course_fullnames);
+        natsort($actual_course_fullnames);
+        natsort($expect_course_fullnames);
+
+        $this->assertSame($expect_course_fullnames, $actual_course_fullnames);
     }
 
     /**
