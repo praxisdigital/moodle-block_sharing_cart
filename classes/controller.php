@@ -230,15 +230,14 @@ class controller {
                 'userscompletion' => false,
                 'logs' => false,
                 'grade_histories' => false,
+                'users' => false,
+                'anonymize' => false,
         );
         if (\has_capability('moodle/backup:userinfo', $context) &&
                 \has_capability('moodle/backup:anonymise', $context) &&
                 \has_capability('moodle/restore:userinfo', $context)) {
             // set the userdata flags only if the operator has capability
-            $settings += array(
-                    'users' => $userdata,
-                    'anonymize' => false,
-            );
+            $settings['users'] = $userdata;
         }
         $controller = new backup_controller(
                 \backup::TYPE_1ACTIVITY,
