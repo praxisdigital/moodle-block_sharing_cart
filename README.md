@@ -13,6 +13,8 @@ Warning: PHP versions 7.2 and older are deprecated, and will cause problems, unr
 
 Change Log
 ----------
+* 3.10, release 11 2022.11.15
+  * Fixed issue where userdata would not backup/restore correctly
 * 3.10, release 10 2022.05.04
   * Fixed sharing cart looking at invisible modules, where error (invalid id for course module) would occur.
 * 3.10, release 9 2022.02.25
