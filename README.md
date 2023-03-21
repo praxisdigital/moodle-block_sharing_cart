@@ -17,6 +17,8 @@ Warning: PHP versions 7.2 and older are deprecated, and will cause problems, unr
 Change Log
 ----------
 * 4.0, release 6 2023.03.21
+  * Added new setting to show the "Copy section" in the block underneath modules/activities
+  * Hereto updated the "Copy section" css with more spacing
   * Fixed more than one block instance being added in a single course
 * 4.0, release 5 2023.03.09
   * Fixed CSS issue where the rules were unintentionally applied to the elements outside the scope in "special version".  
