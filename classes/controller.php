@@ -28,6 +28,7 @@ use backup_controller;
 use block_sharing_cart\event\section_backedup;
 use block_sharing_cart\event\section_deleted;
 use block_sharing_cart\event\section_restored;
+use block_sharing_cart\exception as sharing_cart_exception;
 use block_sharing_cart\exceptions\no_backup_support_exception;
 use block_sharing_cart\repositories\course_repository;
 use cache_helper;
@@ -728,6 +729,29 @@ class controller {
         $storage->delete($record->filename);
 
         $record->delete();
+    }
+
+    /**
+     * @param int $context_id
+     * @return array
+     * @throws \dml_exception
+     */
+    public function get_records_by_context_id(int $context_id): array {
+        global $DB;
+        return $DB->get_records("block_instances", ['parentcontextid' => $context_id, 'blockname' => "sharing_cart"]);
+    }
+
+    /**
+     * @param int $instance_id
+     * @return void
+     * @throws \dml_exception
+     */
+    public function delete_instance_by_id(int $instance_id): void {
+        global $DB;
+
+        if (!$DB->delete_records("block_instances", ['id' => $instance_id])) {
+            throw new sharing_cart_exception('unexpectederror');
+        }
     }
 
     /**

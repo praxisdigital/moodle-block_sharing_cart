@@ -56,6 +56,18 @@ class block_sharing_cart extends block_base {
         return true;
     }
 
+    public function instance_create(): bool {
+        $controller = new controller();
+        $context = context_course::instance($this->page->course->id);
+
+        if (count($controller->get_records_by_context_id($context->id)) > 1) {
+            $controller->delete_instance_by_id($this->instance->id);
+            return false;
+        }
+
+        return true;
+    }
+
 	/**
 	 *  Get the block content
 	 *
