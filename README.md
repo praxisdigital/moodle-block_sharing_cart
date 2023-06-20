@@ -16,7 +16,7 @@ Warning: PHP versions 7.2 and older are deprecated, and will cause problems, unr
 
 Change Log
 ----------
-* 4.1, release 1 2023.06.16
+* 4.1, release 2 2023.06.16
   * Fixed backup filename doesn't trim spaces.
   * Make backup filename more random.
 * 4.1, release 1 2023.03.23
