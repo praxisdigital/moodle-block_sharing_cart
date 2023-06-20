@@ -404,6 +404,25 @@ class controller_test extends sharing_chart_testcase {
         $this->assertCount(0, $entities_with_folder);
     }
 
+    public function test_get_unique_filename(): void
+    {
+        self::setAdminUser();
+
+        $controller = new class() extends controller {
+            public function get_unique_filename_extended(string $name): string
+            {
+                return $this->get_unique_filename($name);
+            }
+        };
+
+        $name = "Word1 Word2      Word3 Word4  ";
+        $expected = 'word1-word2-word3-wo';
+        $actual = $controller->get_unique_filename_extended($name);
+
+        self::assertTrue(mb_strpos($actual, $expected) !== false);
+        self::assertTrue(mb_strpos(' ', $actual) === false);
+    }
+
     /**
      * @param $a
      * @param $b

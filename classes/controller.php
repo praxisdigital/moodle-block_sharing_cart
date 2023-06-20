@@ -176,12 +176,22 @@ class controller {
      * @return string
      */
     protected function get_unique_filename(string $modtext): string{
-	    $cleanname = \clean_filename(strip_tags($modtext));
-	    if ($this->get_string_length($cleanname) > self::MAX_FILENAME) {
-		    $cleanname = $this->get_sub_string($cleanname, 0, self::MAX_FILENAME) . '_';
+	    $clean_name = \clean_filename(strip_tags(trim($modtext)));
+        $clean_name = preg_replace('/\s+/', '-', $clean_name);
+        $max_length = self::MAX_FILENAME;
+
+	    if ($this->get_string_length($clean_name) > $max_length) {
+		    $clean_name = $this->get_sub_string($clean_name, 0, self::MAX_FILENAME);
+            $clean_name = rtrim($clean_name, '-');
 	    }
-	    $cleanname = mb_strtolower($cleanname, 'UTF-8');
-	    return sprintf('%s-%s-%s.mbz', self::PREFIX_FILENAME, $cleanname, microtime(true));
+
+	    $clean_name = mb_strtolower($clean_name, 'UTF-8');
+        $prefix = self::PREFIX_FILENAME;
+        $time = time();
+        $micro_time = microtime(true);
+        $name = "{$modtext}-{$micro_time}";
+        $checksum = hash('md5', $name);
+        return "{$prefix}-{$clean_name}-{$checksum}-{$time}.mbz";
     }
 
     /**
