@@ -1,7 +1,9 @@
 Sharing Cart
 ============
 
-**Sharing Cart 4.3 released (4.2 version skipped). Sharing cart basket icon now visible by default since 4.1, release 3**  To drag item directly into your sharing cart, change the settings. 
+**Sharing Cart 4.3 released (4.2 version skipped). Sharing cart basket icon now visible by default since 4.1, release 3** 
+
+To drag item directly into your sharing cart, change the settings. 
 The old way of clicking the basket icon is now default. - Users who have already upgraded to 4.0, release 1 will need to manually change it back to the old way in settings.
 
 Version 4.3, release 1 - 2023.11.01
@@ -12,11 +14,9 @@ The "master" branch requires Moodle 4.2 or newer.
 * Moodle 2.2 => "MOODLE_22_STABLE" branch
 * Moodle 1.9 => "MOODLE_19_STABLE" branch
 
-Warning: PHP versions 7.4 and older are deprecated, and will cause problems, unrelated to the Sharing Cart, such as badges.
-
 Change Log
 ----------
-- 4.4, release 4 2024.02.06
+* 4.4, release 4 2024.02.06
   * Added an anonymize userdata checkbox to the confirm modal
 * 4.4, release 3 2024.02.05
   * various fixes by Frederik
@@ -276,7 +276,6 @@ Change Log
     * New feature: Option to copy with user data (for Wiki, Forum, Database, etc.)
     * Improvement: Ajaxify
 
-
 Purpose
 -------
 The Sharing Cart is a block that enables sharing of Moodle content
@@ -287,15 +286,21 @@ It copies and moves single course items without user data
 Items can be collected and saved on the Sharing Cart indefinitely,
 serving as a library of frequently used course items available for duplication.
 
-
 Requirements
 ------------
-New Versions:  Moodle 3.3 or later
-Older Versions: Moodle 2.3.1 or later, with AJAX enabled
-PHP version 7.2 deprecated, PHP version 7.4 or above recommended to cover future upgrades
-* Capabilities
-    - moodle/restore:restoreactivity
-    - moodle/restore:restorecourse
+Moodle Version: Moodle 4.2 or later
+PHP version 8.0 or above
+
+**Capabilities**
+ - Required for backup/restore
+   - moodle/restore:restorecourse
+   - moodle/restore:restoreactivity
+   - moodle/backup:backupactivity
+   - moodle/course:manageactivities
+ - Required specifically for userdata
+   - moodle/backup:userinfo
+   - moodle/backup:anonymise
+   - moodle/restore:userinfo
 
 Tags
 ------------

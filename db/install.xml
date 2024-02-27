@@ -9,7 +9,6 @@
                 <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" UNSIGNED="true" SEQUENCE="true"/>
                 <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
                 <FIELD NAME="modname" TYPE="char" LENGTH="32" NOTNULL="true" SEQUENCE="false"/>
-                <FIELD NAME="modicon" TYPE="char" LENGTH="32" NOTNULL="true" SEQUENCE="false"/>
                 <FIELD NAME="modtext" TYPE="text" NOTNULL="true" SEQUENCE="false"/>
                 <FIELD NAME="ctime" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
                 <FIELD NAME="filename" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false"/>

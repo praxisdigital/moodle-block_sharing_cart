@@ -289,7 +289,6 @@ class backup_repository
         $sharing_cart_record ??= (object)[
             'userid' => $user_id,
             'modname' => $cm->modname,
-            'modicon' => $cm->icon,
             'modtext' => $this->cm_repo->get_title($cm),
             'tree' => '',
             'weight' => $this->get_next_weight_by_path($user_id, ''),
@@ -408,7 +407,6 @@ class backup_repository
         $record = [
             'userid' => $user_id,
             'modname' => $cm->modname,
-            'modicon' => $cm->icon,
             'modtext' => $this->cm_repo->get_title($cm),
             'ctime' => time(),
             'filename' => $backup_file ? $backup_file->get_filename() : $this->get_backup_filename($cm),
@@ -435,7 +433,6 @@ class backup_repository
         $record = (object)[
             'userid' => $user_id,
             'modname' => '',
-            'modicon' => '',
             'modtext' => '',
             'ctime' => time(),
             'filename' => '',

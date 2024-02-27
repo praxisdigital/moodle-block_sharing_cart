@@ -140,7 +140,6 @@ class provider implements
         $collection->add_database_table('block_sharing_cart', [
             'userid' => 'privacy:metadata:block_sharing_cart:userid',
             'modname' => 'privacy:metadata:block_sharing_cart:modname',
-            'modicon' => 'privacy:metadata:block_sharing_cart:modicon',
             'modtext' => 'privacy:metadata:block_sharing_cart:modtext',
             'ctime' => 'privacy:metadata:block_sharing_cart:ctime',
             'tree' => 'privacy:metadata:block_sharing_cart:tree',

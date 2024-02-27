@@ -220,32 +220,14 @@ class renderer {
 		</li>';
     }
 
-    /**
-     *  Render a module icon
-     *
-     * @param stdClass $item
-     * @return string
-     * @throws coding_exception
-     * @global core_renderer $OUTPUT
-     */
-    public static function render_modicon(stdClass $item): string {
+    public static function render_modicon(object $item): string {
         global $OUTPUT;
 
         if(isset($item->uninstalled_plugin) && $item->uninstalled_plugin) {
             return '<i class="icon fa fa-fw fa-exclamation text-danger align-self-center" title="'.get_string('uninstalled_plugin_warning_title', 'block_sharing_cart', 'mod_'.$item->modname).'"></i>';
         }
 
-        $src = '<img class="activityicon iconsmall iconcustom" src="' . $OUTPUT->image_url('icon', $item->modname) . '" alt="" />';
-        if (!empty($item->modicon)) {
-            // @see /lib/modinfolib.php#get_icon_url()
-            if (strncmp($item->modicon, 'mod/', 4) == 0) {
-                [$modname, $iconname] = explode('/', substr($item->modicon, 4), 2);
-                $src = $OUTPUT->image_icon($iconname, $modname);
-            } else {
-                $src = $OUTPUT->image_icon($item->modicon, 'modicon');
-            }
-        }
-        return $src;
+        return '<img class="activityicon iconsmall iconcustom" src="' . $OUTPUT->image_url('icon', $item->modname) . '" alt="" />';
     }
 
     /**

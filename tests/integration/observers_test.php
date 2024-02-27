@@ -99,7 +99,6 @@ class observers_test extends advanced_testcase
     {
         $record['userid'] = $user_id;
         $record['modname'] ??= 'label';
-        $record['modicon'] ??= '';
         $record['modtext'] ??= 'test';
         $record['ctime'] ??= time();
         $record['filename'] ??= 'test.mbz';

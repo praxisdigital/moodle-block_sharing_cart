@@ -217,7 +217,6 @@ abstract class sharing_chart_testcase extends advanced_testcase {
     protected function create_sharing_chart_record($user, $course, $section = 0, $filename = null): object {
         $filename = $filename ?? md5(random_bytes(16));
         $modname = md5(random_bytes(16));
-        $modicon = md5(random_bytes(16));
         $modtext = md5(random_bytes(16));
 
         $params = [
@@ -228,7 +227,6 @@ abstract class sharing_chart_testcase extends advanced_testcase {
             'weight' => 1,
             'filename' => $filename,
             'modname' => $modname,
-            'modicon' => $modicon,
             'modtext' => $modtext,
             'tree' => '',
         ];

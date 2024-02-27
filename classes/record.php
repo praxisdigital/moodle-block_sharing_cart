@@ -33,7 +33,6 @@ use block_sharing_cart\exception as sharing_cart_exception;
  * @property int $id
  * @property int $userid
  * @property string $modname
- * @property string $modicon
  * @property string $modtext
  * @property int $ctime
  * @property string $filename

@@ -381,7 +381,6 @@ class controller {
         $record = new record([
             'userid' => $user_id,
             'modname' => $cm->modname,
-            'modicon' => $cm->icon,
             'modtext' => $modtext,
             'filename' => $filename,
             'course' => $course,
@@ -421,11 +420,10 @@ class controller {
      */
     public function backup_emptysection(int $courseid, int $sectionid): int {
         global $DB, $USER;
-        $newitem = new stdClass();
+        $newitem = (object)[];
         $newitem->id = 0;
         $newitem->userid = $USER->id;
         $newitem->modname = '';
-        $newitem->modicon = '';
         $newitem->modtext = '';
         $newitem->ctime = time();
         $newitem->filename = '';

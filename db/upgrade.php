@@ -279,5 +279,16 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0) {
         upgrade_block_savepoint(true, 2024011800, 'sharing_cart');
     }
 
+    if ($oldversion < 2024022700) {
+        $table = new xmldb_table('block_sharing_cart');
+        $field = new xmldb_field('modicon');
+
+        if ($dbman->field_exists($table, $field)) {
+            $dbman->drop_field($table, $field);
+        }
+
+        upgrade_block_savepoint(true, 2024022700, 'sharing_cart');
+    }
+
     return true;
 }
