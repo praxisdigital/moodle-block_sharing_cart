@@ -90,6 +90,7 @@ export default class BlockElement {
         this.setupItems();
         this.setupDragAndDrop();
         this.setupBulkDelete();
+        this.setupBulkEdit();
 
         return {course: this.#course, queue: this.#queue, block: this};
     }
@@ -206,6 +207,70 @@ export default class BlockElement {
 
             await this.confirmDeleteItems(itemIds);
         });
+    }
+
+    setupBulkEdit() {
+        const selectAllCheckbox = this.#element.querySelector('#select_all_box');
+        const selectAllLabel = this.#element.querySelector('#select_all_label');
+        const bulkDeleteButton = this.#element.querySelector('#block_sharing_cart_bulk_delete_confirm');
+        const cancelBulkDeleteButton = this.#element.querySelector('#block_sharing_cart_cancel_bulk_delete');
+        const bulkDeleteTrigger = this.#element.querySelector('#block_sharing_cart_bulk_delete');
+
+        const checkboxSelector = '.sharing_cart_item input[data-action="bulk_select"][type="checkbox"]';
+        const itemCheckboxes = this.#element.querySelectorAll(checkboxSelector);
+
+        const updateBulkDeleteButtonState = () => {
+            bulkDeleteButton.disabled = !Array.from(itemCheckboxes).some(checkbox => checkbox.checked);
+        };
+
+        const updateSelectAllState = async () => {
+            const allSelected = Array.from(itemCheckboxes).every(checkbox => checkbox.checked);
+            const someSelected = Array.from(itemCheckboxes).some(checkbox => checkbox.checked);
+            selectAllCheckbox.checked = allSelected;
+            selectAllCheckbox.indeterminate = !allSelected && someSelected;
+            selectAllLabel.textContent = allSelected ?
+                await get_string('deselect_all', 'block_sharing_cart') :
+                await get_string('select_all', 'block_sharing_cart');
+        };
+
+        const toggleSelectAll = () => {
+            const allSelected = Array.from(itemCheckboxes).every(checkbox => checkbox.checked);
+            itemCheckboxes.forEach(checkbox => {
+                checkbox.checked = !allSelected;
+            });
+            updateBulkDeleteButtonState();
+            updateSelectAllState();
+        };
+
+        const showBulkDeleteUI = () => {
+            selectAllCheckbox.classList.remove('d-none');
+            selectAllLabel.classList.remove('d-none');
+            cancelBulkDeleteButton.classList.remove('d-none');
+            bulkDeleteTrigger.classList.add('d-none');
+        };
+
+        const hideBulkDeleteUI = () => {
+            selectAllCheckbox.classList.add('d-none');
+            selectAllLabel.classList.add('d-none');
+            cancelBulkDeleteButton.classList.add('d-none');
+            bulkDeleteTrigger.classList.remove('d-none');
+            itemCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateBulkDeleteButtonState();
+            updateSelectAllState();
+        };
+
+        selectAllCheckbox.addEventListener('click', toggleSelectAll);
+        itemCheckboxes.forEach(checkbox => checkbox.addEventListener('change', () => {
+            updateBulkDeleteButtonState();
+            updateSelectAllState();
+        }));
+        bulkDeleteTrigger.addEventListener('click', showBulkDeleteUI);
+        cancelBulkDeleteButton.addEventListener('click', hideBulkDeleteUI);
+
+        updateBulkDeleteButtonState();
+        updateSelectAllState();
     }
 
     /**

@@ -261,48 +261,4 @@ export default class ItemElement {
     remove() {
         this.#element.remove();
     }
-    #addEventListeners() {
-        this.#element.querySelector('.info').addEventListener('click', this.toggleCollapseRecursively.bind(this));
-
-        const checkbox = this.#element.querySelector('input[data-action="bulk_select"][type="checkbox"]');
-        checkbox?.addEventListener('click', () => {
-            const bulkDeleteButton = document.getElementById('block_sharing_cart_bulk_delete_confirm');
-
-            const blockSelector = '.block.block_sharing_cart';
-            const checkboxSelector = blockSelector + ' .sharing_cart_item input[data-action="bulk_select"][type="checkbox"]';
-            bulkDeleteButton.disabled = document.querySelectorAll(checkboxSelector + ':checked').length <= 0;
-        });
-
-        const actionsContainer = this.#element.querySelector(':scope > .item-body .sharing_cart_item_actions');
-
-        actionsContainer?.querySelector('[data-action="delete"]')?.addEventListener(
-            'click',
-            this.confirmDeleteItem.bind(this)
-        );
-        actionsContainer?.querySelector('[data-action="copy_to_course"]')?.addEventListener(
-            'click',
-            this.copyItemToCourse.bind(this)
-        );
-        actionsContainer?.querySelector('[data-action="run_now"]')?.addEventListener(
-            'click',
-            this.runNow.bind(this)
-        );
-
-        // Add event listener for the "Select All" checkbox
-        const selectAllCheckbox = document.getElementById('select_all_box');
-        selectAllCheckbox?.addEventListener('click', this.toggleSelectAll.bind(this));
-    }
-
-    toggleSelectAll() {
-        const selectAllCheckbox = document.getElementById('select_all_box');
-        const checkboxes = this.#element.querySelectorAll('input[data-action="bulk_select"][type="checkbox"]');
-        const allSelected = Array.from(checkboxes).every(checkbox => checkbox.checked);
-
-        checkboxes.forEach(checkbox => checkbox.checked = !allSelected);
-        selectAllCheckbox.textContent = allSelected ? 'Select All' : 'Deselect All';
-
-        // Update the state of the bulk delete button
-        const bulkDeleteButton = document.getElementById('block_sharing_cart_bulk_delete_confirm');
-        bulkDeleteButton.disabled = !Array.from(checkboxes).some(checkbox => checkbox.checked);
-    }
 }

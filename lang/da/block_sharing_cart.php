@@ -46,6 +46,9 @@ $string['bulk_delete'] = 'Slet flere';
 $string['cancel_bulk_delete'] = 'Annuller';
 $string['delete_marked_items'] = 'Slet valgte elementer';
 
+$string['select_all'] = 'Vælg alle';
+$string ['deselect_all'] = 'Fravælg alle';
+
 $string['no_course_modules_in_section'] = 'Ingen kursusmoduler i denne sektion';
 $string['no_course_modules_in_section_description'] = 'Denne sektion indeholder ikke nogen kursusmoduler, og du kan derfor ikke kopiere den.';
 
