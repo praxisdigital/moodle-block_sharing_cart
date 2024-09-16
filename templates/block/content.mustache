@@ -25,18 +25,20 @@
                 </span>
             </div>
             <hr>
-            <div class="sharing_cart_items">
-                {{#items}}
-                    {{> block_sharing_cart/block/item}}
-                {{/items}}
-                {{^items.0}}
-                    {{#str}}no_items, block_sharing_cart{{/str}}
-                {{/items.0}}
+            <div class="sharing_cart_item">
+                <input type="checkbox" id="select_all_box" class="ml-2">
+                <label class="font-weight-bold ml-1">Select All</label>
+                <div class="sharing_cart_items">
+                    {{#items}}
+                        {{> block_sharing_cart/block/item}}
+                    {{/items}}
+                    {{^items}}
+                        {{#str}}no_items, block_sharing_cart{{/str}}
+                    {{/items}}
+                </div>
             </div>
-            <button type="button" class="btn btn-primary mt-3 w-100 d-none" id="block_sharing_cart_bulk_delete_confirm"
-                    disabled>
-                <span class="mr-1">{{#str}}delete_marked_items, block_sharing_cart{{/str}}</span><i
-                    class="fa fa-trash"></i>
+            <button type="button" class="btn btn-primary mt-3 w-100 d-none" id="block_sharing_cart_bulk_delete_confirm" disabled>
+                <span class="mr-1">{{#str}}delete_marked_items, block_sharing_cart{{/str}}</span><i class="fa fa-trash"></i>
             </button>
         </div>
         {{#showCopySectionInBlock}}
@@ -45,14 +47,33 @@
                 <select class="custom-select w-100">
                     <option disabled selected>{{#str}}choosedots, core{{/str}}</option>
                 </select>
-                <button type="button" class="btn btn-primary mt-3 w-100">{{#str}}
-                    copy_section, block_sharing_cart{{/str}}</button>
+                <button type="button" class="btn btn-primary mt-3 w-100">{{#str}}copy_section, block_sharing_cart{{/str}}</button>
             </div>
         {{/showCopySectionInBlock}}
     </div>
 </div>
 {{#js}}
-    require(['block_sharing_cart/local/block'], function (component) {
+    require(['block_sharing_cart/local/block', 'block_sharing_cart/app/block/item/element'], (component, ItemElement) => {
     component.init('block_sharing_cart', {{canBackupUserdata}}, {{canAnonymizeUserdata}}, {{showSharingCartBasket}}, {{courseContextId}});
+
+    const selectAllCheckbox = document.getElementById('select_all_box');
+    const bulkDeleteButton = document.getElementById('block_sharing_cart_bulk_delete_confirm');
+    const itemCheckboxes = document.querySelectorAll('.sharing_cart_items input[data-action="bulk_select"][type="checkbox"]');
+
+    const updateBulkDeleteButtonState = () => {
+    bulkDeleteButton.disabled = !Array.from(itemCheckboxes).some(checkbox => checkbox.checked);
+    };
+
+    const toggleSelectAll = () => {
+    const allSelected = Array.from(itemCheckboxes).every(checkbox => checkbox.checked);
+    itemCheckboxes.forEach(checkbox => checkbox.checked = !allSelected);
+    selectAllCheckbox.textContent = allSelected ? 'Select All' : 'Deselect All';
+    updateBulkDeleteButtonState();
+    };
+
+    selectAllCheckbox.addEventListener('click', toggleSelectAll);
+    itemCheckboxes.forEach(checkbox => checkbox.addEventListener('change', updateBulkDeleteButtonState));
+
+    updateBulkDeleteButtonState();
     });
 {{/js}}
