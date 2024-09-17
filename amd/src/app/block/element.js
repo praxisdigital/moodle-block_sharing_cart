@@ -90,7 +90,6 @@ export default class BlockElement {
         this.setupItems();
         this.setupDragAndDrop();
         this.setupBulkDelete();
-        // this.setupBulkEdit();
 
         return {course: this.#course, queue: this.#queue, block: this};
     }
@@ -171,9 +170,9 @@ export default class BlockElement {
         const bulkDeleteButton = this.#element.querySelector('#block_sharing_cart_bulk_delete_confirm');
 
         const checkboxSelector = '.sharing_cart_item input[data-action="bulk_select"][type="checkbox"]';
-
         const selectAllCheckbox = this.#element.querySelector('#select_all_box');
         const selectAllLabel = this.#element.querySelector('#select_all_label');
+
         const cancelBulkDeleteButton = this.#element.querySelector('#block_sharing_cart_cancel_bulk_delete');
         const bulkDeleteTrigger = this.#element.querySelector('#block_sharing_cart_bulk_delete');
 
@@ -273,9 +272,6 @@ export default class BlockElement {
         });
     }
 
-    // setupBulkEdit() {
-    //
-    // }
 
     /**
      * @param {HTMLElement} element
