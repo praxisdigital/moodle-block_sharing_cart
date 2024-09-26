@@ -281,9 +281,42 @@ export default class BlockElement {
 
         this.#element.querySelector('.no-items')?.remove();
 
-        this.#items.push(
-            itemElement
-        );
+        this.#items.push(itemElement);
+
+        const checkboxSelector = '.sharing_cart_item input[data-action="bulk_select"][type="checkbox"]';
+        const getItemCheckboxes = () => this.#element.querySelectorAll(checkboxSelector);
+
+        getItemCheckboxes().forEach(checkbox => checkbox.addEventListener('change', () => {
+            this.updateBulkDeleteButtonState();
+            this.updateSelectAllState();
+        }));
+
+        this.updateBulkDeleteButtonState();
+        this.updateSelectAllState();
+    }
+
+    updateBulkDeleteButtonState() {
+        const bulkDeleteButton = this.#element.querySelector('#block_sharing_cart_bulk_delete_confirm');
+        const checkboxSelector = '.sharing_cart_item input[data-action="bulk_select"][type="checkbox"]';
+        const getItemCheckboxes = () => this.#element.querySelectorAll(checkboxSelector);
+
+        bulkDeleteButton.disabled = !Array.from(getItemCheckboxes()).some(checkbox => checkbox.checked);
+    }
+
+    async updateSelectAllState() {
+        const checkboxSelector = '.sharing_cart_item input[data-action="bulk_select"][type="checkbox"]';
+        const getItemCheckboxes = () => this.#element.querySelectorAll(checkboxSelector);
+        const selectAllCheckbox = this.#element.querySelector('#select_all_box');
+        const selectAllLabel = this.#element.querySelector('#select_all_label');
+
+        const itemCheckboxes = getItemCheckboxes();
+        const allSelected = Array.from(itemCheckboxes).every(checkbox => checkbox.checked);
+        const someSelected = Array.from(itemCheckboxes).some(checkbox => checkbox.checked);
+        selectAllCheckbox.checked = allSelected;
+        selectAllCheckbox.indeterminate = !allSelected && someSelected;
+        selectAllLabel.textContent = allSelected ?
+            await get_string('deselect_all', 'block_sharing_cart') :
+            await get_string('select_all', 'block_sharing_cart');
     }
 
     /**
@@ -579,19 +612,6 @@ export default class BlockElement {
         this.#element.querySelector('.sharing_cart_items').prepend(element);
 
         this.setupItem(element);
-
-        // Re-attach event listeners to the checkboxes
-        const checkboxSelector = '.sharing_cart_item input[data-action="bulk_select"][type="checkbox"]';
-        const getItemCheckboxes = () => this.#element.querySelectorAll(checkboxSelector);
-
-        getItemCheckboxes().forEach(checkbox => checkbox.addEventListener('change', () => {
-            this.updateBulkDeleteButtonState();
-            this.updateSelectAllState();
-        }));
-
-        // Update the state of the select all checkbox and bulk delete button
-        this.updateBulkDeleteButtonState();
-        this.updateSelectAllState();
     }
 
     /**
