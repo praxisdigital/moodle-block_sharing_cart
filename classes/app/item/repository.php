@@ -163,6 +163,10 @@ class repository extends \block_sharing_cart\app\repository
             return;
         }
 
+        $course_info = $this->base_factory->backup()->handler()->get_backup_course_info($file);
+        $root_item->set_original_course_fullname($course_info['fullname']);
+        $this->update($root_item);
+
         $tree = $this->base_factory->backup()->handler()->get_backup_item_tree($file);
         $section = array_values($tree)[0];
         $this->insert_activities($section->activities, $root_item);

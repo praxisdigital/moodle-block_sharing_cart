@@ -480,5 +480,20 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool
         upgrade_block_savepoint(true, 2024072900, 'sharing_cart');
     }
 
+    if ($oldversion < 2024100800) {
+        $xmldb_table = new xmldb_table('block_sharing_cart_items');
+
+        if (!$dbman->field_exists($xmldb_table, 'original_course_fullname')) {
+            $dbman->add_field(
+            $xmldb_table,
+            new xmldb_field(
+                'original_course_fullname', XMLDB_TYPE_CHAR, 255, notnull: false
+            )
+        );
+    }
+
+        upgrade_block_savepoint(true, 2024100800, 'sharing_cart');
+    }
+
     return true;
 }
