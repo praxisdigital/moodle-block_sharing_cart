@@ -170,7 +170,46 @@ export default class BlockElement {
         const bulkDeleteButton = this.#element.querySelector('#block_sharing_cart_bulk_delete_confirm');
 
         const checkboxSelector = '.sharing_cart_item input[data-action="bulk_select"][type="checkbox"]';
+        const selectAllCheckbox = this.#element.querySelector('#select_all_box');
+        const selectAllLabel = this.#element.querySelector('#select_all_label');
 
+        const cancelBulkDeleteButton = this.#element.querySelector('#block_sharing_cart_cancel_bulk_delete');
+        const bulkDeleteTrigger = this.#element.querySelector('#block_sharing_cart_bulk_delete');
+
+        const getItemCheckboxes = () => this.#element.querySelectorAll(checkboxSelector);
+        const hideBulkDeleteUI = () => {
+            selectAllCheckbox.classList.add('d-none');
+            selectAllLabel.classList.add('d-none');
+            cancelBulkDeleteButton.classList.add('d-none');
+            bulkDeleteTrigger.classList.remove('d-none');
+            getItemCheckboxes().forEach(checkbox => {
+                checkbox.checked = false;
+            });
+
+        };
+
+        const toggleSelectAll = () => {
+            const itemCheckboxes = getItemCheckboxes();
+            const allSelected = Array.from(itemCheckboxes).every(checkbox => checkbox.checked);
+            itemCheckboxes.forEach(checkbox => {
+                checkbox.checked = !allSelected;
+            });
+
+        selectAllCheckbox.addEventListener('click', toggleSelectAll);
+        getItemCheckboxes().forEach(checkbox => checkbox.addEventListener('change', () => {
+
+        }));
+
+            const showBulkDeleteUI = () => {
+                selectAllCheckbox.classList.remove('d-none');
+                selectAllLabel.classList.remove('d-none');
+                cancelBulkDeleteButton.classList.remove('d-none');
+                bulkDeleteTrigger.classList.add('d-none');
+
+        bulkDeleteTrigger.addEventListener('click', showBulkDeleteUI);
+        cancelBulkDeleteButton.addEventListener('click', hideBulkDeleteUI);
+    }
+        };
         enableBulkDeleteButton.addEventListener('click', () => {
             enableBulkDeleteButton.classList.add('d-none');
             disableBulkDeleteButton.classList.remove('d-none');
@@ -216,9 +255,42 @@ export default class BlockElement {
 
         this.#element.querySelector('.no-items')?.remove();
 
-        this.#items.push(
-            itemElement
-        );
+        this.#items.push(itemElement);
+
+        const checkboxSelector = '.sharing_cart_item input[data-action="bulk_select"][type="checkbox"]';
+        const getItemCheckboxes = () => this.#element.querySelectorAll(checkboxSelector);
+
+        getItemCheckboxes().forEach(checkbox => checkbox.addEventListener('change', () => {
+            this.updateBulkDeleteButtonState();
+            this.updateSelectAllState();
+        }));
+
+        this.updateBulkDeleteButtonState();
+        this.updateSelectAllState();
+    }
+
+    updateBulkDeleteButtonState() {
+        const bulkDeleteButton = this.#element.querySelector('#block_sharing_cart_bulk_delete_confirm');
+        const checkboxSelector = '.sharing_cart_item input[data-action="bulk_select"][type="checkbox"]';
+        const getItemCheckboxes = () => this.#element.querySelectorAll(checkboxSelector);
+
+        bulkDeleteButton.disabled = !Array.from(getItemCheckboxes()).some(checkbox => checkbox.checked);
+    }
+
+    async updateSelectAllState() {
+        const checkboxSelector = '.sharing_cart_item input[data-action="bulk_select"][type="checkbox"]';
+        const getItemCheckboxes = () => this.#element.querySelectorAll(checkboxSelector);
+        const selectAllCheckbox = this.#element.querySelector('#select_all_box');
+        const selectAllLabel = this.#element.querySelector('#select_all_label');
+
+        const itemCheckboxes = getItemCheckboxes();
+        const allSelected = Array.from(itemCheckboxes).every(checkbox => checkbox.checked);
+        const someSelected = Array.from(itemCheckboxes).some(checkbox => checkbox.checked);
+        selectAllCheckbox.checked = allSelected;
+        selectAllCheckbox.indeterminate = !allSelected && someSelected;
+        selectAllLabel.textContent = allSelected ?
+            await get_string('deselect_all', 'block_sharing_cart') :
+            await get_string('select_all', 'block_sharing_cart');
     }
 
     /**

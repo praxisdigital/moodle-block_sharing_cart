@@ -46,6 +46,9 @@ $string['bulk_delete'] = 'Bulk delete';
 $string['cancel_bulk_delete'] = 'Cancel';
 $string['delete_marked_items'] = 'Delete marked items';
 
+$string['select_all'] = 'Select all';
+$string ['deselect_all'] = 'Deselect all';
+
 $string['no_course_modules_in_section'] = 'No course modules in this section';
 $string['no_course_modules_in_section_description'] = 'This section does not contain any course modules and you are therefore not able to copy it.';
 
