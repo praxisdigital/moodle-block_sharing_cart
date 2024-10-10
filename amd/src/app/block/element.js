@@ -79,6 +79,9 @@ export default class BlockElement {
         this.#canBackupUserdata = canBackupUserdata;
         this.#canAnonymizeUserdata = canAnonymizeUserdata;
         this.#showSharingCartBasket = showSharingCartBasket;
+
+        this.updateBulkDeleteButtonState = this.updateBulkDeleteButtonState.bind(this);
+
     }
 
     /**
@@ -179,39 +182,6 @@ export default class BlockElement {
 
 
         const getItemCheckboxes = () => this.#element.querySelectorAll(checkboxSelector);
-
-        const updateBulkDeleteButtonState = () => {
-            bulkDeleteButton.disabled = !Array.from(getItemCheckboxes()).some(checkbox => checkbox.checked);
-        };
-
-        const updateSelectAllState = async () => {
-            const itemCheckboxes = getItemCheckboxes();
-            const allSelected = Array.from(itemCheckboxes).every(checkbox => checkbox.checked);
-            const someSelected = Array.from(itemCheckboxes).some(checkbox => checkbox.checked);
-            selectAllCheckbox.checked = allSelected;
-            selectAllCheckbox.indeterminate = !allSelected && someSelected;
-            selectAllLabel.textContent = allSelected ?
-                await get_string('deselect_all', 'block_sharing_cart') :
-                await get_string('select_all', 'block_sharing_cart');
-        };
-
-        const toggleSelectAll = () => {
-            const itemCheckboxes = getItemCheckboxes();
-            const allSelected = Array.from(itemCheckboxes).every(checkbox => checkbox.checked);
-            itemCheckboxes.forEach(checkbox => {
-                checkbox.checked = !allSelected;
-            });
-            updateBulkDeleteButtonState();
-            updateSelectAllState();
-        };
-
-        const showBulkDeleteUI = () => {
-            selectAllCheckbox.classList.remove('d-none');
-            selectAllLabel.classList.remove('d-none');
-            cancelBulkDeleteButton.classList.remove('d-none');
-            bulkDeleteTrigger.classList.add('d-none');
-        };
-
         const hideBulkDeleteUI = () => {
             selectAllCheckbox.classList.add('d-none');
             selectAllLabel.classList.add('d-none');
@@ -220,21 +190,33 @@ export default class BlockElement {
             getItemCheckboxes().forEach(checkbox => {
                 checkbox.checked = false;
             });
-            updateBulkDeleteButtonState();
-            updateSelectAllState();
+
         };
+
+        const toggleSelectAll = () => {
+            const itemCheckboxes = getItemCheckboxes();
+            const allSelected = Array.from(itemCheckboxes).every(checkbox => checkbox.checked);
+            itemCheckboxes.forEach(checkbox => {
+                checkbox.checked = !allSelected;
+            });
+
+
 
         selectAllCheckbox.addEventListener('click', toggleSelectAll);
         getItemCheckboxes().forEach(checkbox => checkbox.addEventListener('change', () => {
-            updateBulkDeleteButtonState();
-            updateSelectAllState();
+
         }));
+
+            const showBulkDeleteUI = () => {
+                selectAllCheckbox.classList.remove('d-none');
+                selectAllLabel.classList.remove('d-none');
+                cancelBulkDeleteButton.classList.remove('d-none');
+                bulkDeleteTrigger.classList.add('d-none');
+
         bulkDeleteTrigger.addEventListener('click', showBulkDeleteUI);
         cancelBulkDeleteButton.addEventListener('click', hideBulkDeleteUI);
-
-        updateBulkDeleteButtonState();
-        updateSelectAllState();
-
+    }
+        };
         enableBulkDeleteButton.addEventListener('click', () => {
             enableBulkDeleteButton.classList.add('d-none');
             disableBulkDeleteButton.classList.remove('d-none');

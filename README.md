@@ -36,8 +36,7 @@ GPL v3
 Change Log
 ----------
 
-* 5.0, release 1 2024.09.17
-  * Added a select all checkbox to the sharing cart.
+* 5.0, release 1 2024.08.05
      * Total refactor of the whole plugin:
          * Improvements
              * Simplified the database structure.
