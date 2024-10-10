@@ -79,9 +79,6 @@ export default class BlockElement {
         this.#canBackupUserdata = canBackupUserdata;
         this.#canAnonymizeUserdata = canAnonymizeUserdata;
         this.#showSharingCartBasket = showSharingCartBasket;
-
-        this.updateBulkDeleteButtonState = this.updateBulkDeleteButtonState.bind(this);
-
     }
 
     /**
@@ -179,8 +176,6 @@ export default class BlockElement {
         const cancelBulkDeleteButton = this.#element.querySelector('#block_sharing_cart_cancel_bulk_delete');
         const bulkDeleteTrigger = this.#element.querySelector('#block_sharing_cart_bulk_delete');
 
-
-
         const getItemCheckboxes = () => this.#element.querySelectorAll(checkboxSelector);
         const hideBulkDeleteUI = () => {
             selectAllCheckbox.classList.add('d-none');
@@ -199,8 +194,6 @@ export default class BlockElement {
             itemCheckboxes.forEach(checkbox => {
                 checkbox.checked = !allSelected;
             });
-
-
 
         selectAllCheckbox.addEventListener('click', toggleSelectAll);
         getItemCheckboxes().forEach(checkbox => checkbox.addEventListener('change', () => {
@@ -253,7 +246,6 @@ export default class BlockElement {
             await this.confirmDeleteItems(itemIds);
         });
     }
-
 
     /**
      * @param {HTMLElement} element
