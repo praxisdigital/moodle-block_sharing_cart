@@ -176,40 +176,33 @@ export default class BlockElement {
         const cancelBulkDeleteButton = this.#element.querySelector('#block_sharing_cart_cancel_bulk_delete');
         const bulkDeleteTrigger = this.#element.querySelector('#block_sharing_cart_bulk_delete');
 
-        const getItemCheckboxes = () => this.#element.querySelectorAll(checkboxSelector);
-        const hideBulkDeleteUI = () => {
-            selectAllCheckbox.classList.add('d-none');
-            selectAllLabel.classList.add('d-none');
-            cancelBulkDeleteButton.classList.add('d-none');
-            bulkDeleteTrigger.classList.remove('d-none');
-            getItemCheckboxes().forEach(checkbox => {
-                checkbox.checked = false;
-            });
-
-        };
-
-        const toggleSelectAll = () => {
-            const itemCheckboxes = getItemCheckboxes();
+        selectAllCheckbox.addEventListener('click', () => {
+            const itemCheckboxes = this.getItemCheckboxes();
             const allSelected = Array.from(itemCheckboxes).every(checkbox => checkbox.checked);
             itemCheckboxes.forEach(checkbox => {
                 checkbox.checked = !allSelected;
             });
+            itemCheckboxes.forEach(checkbox => checkbox.addEventListener('change', () => {
+                this.updateSelectAllState();
+            }));
+        }
+        );
+        bulkDeleteTrigger.addEventListener('click', () => {
+            selectAllCheckbox.classList.remove('d-none');
+            selectAllLabel.classList.remove('d-none');
+            cancelBulkDeleteButton.classList.remove('d-none');
+            bulkDeleteTrigger.classList.add('d-none');
+        });
+        cancelBulkDeleteButton.addEventListener('click', () => {
+            selectAllCheckbox.classList.add('d-none');
+            selectAllLabel.classList.add('d-none');
+            cancelBulkDeleteButton.classList.add('d-none');
+            bulkDeleteTrigger.classList.remove('d-none');
+            this.getItemCheckboxes().forEach(checkbox => {
+                checkbox.checked = false;
+            });
+        });
 
-        selectAllCheckbox.addEventListener('click', toggleSelectAll);
-        getItemCheckboxes().forEach(checkbox => checkbox.addEventListener('change', () => {
-
-        }));
-
-            const showBulkDeleteUI = () => {
-                selectAllCheckbox.classList.remove('d-none');
-                selectAllLabel.classList.remove('d-none');
-                cancelBulkDeleteButton.classList.remove('d-none');
-                bulkDeleteTrigger.classList.add('d-none');
-
-        bulkDeleteTrigger.addEventListener('click', showBulkDeleteUI);
-        cancelBulkDeleteButton.addEventListener('click', hideBulkDeleteUI);
-    }
-        };
         enableBulkDeleteButton.addEventListener('click', () => {
             enableBulkDeleteButton.classList.add('d-none');
             disableBulkDeleteButton.classList.remove('d-none');
@@ -257,10 +250,7 @@ export default class BlockElement {
 
         this.#items.push(itemElement);
 
-        const checkboxSelector = '.sharing_cart_item input[data-action="bulk_select"][type="checkbox"]';
-        const getItemCheckboxes = () => this.#element.querySelectorAll(checkboxSelector);
-
-        getItemCheckboxes().forEach(checkbox => checkbox.addEventListener('change', () => {
+        this.getItemCheckboxes().forEach(checkbox => checkbox.addEventListener('change', () => {
             this.updateBulkDeleteButtonState();
             this.updateSelectAllState();
         }));
@@ -268,22 +258,24 @@ export default class BlockElement {
         this.updateBulkDeleteButtonState();
         this.updateSelectAllState();
     }
+    getItemCheckboxes() {
+        const checkboxSelector = '.sharing_cart_item input[data-action="bulk_select"][type="checkbox"]';
+        return this.#element.querySelectorAll(checkboxSelector);
+    }
 
     updateBulkDeleteButtonState() {
         const bulkDeleteButton = this.#element.querySelector('#block_sharing_cart_bulk_delete_confirm');
-        const checkboxSelector = '.sharing_cart_item input[data-action="bulk_select"][type="checkbox"]';
-        const getItemCheckboxes = () => this.#element.querySelectorAll(checkboxSelector);
-
-        bulkDeleteButton.disabled = !Array.from(getItemCheckboxes()).some(checkbox => checkbox.checked);
+        bulkDeleteButton.disabled = !Array.from(this.getItemCheckboxes()).some(checkbox => checkbox.checked);
     }
 
     async updateSelectAllState() {
-        const checkboxSelector = '.sharing_cart_item input[data-action="bulk_select"][type="checkbox"]';
-        const getItemCheckboxes = () => this.#element.querySelectorAll(checkboxSelector);
+        const selectAllContainer = this.#element.querySelector('#select_all_container');
+        selectAllContainer.classList.toggle('d-none', this.#items.length === 0);
+
         const selectAllCheckbox = this.#element.querySelector('#select_all_box');
         const selectAllLabel = this.#element.querySelector('#select_all_label');
 
-        const itemCheckboxes = getItemCheckboxes();
+        const itemCheckboxes = this.getItemCheckboxes();
         const allSelected = Array.from(itemCheckboxes).every(checkbox => checkbox.checked);
         const someSelected = Array.from(itemCheckboxes).some(checkbox => checkbox.checked);
         selectAllCheckbox.checked = allSelected;
@@ -397,6 +389,7 @@ export default class BlockElement {
 
                     await this.removeItemElement(item);
                 }
+                this.updateSelectAllState();
 
                 document.getElementById('block_sharing_cart_bulk_delete_confirm').disabled = true;
             },
@@ -544,7 +537,10 @@ export default class BlockElement {
     async renderItem(item) {
         const existingItemIndex = this.#items.findIndex((i) => i.getItemId() === item.id);
         const existingItem = this.#items[existingItemIndex] ?? false;
-        const oldElement = this.#element.querySelector('.sharing_cart_items .sharing_cart_item[data-itemid="' + item.id + '"]');
+        const getOldElement = () => {
+            return this.#element.querySelector('.sharing_cart_items .sharing_cart_item[data-itemid="' + item.id + '"]');
+        };
+        const oldElement = getOldElement();
         if (existingItem && oldElement) {
             const element = await this.#baseFactory.moodle().template().createElementFromFragment(
                 'block_sharing_cart',
@@ -554,6 +550,11 @@ export default class BlockElement {
                     item_id: item.id,
                 }
             );
+
+            // Early exit if the element has been removed from the DOM in between rendering and checking earlier.
+            if (getOldElement() !== oldElement) {
+                return;
+            }
 
             this.#element.querySelector('.sharing_cart_items').replaceChild(element, oldElement);
             this.#items[existingItemIndex] = this.#baseFactory.block().item().element(this, element);

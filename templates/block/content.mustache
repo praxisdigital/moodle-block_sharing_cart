@@ -26,8 +26,10 @@
             </div>
             <hr>
             <div class="sharing_cart_items_wrapper">
+                <div id="select_all_container">
                 <input type="checkbox" id="select_all_box" class="ml-2 d-none">
                 <label class="font-weight-bold ml-1 d-none" id="select_all_label">{{#str}}select_all, block_sharing_cart{{/str}}</label>
+            </div>
                 <div class="sharing_cart_items">
                     {{#items}}
                         {{> block_sharing_cart/block/item}}
