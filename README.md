@@ -70,6 +70,8 @@ GPL v3
 Change Log
 ----------
 
+* 5.0, release 7 2025.11.13
+    * Added support for PHP 8.4
 * 5.0, release 6 2025.09.24
     * Added a CLI script to delete all the items from the sharing cart.
     * Fix an issue when restoring non-local backup files.
