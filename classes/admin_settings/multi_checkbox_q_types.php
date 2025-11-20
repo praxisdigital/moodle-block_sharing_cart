@@ -11,7 +11,7 @@ require_once $CFG->dirroot . '/question/engine/bank.php';
 
 class multi_checkbox_q_types extends multi_checkbox_with_icon
 {
-    public function __construct(string $name, string $visiblename, string $description, $defaultsetting = null)
+    public function __construct(string $name, string $visiblename, string $description, ?array $defaultsetting = null)
     {
         global $OUTPUT;
 
