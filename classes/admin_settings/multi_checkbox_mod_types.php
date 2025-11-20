@@ -11,7 +11,7 @@ use block_sharing_cart\app\factory as base_factory;
 
 class multi_checkbox_mod_types extends multi_checkbox_with_icon
 {
-    public function __construct(string $name, string $visiblename, string $description, $defaultsetting = null)
+    public function __construct(string $name, string $visiblename, string $description, ?array $defaultsetting = null)
     {
         $base_factory = base_factory::make();
         $db = $base_factory->moodle()->db();

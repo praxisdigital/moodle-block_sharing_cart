@@ -15,7 +15,7 @@ class multi_checkbox_with_icon extends \admin_setting_configmulticheckbox
         string $name,
         string $visiblename,
         string $description,
-        $defaultsetting,
+        ?array $defaultsetting,
         array $choices,
         array $icons
     ) {
