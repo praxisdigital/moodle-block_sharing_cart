@@ -197,7 +197,21 @@ export default class QueueElement {
                 this.#element.appendChild(element);
             });
 
+            if (queueItems.length > 0) {
+                this.showSegmentTitle();
+            } else {
+                this.hideSegmentTitle();
+            }
+
             resolve();
         });
+    }
+
+    hideSegmentTitle() {
+        this.#element.parentElement.querySelector('h6').classList.add('d-none');
+    }
+
+    showSegmentTitle() {
+        this.#element.parentElement.querySelector('h6').classList.remove('d-none');
     }
 }

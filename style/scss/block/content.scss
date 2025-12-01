@@ -141,6 +141,7 @@
   .sharing_cart_queue {
     display: flex;
     flex-direction: column;
+    gap: .5rem;
 
     i.fa-spinner {
       margin: auto;
