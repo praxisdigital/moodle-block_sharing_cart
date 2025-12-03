@@ -1,30 +1,28 @@
-<div id="block_sharing_cart" data-contextid="{{contextid}}" data-can-backup="{{canBackup}}">
+<div id="block_sharing_cart" data-contextid="{{courseContextId}}" data-can-backup="{{canBackup}}">
     <div class="drop_here_text">
         <strong class="m-auto">{{#str}}drop_here, block_sharing_cart{{/str}}</strong>
     </div>
     <div class="block-content">
-        <div class="mb-3">
-            <strong>
+        <div class="mb-3 {{^showCopiesQueuedSegmentWhenEmpty}}d-none{{/showCopiesQueuedSegmentWhenEmpty}}">
+            <h6 class="font-weight-bold mb-2 pb-2 border-bottom">
                 {{#str}}restores, block_sharing_cart{{/str}}
-            </strong>
-            <hr>
+            </h6>
             <div class="sharing_cart_queue">
                 <i class="fa fa-spinner"></i>
             </div>
         </div>
-        <div class="mb-3">
-            <div class="d-flex align-items-center">
-                <strong class="mr-auto mb-0">
+        <div>
+            <div class="d-flex align-items-center pb-2 border-bottom">
+                <h6 class="mr-auto font-weight-bold mb-0">
                     {{#str}}items, block_sharing_cart{{/str}}
-                </strong>
+                </h6>
                 <span role="button" class="user-select-none d-none" id="block_sharing_cart_cancel_bulk_delete">
                     <span class="mr-1">{{#str}}cancel_bulk_delete, block_sharing_cart{{/str}}</span>
                 </span>
-                <span role="button" class="user-select-none" id="block_sharing_cart_bulk_delete">
+                <span role="button" class="user-select-none {{^items.1}}d-none{{/items.1}}" id="block_sharing_cart_bulk_delete">
                     <span class="mr-1">{{#str}}bulk_delete, block_sharing_cart{{/str}}</span><i class="fa fa-trash"></i>
                 </span>
             </div>
-            <hr>
             <div class="sharing_cart_items_wrapper">
                 <div id="select_all_container" class="d-none">
                     <input type="checkbox" id="select_all_box" class="ml-2">
@@ -37,8 +35,11 @@
                         {{> block_sharing_cart/block/item}}
                     {{/items}}
 
-                    <div class="no-items text-muted {{#items.0}}d-none{{/items.0}}">
+                    <div class="no-items mt-2 text-muted {{#items.0}}d-none{{/items.0}}">
                         {{#str}}no_items, block_sharing_cart{{/str}}
+                    </div>
+                    <div class="has-items mt-2 text-muted {{^items.0}}d-none{{/items.0}}">
+                        {{#str}}has_items, block_sharing_cart{{/str}}
                     </div>
                 </div>
             </div>
@@ -50,8 +51,10 @@
         </div>
         {{#showCopySectionInBlock}}
             {{#canBackup}}
-                <div id="copy_section_container">
-                    <hr>
+                <div id="copy_section_container" class="mt-3">
+                    <h6 class="font-weight-bold mb-2 pb-2 border-bottom">
+                        {{#str}}backup_a_section, block_sharing_cart{{/str}}
+                    </h6>
                     <select class="custom-select w-100">
                         <option disabled selected>{{#str}}choosedots, core{{/str}}</option>
                     </select>
@@ -63,6 +66,6 @@
 </div>
 {{#js}}
     require(['block_sharing_cart/local/block'], (component) => {
-    component.init('block_sharing_cart', {{canBackupUserdata}}, {{canAnonymizeUserdata}}, {{canBackup}}, {{showSharingCartBasket}}, {{courseContextId}});
+        component.init('block_sharing_cart', {{canBackupUserdata}}, {{canAnonymizeUserdata}}, {{canBackup}}, {{showSharingCartBasket}}, {{showCopiesQueuedSegmentWhenEmpty}});
     });
 {{/js}}

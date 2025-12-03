@@ -68,6 +68,11 @@ export default class BlockElement {
     #showSharingCartBasket = false;
 
     /**
+     * @type {Boolean}
+     */
+    #showCopiesQueuedSegmentWhenEmpty = true;
+
+    /**
      * @type {Number|null}
      */
     #draggedCourseModuleId = null;
@@ -89,14 +94,24 @@ export default class BlockElement {
      * @param {Boolean} canAnonymizeUserdata
      * @param {Boolean} canBackup
      * @param {Boolean} showSharingCartBasket
+     * @param {Boolean} showCopiesQueuedSegmentWhenEmpty
      */
-    constructor(baseFactory, element, canBackupUserdata, canAnonymizeUserdata, canBackup, showSharingCartBasket) {
+    constructor(
+        baseFactory,
+        element,
+        canBackupUserdata,
+        canAnonymizeUserdata,
+        canBackup,
+        showSharingCartBasket,
+        showCopiesQueuedSegmentWhenEmpty
+    ) {
         this.#baseFactory = baseFactory;
         this.#element = element;
         this.#canBackupUserdata = canBackupUserdata;
         this.#canAnonymizeUserdata = canAnonymizeUserdata;
         this.#canBackup = canBackup;
         this.#showSharingCartBasket = showSharingCartBasket;
+        this.#showCopiesQueuedSegmentWhenEmpty = showCopiesQueuedSegmentWhenEmpty;
     }
 
     /**
@@ -121,7 +136,7 @@ export default class BlockElement {
     setupQueue() {
         const queue = document.querySelector('.sharing_cart_queue');
 
-        this.#queue = this.#baseFactory.block().queue().element(this, queue);
+        this.#queue = this.#baseFactory.block().queue().element(this, queue, this.#showCopiesQueuedSegmentWhenEmpty);
     }
 
     async setupItems() {
@@ -133,6 +148,7 @@ export default class BlockElement {
 
         this.#sortable = new Sortable(this.#element.querySelector('.sharing_cart_items'), {
             dataIdAttr: 'data-itemid',
+            draggable: '.sharing_cart_item',
             onUpdate: () => {
                 Ajax.call([{
                     methodname: 'block_sharing_cart_reorder_sharing_cart_items',
@@ -271,6 +287,12 @@ export default class BlockElement {
         }
 
         this.#element.querySelector('.no-items').classList.add('d-none');
+        this.#element.querySelector('.has-items').classList.remove('d-none');
+
+        const rootItems = this.#element.querySelectorAll('.sharing_cart_items > .sharing_cart_item');
+        if (this.#bulkDeleteEnabled === false && rootItems.length > 1) {
+            this.#element.querySelector('#block_sharing_cart_bulk_delete').classList.remove('d-none');
+        }
 
         const existingItemIndex = this.#items.findIndex((i) => i.getItemId() === itemElement.getItemId());
         if (existingItemIndex !== -1) {
@@ -372,7 +394,27 @@ export default class BlockElement {
 
         if (this.#items.length === 0) {
             this.#element.querySelector('.no-items').classList.remove('d-none');
+            this.#element.querySelector('.has-items').classList.add('d-none');
         }
+
+        const rootItems = this.#element.querySelectorAll('.sharing_cart_items > .sharing_cart_item');
+        if (rootItems.length < 2) {
+            this.hideBulkDelete();
+        }
+    }
+
+    hideBulkDelete() {
+        this.#bulkDeleteEnabled = false;
+        this.#element.querySelector('#block_sharing_cart_cancel_bulk_delete').classList.add('d-none');
+        this.#element.querySelector('#block_sharing_cart_bulk_delete_confirm').classList.add('d-none');
+        this.#element.querySelector('#block_sharing_cart_bulk_delete').classList.add('d-none');
+        this.#element.querySelector('#select_all_container').classList.add('d-none');
+
+        this.getItemCheckboxes().forEach((checkbox) => {
+            checkbox.classList.add('d-none');
+            checkbox.checked = false;
+        });
+        this.updateSelectAllState();
     }
 
     /**

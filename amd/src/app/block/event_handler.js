@@ -16,9 +16,16 @@ export default class EventHandler {
      * @param {Boolean} canAnonymizeUserdata
      * @param {Boolean} canBackup
      * @param {Boolean} showSharingCartBasket
+     * @param {Boolean} showCopiesQueuedSegmentWhenEmpty
      */
-    onLoad(canBackupUserdata, canAnonymizeUserdata, canBackup, showSharingCartBasket) {
-        return this.setupBlock(canBackupUserdata, canAnonymizeUserdata, canBackup, showSharingCartBasket);
+    onLoad(canBackupUserdata, canAnonymizeUserdata, canBackup, showSharingCartBasket, showCopiesQueuedSegmentWhenEmpty) {
+        return this.setupBlock(
+            canBackupUserdata,
+            canAnonymizeUserdata,
+            canBackup,
+            showSharingCartBasket,
+            showCopiesQueuedSegmentWhenEmpty
+        );
     }
 
     /**
@@ -26,9 +33,10 @@ export default class EventHandler {
      * @param {Boolean} canAnonymizeUserdata
      * @param {Boolean} canBackup
      * @param {Boolean} showSharingCartBasket
+     * @param {Boolean} showCopiesQueuedSegmentWhenEmpty
      * @returns {{course: CourseElement, block: BlockElement, queue: QueueElement}}
      */
-    setupBlock(canBackupUserdata, canAnonymizeUserdata, canBackup, showSharingCartBasket) {
+    setupBlock(canBackupUserdata, canAnonymizeUserdata, canBackup, showSharingCartBasket, showCopiesQueuedSegmentWhenEmpty) {
         const block = document.querySelector('.block.block_sharing_cart');
 
         const blockElement = this.#baseFactory.block().element(
@@ -36,7 +44,8 @@ export default class EventHandler {
             canBackupUserdata,
             canAnonymizeUserdata,
             canBackup,
-            showSharingCartBasket
+            showSharingCartBasket,
+            showCopiesQueuedSegmentWhenEmpty
         );
         return blockElement.addEventListeners();
     }

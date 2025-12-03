@@ -7,7 +7,8 @@ $string['pluginname'] = 'Delingskurv';
 $string['items'] = 'Backups';
 $string['restores'] = 'Kopieringer i kø';
 $string['no_items'] = 'Ingen backups.<br><br>Træk og slip aktiviteter eller sektioner ind i delingskurven eller klik på <i class="fa fa-shopping-basket"></i> ikonet, for at tilføje elementer til Delingskurven.';
-$string['no_restores'] = '<div class="no-restores text-muted">Ingen kopieringer i kø.<br><br>Klik på <i class="fa fa-clone"></i> ikonet for at kopiere elementer fra Delingskurven til kurset.</div>';
+$string['no_restores'] = '<div class="no-restores font-italic text-muted">Ingen kopieringer i kø.</div>';
+$string['has_items'] = 'Klik på <i class="fa fa-clone"></i> ikonet for at kopiere elementer fra Delingskurven til kurset.';
 $string['nopermissions'] = 'Du har ikke tilladelse til at lave backup eller gendanne elementer i dette kursus. Kontakt venligst din administrator, hvis du mener, dette er en fejl.';
 
 $string['module_is_disabled_on_site'] = 'Dette modul er blevet deaktiveret på siden, og du vil ikke kunne kopiere det.';
@@ -22,6 +23,7 @@ $string['confirm_delete_items'] = 'Er du sikker på, at du vil slette disse back
 
 $string['copy_item'] = 'Kopier backup';
 $string['into_section'] = 'ind i sektion';
+$string['backup_a_section'] = 'Kopier en sektion';
 $string['confirm_copy_item_form_text'] = 'Er du sikker på, at du vil kopiere denne backup? Nedenfor kan du vælge, hvad der skal inkluderes i kopien.';
 $string['confirm_copy_item'] = 'Er du sikker på, at du vil kopiere denne backup?';
 $string['copying_this_item'] = 'Kopierer denne backup';
@@ -70,6 +72,8 @@ $string['settings:show_sharing_cart_basket'] = 'Vis delingskurv kurv';
 $string['settings:show_sharing_cart_basket_desc'] = 'Vis delingskurv kurven på kursussiden, når du er i redigerings tilstand. Dette giver brugerne mulighed for at klikke og kopiere aktiviteter og sektioner ind i delingskurven. Hvis du skjuler kurven, kan brugerne stadig trække og slippe aktiviteter og sektioner ind i delingskurven.';
 $string['settings:show_copy_section_in_block'] = 'Vis "Kopiér sektion" knap i blokken';
 $string['settings:show_copy_section_in_block_desc'] = 'Vis "Kopiér sektion" knap i Delingskurv blokken. Hvis du skjuler knappen, kan brugerne stadig kopiere sektioner ved at trække og slippe dem ind i Delingskurven.';
+$string['settings:show_copies_queued_segment_when_empty'] = 'Vis "Kopieringer i kø" segment, når det er tomt.';
+$string['settings:show_copies_queued_segment_when_empty_desc'] = 'Vis "Kopieringer i kø" segmentet i delingskurven, selv når der ikke er nogen kopieringer i kø.';
 
 // Privacy
 $string['privacy:metadata:sharing_cart_items:tabledesc'] = 'Tabellen, der gemmer delingskurv elementer';

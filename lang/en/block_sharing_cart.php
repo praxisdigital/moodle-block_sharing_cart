@@ -7,7 +7,8 @@ $string['pluginname'] = 'Sharing Cart';
 $string['items'] = 'Items';
 $string['restores'] = 'Copies queued';
 $string['no_items'] = 'No items.<br><br>Drag & drop activities or sections into the sharing cart or click the <i class="fa fa-shopping-basket"></i> icon, to add items to the Sharing Cart.';
-$string['no_restores'] = '<div class="no-restores text-muted">No copies queued.<br><br>Click the <i class="fa fa-clone"></i> icon to copy items from the Sharing Cart to the course.</div>';
+$string['no_restores'] = '<div class="no-restores font-italic text-muted">No copies queued.</div>';
+$string['has_items'] = 'Click the <i class="fa fa-clone"></i> icon to copy items from the Sharing Cart to the course.';
 $string['nopermissions'] = 'You do not have permission to backup or restore items in this course. Please contact your administrator if you think this is a mistake.';
 
 $string['module_is_disabled_on_site'] = 'This module have been disabled on the site, you will be unable to copy it.';
@@ -22,6 +23,7 @@ $string['confirm_delete_items'] = 'Are you sure you want to delete these items? 
 
 $string['copy_item'] = 'Copy item';
 $string['into_section'] = 'into section';
+$string['backup_a_section'] = 'Copy a section';
 $string['confirm_copy_item_form_text'] = 'Are you sure you want to copy this item? Below you can select what to include in the copy.';
 $string['confirm_copy_item'] = 'Are you sure you want to copy this item?';
 $string['copying_this_item'] = 'Copying this item';
@@ -70,7 +72,8 @@ $string['settings:show_sharing_cart_basket'] = 'Show the sharing cart basket';
 $string['settings:show_sharing_cart_basket_desc'] = 'Show the sharing cart basket on the course page when in editing mode. This allows users to click and copy activities & sections into the sharing cart. If you hide the basket, users can still drag and drop activities & sections into the sharing cart.';
 $string['settings:show_copy_section_in_block'] = 'Show the "Copy section" in block';
 $string['settings:show_copy_section_in_block_desc'] = 'Show the "Copy section" in the sharing cart block, underneath all modules/activities';
-
+$string['settings:show_copies_queued_segment_when_empty'] = 'Show "Copies queued" segment when it\'s empty';
+$string['settings:show_copies_queued_segment_when_empty_desc'] = 'Show the "Copies queued" segment in the sharing cart, even when there are no copies queued.';
 
 // Privacy
 $string['privacy:metadata:sharing_cart_items:tabledesc'] = 'The table that stores sharing cart items';
