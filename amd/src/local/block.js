@@ -35,6 +35,7 @@ export default class Block extends BaseComponent {
         this.canAnonymizeUserdata = descriptor.canAnonymizeUserdata ?? false;
         this.canBackup = descriptor.canBackup ?? false;
         this.showSharingCartBasket = descriptor.showSharingCartBasket ?? false;
+        this.showCopiesQueuedSegmentWhenEmpty = descriptor.showCopiesQueuedSegmentWhenEmpty ?? true;
     }
 
     /**
@@ -45,15 +46,24 @@ export default class Block extends BaseComponent {
      * @param {Boolean} canAnonymizeUserdata
      * @param {Boolean} canBackup
      * @param {Boolean} showSharingCartBasket
+     * @param {Boolean} showCopiesQueuedSegmentWhenEmpty
      */
-    static init(target, canBackupUserdata, canAnonymizeUserdata, canBackup, showSharingCartBasket) {
+    static init(
+        target,
+        canBackupUserdata,
+        canAnonymizeUserdata,
+        canBackup,
+        showSharingCartBasket,
+        showCopiesQueuedSegmentWhenEmpty
+    ) {
         return new this({
             element: document.getElementById(target),
             reactive: getCurrentCourseEditor(),
             canBackupUserdata,
             canAnonymizeUserdata,
             canBackup,
-            showSharingCartBasket
+            showSharingCartBasket,
+            showCopiesQueuedSegmentWhenEmpty
         });
     }
 
@@ -66,7 +76,8 @@ export default class Block extends BaseComponent {
             this.canBackupUserdata,
             this.canAnonymizeUserdata,
             this.canBackup,
-            this.showSharingCartBasket
+            this.showSharingCartBasket,
+            this.showCopiesQueuedSegmentWhenEmpty
         );
 
         this.course = course;

@@ -1,10 +1,10 @@
-<div id="block_sharing_cart" data-contextid="{{contextid}}" data-can-backup="{{canBackup}}">
+<div id="block_sharing_cart" data-contextid="{{courseContextId}}" data-can-backup="{{canBackup}}">
     <div class="drop_here_text">
         <strong class="m-auto">{{#str}}drop_here, block_sharing_cart{{/str}}</strong>
     </div>
     <div class="block-content">
-        <div class="mb-3">
-            <h6 class="font-weight-bold mb-2 pb-2 border-bottom d-none">
+        <div class="mb-3 {{^showCopiesQueuedSegmentWhenEmpty}}d-none{{/showCopiesQueuedSegmentWhenEmpty}}">
+            <h6 class="font-weight-bold mb-2 pb-2 border-bottom">
                 {{#str}}restores, block_sharing_cart{{/str}}
             </h6>
             <div class="sharing_cart_queue">
@@ -51,7 +51,10 @@
         </div>
         {{#showCopySectionInBlock}}
             {{#canBackup}}
-                <div id="copy_section_container" class="mt-3 pt-3 border-top">
+                <div id="copy_section_container" class="mt-3">
+                    <h6 class="font-weight-bold mb-2 pb-2 border-bottom">
+                        {{#str}}backup_a_section, block_sharing_cart{{/str}}
+                    </h6>
                     <select class="custom-select w-100">
                         <option disabled selected>{{#str}}choosedots, core{{/str}}</option>
                     </select>
@@ -63,6 +66,6 @@
 </div>
 {{#js}}
     require(['block_sharing_cart/local/block'], (component) => {
-    component.init('block_sharing_cart', {{canBackupUserdata}}, {{canAnonymizeUserdata}}, {{canBackup}}, {{showSharingCartBasket}}, {{courseContextId}});
+        component.init('block_sharing_cart', {{canBackupUserdata}}, {{canAnonymizeUserdata}}, {{canBackup}}, {{showSharingCartBasket}}, {{showCopiesQueuedSegmentWhenEmpty}});
     });
 {{/js}}

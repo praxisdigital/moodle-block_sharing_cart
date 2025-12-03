@@ -16,9 +16,10 @@ export default class Factory {
     /**
      * @param {BlockElement} blockElement
      * @param {HTMLElement} element
+     * @param {boolean} showCopiesQueuedSegmentWhenEmpty
      * @returns {QueueElement}
      */
-    element(blockElement, element) {
-        return new QueueElement(this.#baseFactory, blockElement, element);
+    element(blockElement, element, showCopiesQueuedSegmentWhenEmpty) {
+        return new QueueElement(this.#baseFactory, blockElement, element, showCopiesQueuedSegmentWhenEmpty);
     }
 }

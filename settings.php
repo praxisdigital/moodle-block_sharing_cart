@@ -18,18 +18,6 @@ if ($ADMIN->fulltree) {
         )
     );
 
-    // TODO: Implement the following??
-    /*
-    $settings->add(
-        new \block_sharing_cart\admin_settings\multi_checkbox_q_types(
-            'block_sharing_cart/workaround_qtypes',
-            get_string('settings:workaround_qtypes', 'block_sharing_cart'),
-            get_string('settings:workaround_qtypes_desc', 'block_sharing_cart'),
-            []
-        )
-    );
-    */
-
     $settings->add(
         new admin_setting_configcheckbox(
             'block_sharing_cart/show_copy_section_in_block',
@@ -44,6 +32,15 @@ if ($ADMIN->fulltree) {
             'block_sharing_cart/backup_async_message_users',
             new lang_string('asyncemailenable', 'backup'),
             new lang_string('asyncemailenabledetail', 'backup'),
+            1
+        )
+    );
+
+    $settings->add(
+        new admin_setting_configcheckbox(
+            'block_sharing_cart/show_copies_queued_segment_when_empty',
+            get_string('settings:show_copies_queued_segment_when_empty', 'block_sharing_cart'),
+            get_string('settings:show_copies_queued_segment_when_empty_desc', 'block_sharing_cart'),
             1
         )
     );

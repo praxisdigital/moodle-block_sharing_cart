@@ -68,6 +68,11 @@ export default class BlockElement {
     #showSharingCartBasket = false;
 
     /**
+     * @type {Boolean}
+     */
+    #showCopiesQueuedSegmentWhenEmpty = true;
+
+    /**
      * @type {Number|null}
      */
     #draggedCourseModuleId = null;
@@ -89,14 +94,24 @@ export default class BlockElement {
      * @param {Boolean} canAnonymizeUserdata
      * @param {Boolean} canBackup
      * @param {Boolean} showSharingCartBasket
+     * @param {Boolean} showCopiesQueuedSegmentWhenEmpty
      */
-    constructor(baseFactory, element, canBackupUserdata, canAnonymizeUserdata, canBackup, showSharingCartBasket) {
+    constructor(
+        baseFactory,
+        element,
+        canBackupUserdata,
+        canAnonymizeUserdata,
+        canBackup,
+        showSharingCartBasket,
+        showCopiesQueuedSegmentWhenEmpty
+    ) {
         this.#baseFactory = baseFactory;
         this.#element = element;
         this.#canBackupUserdata = canBackupUserdata;
         this.#canAnonymizeUserdata = canAnonymizeUserdata;
         this.#canBackup = canBackup;
         this.#showSharingCartBasket = showSharingCartBasket;
+        this.#showCopiesQueuedSegmentWhenEmpty = showCopiesQueuedSegmentWhenEmpty;
     }
 
     /**
@@ -121,7 +136,7 @@ export default class BlockElement {
     setupQueue() {
         const queue = document.querySelector('.sharing_cart_queue');
 
-        this.#queue = this.#baseFactory.block().queue().element(this, queue);
+        this.#queue = this.#baseFactory.block().queue().element(this, queue, this.#showCopiesQueuedSegmentWhenEmpty);
     }
 
     async setupItems() {
