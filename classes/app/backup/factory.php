@@ -29,6 +29,7 @@ class factory
             $user_id,
             \backup::RELEASESESSION_YES
         );
+
     }
 
     public function handler(): handler

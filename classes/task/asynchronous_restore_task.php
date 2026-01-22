@@ -221,6 +221,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
     ): void {
         mtrace("Excluding/Including activities...");
 
+        //NEED FOR SUBSECTION CHILDREN DISCOVERY HERE!
         foreach ($restore_controller->get_plan()->get_tasks() as $task) {
             if ($task instanceof \restore_activity_task) {
                 $cm_id = (int)$task->get_old_moduleid();
@@ -264,6 +265,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             $started,
             $finished
         );
+        mtrace(print_r($event, true));
         $event->trigger();
     }
 

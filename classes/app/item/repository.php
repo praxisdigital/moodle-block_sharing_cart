@@ -129,7 +129,7 @@ class repository extends \block_sharing_cart\app\repository
                     'status' => $status,
                     'version' => entity::CURRENT_BACKUP_VERSION,
                     'timecreated' => $time,
-                    'timemodified' => $time,
+                    'timemodified' => $time
                 ]
             )
         );
@@ -170,7 +170,19 @@ class repository extends \block_sharing_cart\app\repository
 
         $tree = $this->base_factory->backup()->handler()->get_backup_item_tree($file);
         $section = array_values($tree)[0];
-        $this->insert_activities($section->activities, $root_item);
+
+        //Flatten the $section, so that nested activities under subsections are inline with un-nested activities.
+        $flattened_activities = [];
+        foreach($section->activities as $activity) {
+            if($activity->modulename == "subsection"){
+                foreach($activity->subsection_activities as $subsection_activity) {
+                    $flattened_activities[] = $subsection_activity;
+                }
+            }
+            $flattened_activities[] = $activity;
+        }
+
+        $this->insert_activities($flattened_activities, $root_item);
     }
 
     public function get_recursively_by_parent_id(int $item_id, ?collection $items = null): collection

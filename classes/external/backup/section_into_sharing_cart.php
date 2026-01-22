@@ -62,7 +62,11 @@ class section_into_sharing_cart extends external_api
         $backup_task = $base_factory->backup()->handler()->backup_section($params['section_id'], $item, $settings);
 
         $return = $item->to_array();
-        $return['task_id'] = $backup_task->get_id();
+        $return['task_id'] = $backup_task["task"]->get_id();
+        $return['section_id_used'] = $params['section_id'];
+        $return['course_id_used'] = $course_id;
+        $return["controller"] = print_r($backup_task["controller"]->debug_display_all_settings_values(),true);
+
 
         return (object)$return;
     }
@@ -82,6 +86,10 @@ class section_into_sharing_cart extends external_api
             'version' => new external_value(PARAM_INT, 'The version of the item', VALUE_REQUIRED),
             'timecreated' => new external_value(PARAM_INT, 'The time the item was created', VALUE_REQUIRED),
             'timemodified' => new external_value(PARAM_INT, 'The time the item was last modified', VALUE_REQUIRED),
+            'section_id_used' => new external_value(PARAM_TEXT, 'The name of awetwaet item', VALUE_REQUIRED),
+            'course_id_used' => new external_value(PARAM_TEXT, 'The name of awetsxg item', VALUE_REQUIRED),
+            'controller' => new external_value(PARAM_TEXT, 'The name of awetxdtgresa item', VALUE_REQUIRED),
+
         ]);
     }
 }

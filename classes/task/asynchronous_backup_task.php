@@ -178,6 +178,9 @@ class asynchronous_backup_task extends \core\task\adhoc_task
                 );
             }
 
+            mtrace($backup_controller->debug_display_all_settings_values());
+
+            //Base settings
             $settings = [
                 'role_assignments' => false,
                 'activities' => true,
@@ -207,20 +210,24 @@ class asynchronous_backup_task extends \core\task\adhoc_task
 
                 $settings['anonymize'] = true;
             }
+
+            //Add settings
             $settings += $this->factory()->backup()
                 ->settings_helper()
                 ->get_course_settings_by_item($item_entity, $settings['users']);
 
             $plan = $backup_controller->get_plan();
+
             foreach ($settings as $name => $value) {
                 if ($plan->setting_exists($name)) {
-                    $setting = $plan->get_setting($name);
 
+                    $setting = $plan->get_setting($name);
                     // If locked
                     if (\base_setting::NOT_LOCKED !== $setting->get_status()) {
                         continue;
                     }
-
+                    //THE MODULES CORRESPONDING SECTION MUST BE INCLUDED ALSO!
+                    //FOR THE SET_VALUE TO WORK CORRECTLY.
                     $setting->set_value($value);
                 }
             }
@@ -229,6 +236,8 @@ class asynchronous_backup_task extends \core\task\adhoc_task
 
             $this->filter_away_disabled_course_modules($backup_controller);
 
+            mtrace("These are the settings");
+            mtrace(print_r($backup_controller->debug_display_all_settings_values(), true));
             $this->output('Executing before_backup_started_hook completed, continuing with backup...');
         } catch (\Exception $e) {
             $this->output("An error occurred during before_backup_started_hook");
@@ -327,6 +336,7 @@ class asynchronous_backup_task extends \core\task\adhoc_task
         $this->output("Excluding activities which are disabled on the site...");
 
         foreach ($backup_controller->get_plan()->get_tasks() as $task) {
+
             if ($task instanceof \backup_activity_task) {
                 $cm_id = (int)$task->get_moduleid();
                 $modulename = $task->get_modulename();
@@ -341,6 +351,8 @@ class asynchronous_backup_task extends \core\task\adhoc_task
                     $task->get_setting('included')->set_value(false);
                 }
             }
+
+
         }
     }
 
