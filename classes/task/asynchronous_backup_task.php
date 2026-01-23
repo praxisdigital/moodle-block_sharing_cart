@@ -164,7 +164,7 @@ class asynchronous_backup_task extends \core\task\adhoc_task
             $db = $this->db();
             $item_entity = $this->factory()->item()->repository()->get_by_id($custom_data->item->id);
 
-            if ($item_entity->get_type() === 'section') {
+            if ($item_entity->get_type() === 'section' || $item_entity->get_type() === 'mod_subsection') {
                 $db->get_record(
                     'course_sections',
                     ['id' => $item_entity->get_old_instance_id()],

@@ -110,11 +110,12 @@ class repository extends \block_sharing_cart\app\repository
         return $entity;
     }
 
-    public function insert_section(int $section_id, int $user_id, ?int $parent_item_id, int $status): entity
+    public function insert_section(mixed $section, int $user_id, ?int $parent_item_id, int $status): entity
     {
-        $section = $this->db->get_record('course_sections', ['id' => $section_id], strictness: MUST_EXIST);
 
         $course_format = course_get_format($section->course);
+
+        $entity_type = isset($section->itemid) ? entity::TYPE_MOD_SUBSECTION : entity::TYPE_SECTION;
 
         $time = time();
         $item_id = $this->insert(
@@ -123,8 +124,8 @@ class repository extends \block_sharing_cart\app\repository
                     'user_id' => $user_id,
                     'file_id' => null,
                     'parent_item_id' => $parent_item_id,
-                    'old_instance_id' => $section_id,
-                    'type' => entity::TYPE_SECTION,
+                    'old_instance_id' => $section->id,
+                    'type' => $entity_type,
                     'name' => $course_format->get_section_name($section),
                     'status' => $status,
                     'version' => entity::CURRENT_BACKUP_VERSION,
@@ -221,6 +222,23 @@ class repository extends \block_sharing_cart\app\repository
         }
 
         return $item;
+    }
+
+    public function get_is_subsection($section_id): bool{
+
+        $sql = "SELECT cm.id, cm.section, m.name
+                FROM {course_modules} cm
+                JOIN {modules} as m on cm.module = m.id
+                WHERE cm.course = (SELECT cs.course
+                                   FROM {course_sections} cs
+                                   WHERE cs.id = :section_id)";
+        $params = [
+            'section_id' => $section_id
+        ];
+
+        $this->db->get_records_sql($sql, $params);
+
+        return false;
     }
 
     public function get_stored_file_by_item(entity $item): ?\stored_file

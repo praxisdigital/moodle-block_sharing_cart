@@ -68,6 +68,7 @@ class import_item_modal_body implements \renderable, \core\output\named_templata
                     $subsection_activity->course_modules = [];
                 }
                 $activity->course_modules = $activity->subsection_activities;
+                $activity->id = $activity->moduleid;
             }
             else {
                 $activity->title = format_string($activity->title);
@@ -108,7 +109,7 @@ class import_item_modal_body implements \renderable, \core\output\named_templata
             'can_configure_restore' => $this->can_configure_restore(),
             'sections' => [
                 $section
-            ]
+            ],
         ];
     }
 }

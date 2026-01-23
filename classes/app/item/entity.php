@@ -14,6 +14,7 @@ class entity extends \block_sharing_cart\app\entity
     public const STATUS_BACKUP_FAILED = 2;
 
     public const TYPE_SECTION = 'section';
+    public const TYPE_MOD_SUBSECTION = 'mod_subsection';
 
     Public const CURRENT_BACKUP_VERSION = 3;
 

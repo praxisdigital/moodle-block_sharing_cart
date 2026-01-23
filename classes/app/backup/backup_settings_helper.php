@@ -32,7 +32,7 @@ class backup_settings_helper
         $sections = $this->get_course_sections_by_section_id($section_id);
 
         //Add module settings
-        $settings += $this->get_course_module_settings($course_modules, $section_id, $include_users);
+        $settings += $this->get_course_module_settings($course_modules, $item, $section_id, $include_users);
         //Add section settings
         $settings += $this->get_section_settings($sections, $section_id, $include_users);
 
@@ -43,7 +43,7 @@ class backup_settings_helper
     {
         $course_module_id = null;
 
-        if($item->type === 'section') {
+        if($item->type === 'section' || $item->type === 'mod_subsection') {
             return [$item->old_instance_id, $course_module_id];
         }
         $course_module_id = $item->old_instance_id;
@@ -91,22 +91,6 @@ class backup_settings_helper
         return $db->get_records_sql($sql, $params);
     }
 
-    private function get_subsection_modules(int $subsection_section_id,int $course_id): array
-    {
-        $db = $this->base_factory->moodle()->db();
-
-        $sql = "SELECT cm.id, cm.section, m.name
-                FROM mdl_course_modules cm
-                JOIN mdl_modules as m on cm.module = m.id
-                WHERE cm.section = :subsection_section_id AND cm.course = :course_id";
-        $params = [
-            'subsection_section_id' => $subsection_section_id,
-            'course_id' => $course_id
-        ];
-
-        return $db->get_records_sql($sql, $params);
-    }
-
     private function get_immediate_child_modules_of_section(int $section_id): array
     {
         $db = $this->base_factory->moodle()->db();
@@ -135,6 +119,23 @@ class backup_settings_helper
         return $db->get_records_sql($sql, $params);
     }
 
+    private function get_parent_section_id(int $subsection_section_id): array
+    {
+        $db = $this->base_factory->moodle()->db();
+
+        $sql = "SELECT cm.section AS parent_section_id
+                FROM mdl_course_sections AS cs
+                JOIN mdl_course_modules AS cm ON cs.itemid = cm.instance
+                WHERE cs.id = :subsection_section_id AND cm.module = :module
+        ";
+        $params = [
+            'subsection_section_id' => $subsection_section_id,
+            'module' => "20"
+        ];
+
+        return $db->get_records_sql($sql, $params);
+    }
+
     private function get_section_settings(array $sections, int $section_id, bool $include_users): array
     {
         $settings = [];
@@ -151,6 +152,7 @@ class backup_settings_helper
 
     private function get_course_module_settings(
         array $course_modules,
+        entity $item,
         int $section_id,
         bool $include_users
     ): array
@@ -206,6 +208,26 @@ class backup_settings_helper
             $settings[$subsection_child_module->name . "_" . $subsection_child_module->id . "_included"] = true;
         }
 
+
+        //Subsection's parent section must be included for the backup to work regardless of backup type.
+        if($item->get_type() == "mod_subsection"){
+
+            $parent_section = $this->get_parent_section_id($section_id);
+            if(empty($parent_section)){
+                //ERROR
+            }
+
+            $parent_section_id = $parent_section[array_key_first($parent_section)]->parent_section_id;
+
+            $settings["section" . "_" . $parent_section_id . "_userinfo"] = $include_users;
+            $settings["section" . "_" . $parent_section_id . "_included"] = true;
+
+            //The subsection's own module id must also be included.
+            $settings["subsection" . "_" . "24" . "_userinfo"] = $include_users;
+            $settings["subsection" . "_" . "24" . "_included"] = true;
+        }
+
+        mtrace(print_r($settings, true));
         return $settings;
     }
 }

@@ -41,32 +41,36 @@ class section_into_sharing_cart extends external_api
             'settings' => $settings,
         ]);
 
-        $course_id = $DB->get_field('course_sections', 'course', ['id' => $params['section_id']], MUST_EXIST);
-
-        self::validate_context(
-            \context_course::instance($course_id)
+        $section = $DB->get_record(
+            'course_sections',
+            ['id' => $params['section_id']],
+            'id, section, sequence, course, itemid',
+            MUST_EXIST
         );
 
-        $sequence = $DB->get_field('course_sections', 'sequence', ['id' => $params['section_id']], MUST_EXIST);
-        if (empty($sequence)) {
+        if($section == false){
+            throw new \Exception("Section does not exist");
+        }
+
+        if (empty($section->sequence)) {
             throw new \Exception('Section is empty');
         }
 
+        self::validate_context(
+            \context_course::instance($section->course)
+        );
+
         $item = $base_factory->item()->repository()->insert_section(
-            $params['section_id'],
+            $section,
             $USER->id,
             null,
             entity::STATUS_AWAITING_BACKUP
         );
 
-        $backup_task = $base_factory->backup()->handler()->backup_section($params['section_id'], $item, $settings);
+        $backup_task = $base_factory->backup()->handler()->backup_section($section, $item, $settings);
 
         $return = $item->to_array();
         $return['task_id'] = $backup_task["task"]->get_id();
-        $return['section_id_used'] = $params['section_id'];
-        $return['course_id_used'] = $course_id;
-        $return["controller"] = print_r($backup_task["controller"]->debug_display_all_settings_values(),true);
-
 
         return (object)$return;
     }
@@ -86,10 +90,6 @@ class section_into_sharing_cart extends external_api
             'version' => new external_value(PARAM_INT, 'The version of the item', VALUE_REQUIRED),
             'timecreated' => new external_value(PARAM_INT, 'The time the item was created', VALUE_REQUIRED),
             'timemodified' => new external_value(PARAM_INT, 'The time the item was last modified', VALUE_REQUIRED),
-            'section_id_used' => new external_value(PARAM_TEXT, 'The name of awetwaet item', VALUE_REQUIRED),
-            'course_id_used' => new external_value(PARAM_TEXT, 'The name of awetsxg item', VALUE_REQUIRED),
-            'controller' => new external_value(PARAM_TEXT, 'The name of awetxdtgresa item', VALUE_REQUIRED),
-
         ]);
     }
 }

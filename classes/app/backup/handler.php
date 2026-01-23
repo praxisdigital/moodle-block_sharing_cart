@@ -69,19 +69,19 @@ class handler
         return $this->queue_async_backup($backup_controller, $root_item, $settings);
     }
 
-    public function backup_section(int $section_id, entity $root_item, array $settings = []): array
+    public function backup_section(mixed $section, entity $root_item, array $settings = []): array
     {
         global $USER;
 
         $course_id = $this->base_factory->moodle()->db()->get_record(
             'course_sections',
-            ['id' =>  $section_id],
+            ['id' =>  $section->id],
             'course',
             MUST_EXIST
         )->course;
 
         $backup_controller = $this->base_factory->backup()->backup_controller(
-            \backup::TYPE_1SECTION, //TESTING WITH COPYING A SUBSECTION! THIS IS PROMISING!!!
+            \backup::TYPE_1COURSE,
             $course_id,
             $USER->id
         );
@@ -90,7 +90,7 @@ class handler
 
         backup_section::create_by_section(
             $course_id,
-            $section_id,
+            $section->id,
             $USER->id
         )->trigger();
 

@@ -143,7 +143,7 @@ export default class CourseElement {
             'block_sharing_cart/block/course/clipboard_target',
             {}
         );
-        console.log(item);
+
         this.#clipboardTargetListenerAbortController.abort();
         this.#clipboardTargetListenerAbortController = new AbortController();
 

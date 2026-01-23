@@ -474,6 +474,7 @@ export default class BlockElement {
      * @return {Promise<Modal>}
      */
     async createBackupItemToSharingCartModal(backupType, itemId, itemName, onSave) {
+
         const strings = await get_strings([
             {
                 key: 'backup_item',
@@ -674,7 +675,7 @@ export default class BlockElement {
         this.#course.clearClipboard();
 
         const courseModuleIds = [];
-        modal.querySelectorAll('input[type="checkbox"][data-type="coursemodule"]:checked').forEach((checkbox) => {
+        modal.querySelectorAll('input[type="checkbox"]:checked').forEach((checkbox) => {
             courseModuleIds.push(checkbox.dataset.id);
         });
 
