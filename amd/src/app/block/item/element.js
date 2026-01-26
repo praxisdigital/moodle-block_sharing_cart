@@ -111,7 +111,7 @@ export default class ItemElement {
         );
         actionsContainer?.querySelector('[data-action="copy_to_course"]')?.addEventListener(
             'click',
-            this.copyItemToCourse.bind(this)
+            this.copyToCourse.bind(this)
         );
         actionsContainer?.querySelector('[data-action="run_now"]')?.addEventListener(
             'click',
@@ -119,7 +119,7 @@ export default class ItemElement {
         );
     }
 
-    async copyItemToCourse(e) {
+    async copyToCourse(e) {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
@@ -268,6 +268,10 @@ export default class ItemElement {
 
     isSection() {
         return this.#element.dataset.type === 'section';
+    }
+
+    isSubsection(){
+        return this.#element.dataset.type === 'mod_subsection';
     }
 
     /**

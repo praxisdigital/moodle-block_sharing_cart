@@ -119,14 +119,14 @@ class backup_settings_helper
         return $db->get_records_sql($sql, $params);
     }
 
-    private function get_parent_section_id(int $subsection_section_id): array
+    private function get_mod_subsection_info(int $subsection_section_id): array
     {
         $db = $this->base_factory->moodle()->db();
 
-        $sql = "SELECT cm.section AS parent_section_id
+        $sql = "SELECT cm.section AS parent_section_id, cm.id AS own_module_id
                 FROM mdl_course_sections AS cs
                 JOIN mdl_course_modules AS cm ON cs.itemid = cm.instance
-                WHERE cs.id = :subsection_section_id AND cm.module = :module
+                WHERE cs.id = 49 AND cm.module = 20
         ";
         $params = [
             'subsection_section_id' => $subsection_section_id,
@@ -164,16 +164,13 @@ class backup_settings_helper
             // SET ALL SETTINGS TO FALSE PER DEFAULT, EXPLICITLY HERE.
             // THE SQL QUERY SHOULD OUTPUT THE SETTING NAME AND THE VALUE
 
-
-
-        //WORKING WITH A section_id that points to a nested module, like a subsection or a book under a subsection
-        // YOU MUST WALK BACKWARDS UP TO THE NEAREST REAL SECTION, and include all the way up.
-        //TRY WITH CHANGING THE BACKUP TYPE TO ACTIVITY INSTEAD OF COURSE??
-
         foreach($course_modules as $course_module) {
             //Include all immediate child modules of section(section_id) in the backup plan settings.
-            $settings[$course_module->name . "_" . $course_module->id . "_userinfo"] = ($course_module->section == $section_id) ? $include_users : false;
-            $settings[$course_module->name . "_" . $course_module->id . "_included"] = $course_module->section == $section_id;
+            $this->set_setting($course_module->name,
+                $course_module->id,
+                $course_module->section == $section_id,
+                ($course_module->section == $section_id) ? $include_users : false,
+                $settings);
         }
 
         $immediate_child_modules = $this->get_immediate_child_modules_of_section($section_id);
@@ -212,22 +209,31 @@ class backup_settings_helper
         //Subsection's parent section must be included for the backup to work regardless of backup type.
         if($item->get_type() == "mod_subsection"){
 
-            $parent_section = $this->get_parent_section_id($section_id);
-            if(empty($parent_section)){
+            $subsection_info = $this->get_mod_subsection_info($section_id);
+
+            if(empty($subsection_info)){
                 //ERROR
             }
 
-            $parent_section_id = $parent_section[array_key_first($parent_section)]->parent_section_id;
+            $parent_section_id = $subsection_info[array_key_first($subsection_info)]->parent_section_id;
+            $own_module_id = $subsection_info[array_key_first($subsection_info)]->own_module_id;
 
             $settings["section" . "_" . $parent_section_id . "_userinfo"] = $include_users;
             $settings["section" . "_" . $parent_section_id . "_included"] = true;
 
             //The subsection's own module id must also be included.
-            $settings["subsection" . "_" . "24" . "_userinfo"] = $include_users;
-            $settings["subsection" . "_" . "24" . "_included"] = true;
+            $settings["subsection" . "_" . $own_module_id . "_userinfo"] = $include_users;
+            $settings["subsection" . "_" . $own_module_id . "_included"] = true;
         }
 
         mtrace(print_r($settings, true));
         return $settings;
     }
+
+    private function set_setting(string $setting_name, string $setting_id, bool $setting_value, bool $include_users, array $settings){
+        $settings[$setting_name . "_" . $setting_id . "_userinfo"] = $include_users;
+        $settings[$setting_name . "_" . $setting_id . "_included"] = $setting_value;
+    }
+
+
 }

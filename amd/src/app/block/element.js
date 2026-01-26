@@ -720,6 +720,10 @@ export default class BlockElement {
         e.preventDefault();
         e.stopPropagation();
 
+        window.console.log(item)
+        window.console.log(e)
+        window.console.log(sectionId)
+        window.console.log(item.getItemId())
         const strings = await get_strings([
             {
                 key: 'copy_item',
