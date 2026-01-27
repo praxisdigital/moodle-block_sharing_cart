@@ -126,7 +126,7 @@ class backup_settings_helper
         $sql = "SELECT cm.section AS parent_section_id, cm.id AS own_module_id
                 FROM mdl_course_sections AS cs
                 JOIN mdl_course_modules AS cm ON cs.itemid = cm.instance
-                WHERE cs.id = 49 AND cm.module = 20
+                WHERE cs.id = :subsection_section_id AND cm.module = 20
         ";
         $params = [
             'subsection_section_id' => $subsection_section_id,

@@ -138,6 +138,11 @@ class entity extends \block_sharing_cart\app\entity
         return $this->get_type() === self::TYPE_SECTION;
     }
 
+    public function is_subsection(): bool
+    {
+        return $this->get_type() === self::TYPE_MOD_SUBSECTION;
+    }
+
     public function is_module(): bool
     {
         return !$this->is_section();

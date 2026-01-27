@@ -46,7 +46,7 @@ function block_sharing_cart_output_fragment_item_restore_form($args)
         return '';
     }
 
-    if ($item->is_module()) {
+    if ($item->is_module() && !$item->is_subsection()) {
         return get_string(
             'confirm_copy_item',
             'block_sharing_cart'

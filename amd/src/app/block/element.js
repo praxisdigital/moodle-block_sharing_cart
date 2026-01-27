@@ -656,7 +656,8 @@ export default class BlockElement {
                 task_id: item.task_id ?? null,
                 status_finished: false,
                 status_failed: false,
-                is_module: item.type !== 'section',
+                is_module: item.type !== 'section' && item.type !== 'mod_subsection',
+                is_subsection:item.type === 'mod_subsection',
                 is_section: item.type === 'section',
                 is_root: true,
             }
@@ -723,7 +724,7 @@ export default class BlockElement {
         window.console.log(item)
         window.console.log(e)
         window.console.log(sectionId)
-        window.console.log(item.getItemId())
+
         const strings = await get_strings([
             {
                 key: 'copy_item',
@@ -746,6 +747,8 @@ export default class BlockElement {
         const sectionName = this.#course.getSectionName(sectionId);
         const divElement = document.getElementById('block_sharing_cart');
         const pageContextId = divElement.getAttribute('data-contextid');
+
+        console.log(item.getItemId())
 
         const {html, js} = await this.#baseFactory.moodle().template().renderFragment(
             'block_sharing_cart',

@@ -114,12 +114,13 @@ class handler
 
         $sections = [];
         $subsections = [];
+
         foreach ($info->sections as $section) {
 
             if(isset($section->modname) && $section->modname == 'subsection') {
                 $subsections[$section->sectionid] = (object)[
                     'moduleid' => $section->parentcmid,
-                    'section_id' => $section->sectionid,
+                    'sectionid' => $section->sectionid,
                     'title' => $section->title,
                     'modulename' => $section->modname,
                     'subsection_activities' => []
@@ -141,7 +142,13 @@ class handler
             $sections[array_key_first($sections)]->activities = $subsections;
         }
 
-        if(empty($sections)){$sections = $subsections;}
+        if(empty($sections)){
+            if(empty($subsections)){
+                //If no sections and no subsections are supplied, it's a single activity. Make artificial activities array.
+                $sections["lone_activities"] = (object) ['activities' => []];
+            }
+            else $sections = $subsections;
+        }
 
         foreach ($info->activities as $activity) {
 
@@ -156,6 +163,9 @@ class handler
                     'title' => $activity->title,
                     'activities' => []
                 ];
+            }
+            else if(isset($sections["lone_activities"])){
+                $sections["lone_activities"]->activities[] = $activity;
             }
             else{
                 //Activities that live under subsections

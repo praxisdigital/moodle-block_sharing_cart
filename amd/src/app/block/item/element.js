@@ -238,9 +238,15 @@ export default class ItemElement {
     /**
      * @param {HTMLElement} item
      * @param {Boolean|NULL} collapse
+     * @param {Number|NULL} paddingLeftPercent
      */
-    toggleCollapse(item, collapse = null) {
-        if (item.dataset.type !== 'section' &&
+    toggleCollapse(item, collapse = null, paddingLeftPercent = 0) {
+
+        if(item.style.paddingLeft === ''){
+            item.style.paddingLeft = `${paddingLeftPercent}%`;
+        }
+
+        if ((item.dataset.type !== 'section' && item.dataset.type !== 'mod_subsection') &&
             item.dataset.status !== '0' &&
             item.dataset.status !== '2') {
             return;
@@ -257,8 +263,22 @@ export default class ItemElement {
             !iconElement.classList.contains('fa-exclamation-triangle') &&
             !iconElement.classList.contains('fa-exclamation-circle')
         ) {
-            iconElement.classList.remove('fa-folder-o', 'fa-folder-open-o');
-            iconElement.classList.add(item.dataset.collapsed === 'true' ? 'fa-folder-o' : 'fa-folder-open-o');
+
+            let classMap;
+            if (item.dataset.type === "mod_subsection") {
+                classMap = ['fa-bars', 'fa-bars-staggered'];
+            } else if (item.dataset.type === "section") {
+                classMap = ['fa-folder-o', 'fa-folder-open-o'];
+            }
+
+            if (classMap) {
+                iconElement.classList.remove(...classMap);
+
+                //Add the correct class based on collapsed state
+                const collapsed = item.dataset.collapsed === 'true';
+                const classToAdd = collapsed ? classMap[0] : classMap[1];
+                iconElement.classList.add(classToAdd);
+            }
         }
     }
 
@@ -282,13 +302,15 @@ export default class ItemElement {
         e.stopPropagation();
         e.stopImmediatePropagation();
 
-        if (this.isModule() || this.#element.dataset.status !== '1') {
-            return;
-        }
-
         this.toggleCollapse(this.#element);
+
+        let paddingLeftPercent = 0;
         this.getItemChildrenRecursively().forEach((item) => {
-            this.toggleCollapse(item, this.#element.dataset.collapsed === 'true');
+
+            //Increase padding left pr. item child.
+            paddingLeftPercent = Math.max(12.5,paddingLeftPercent+2);
+            this.toggleCollapse(item, this.#element.dataset.collapsed === 'true', paddingLeftPercent);
+
         });
     }
 

@@ -142,14 +142,50 @@ class repository extends \block_sharing_cart\app\repository
 
     private function insert_activities(array $activities, entity $root_item): void
     {
-        foreach ($activities as $activity) {
-            $this->insert_activity(
-                $activity->moduleid,
-                $root_item->get_user_id(),
-                $root_item->get_id(),
-                entity::STATUS_BACKEDUP
-            );
+
+        if($root_item->get_type() == "mod_subsection"){
+            foreach($activities[array_key_first($activities)]->subsection_activities as $subsection_activity) {
+                $this->insert_activity(
+                    $subsection_activity->moduleid,
+                    $root_item->get_user_id(),
+                    $root_item->get_id(),
+                    entity::STATUS_BACKEDUP
+                );
+            }
+            return;
         }
+
+        foreach ($activities as $activity) {
+
+                if($activity->modulename == "subsection") {
+                    $subsection_entity = $this->insert_activity(
+                        $activity->moduleid,
+                        $root_item->get_user_id(),
+                        $root_item->get_id(),
+                        entity::STATUS_BACKEDUP
+                    );
+                    foreach($activity->subsection_activities as $subsection_activity) {
+                        $this->insert_activity(
+                            $subsection_activity->moduleid,
+                            $root_item->get_user_id(),
+                            $subsection_entity->get_id(),
+                            entity::STATUS_BACKEDUP
+                        );
+                    }
+
+                    continue;
+                }
+
+                $this->insert_activity(
+                    $activity->moduleid,
+                    $root_item->get_user_id(),
+                    $root_item->get_id(),
+                    entity::STATUS_BACKEDUP
+                );
+
+            }
+
+
     }
 
     public function update_sharing_cart_item_with_backup_file(entity $root_item, \stored_file $file): void
@@ -165,25 +201,13 @@ class repository extends \block_sharing_cart\app\repository
 
         $this->update($root_item);
 
-        if ($root_item->get_type() !== entity::TYPE_SECTION) {
-            return;
-        }
-
         $tree = $this->base_factory->backup()->handler()->get_backup_item_tree($file);
-        $section = array_values($tree)[0];
 
-        //Flatten the $section, so that nested activities under subsections are inline with un-nested activities.
-        $flattened_activities = [];
-        foreach($section->activities as $activity) {
-            if($activity->modulename == "subsection"){
-                foreach($activity->subsection_activities as $subsection_activity) {
-                    $flattened_activities[] = $subsection_activity;
-                }
-            }
-            $flattened_activities[] = $activity;
+        if(empty($section)){
+            throw new \Exception("Backup file was empty.");
         }
 
-        $this->insert_activities($flattened_activities, $root_item);
+        $this->insert_activities($section[0]->activities, $root_item);
     }
 
     public function get_recursively_by_parent_id(int $item_id, ?collection $items = null): collection
