@@ -143,6 +143,7 @@ class repository extends \block_sharing_cart\app\repository
     private function insert_activities(array $activities, entity $root_item): void
     {
 
+        //Handle a single subsection (with possible nested activities)
         if($root_item->get_type() == "mod_subsection"){
             foreach($activities[array_key_first($activities)]->subsection_activities as $subsection_activity) {
                 $this->insert_activity(
@@ -155,6 +156,7 @@ class repository extends \block_sharing_cart\app\repository
             return;
         }
 
+        //Handle multiple activities
         foreach ($activities as $activity) {
 
                 if($activity->modulename == "subsection") {
@@ -201,13 +203,14 @@ class repository extends \block_sharing_cart\app\repository
 
         $this->update($root_item);
 
-        $tree = $this->base_factory->backup()->handler()->get_backup_item_tree($file);
+        $section = $this->base_factory->backup()->handler()->get_backup_item_tree($file);
 
         if(empty($section)){
             throw new \Exception("Backup file was empty.");
         }
+        if(isset($section['lone_activity'])) return;
 
-        $this->insert_activities($section[0]->activities, $root_item);
+        $this->insert_activities($section[array_key_first($section)]->activities, $root_item);
     }
 
     public function get_recursively_by_parent_id(int $item_id, ?collection $items = null): collection

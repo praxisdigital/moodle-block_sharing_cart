@@ -150,12 +150,6 @@ export default class Block extends BaseComponent {
         this.reactive.state.section.forEach((section) => {
             const option = document.createElement('option');
 
-            const sectionIsEmpty = section.cmlist.length === 0;
-            if (sectionIsEmpty) {
-                option.disabled = true;
-                option.title = noCourseModulesInSections;
-            }
-
             option.value = section.id;
             option.text = section.title;
             option.selected = Number.parseInt(section.id) === Number.parseInt(selectedValue);
@@ -188,22 +182,10 @@ export default class Block extends BaseComponent {
                     backupButton.addEventListener(
                         'click',
                         (e) => {
-                            if (e.currentTarget.classList.contains('disabled')) {
-                                return;
-                            }
-
                             this.block.addSectionBackupToSharingCart(element.id);
                         }
                     );
                 }
-
-                backupButton = sectionTitle.parentElement.querySelector('.add_to_sharing_cart');
-
-                const disabled = element.cmlist.length === 0;
-                backupButton.classList.toggle('disabled', disabled);
-                backupButton.title = disabled ?
-                    await getString('no_course_modules_in_section_description', 'block_sharing_cart') :
-                    '';
             }
         }
     }

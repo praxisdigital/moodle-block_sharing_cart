@@ -145,7 +145,7 @@ class handler
         if(empty($sections)){
             if(empty($subsections)){
                 //If no sections and no subsections are supplied, it's a single activity. Make artificial activities array.
-                $sections["lone_activities"] = (object) ['activities' => []];
+                $sections["lone_activity"] = (object) ['activities' => []];
             }
             else $sections = $subsections;
         }
@@ -164,27 +164,16 @@ class handler
                     'activities' => []
                 ];
             }
-            else if(isset($sections["lone_activities"])){
-                $sections["lone_activities"]->activities[] = $activity;
+            else if(isset($sections["lone_activity"])){
+                $sections["lone_activity"]->activities[] = $activity;
             }
             else{
                 //Activities that live under subsections
                 $sections[array_key_first($sections)]->activities[$activity->sectionid]->subsection_activities[] = $activity;
             }
-
         }
 
         return $sections;
-    }
-
-    public function get_backup_item_tree_test(\stored_file $file): array
-    {
-        $tree = [];
-
-        $info = $this->get_backup_info($file);
-
-        $tree["hejsa"] = print_r($info->sections,true);
-        return $tree;
     }
 
     private function queue_async_backup(

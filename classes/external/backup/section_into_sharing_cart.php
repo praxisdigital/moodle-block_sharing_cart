@@ -52,10 +52,6 @@ class section_into_sharing_cart extends external_api
             throw new \Exception("Section does not exist");
         }
 
-        if (empty($section->sequence)) {
-            throw new \Exception('Section is empty');
-        }
-
         self::validate_context(
             \context_course::instance($section->course)
         );

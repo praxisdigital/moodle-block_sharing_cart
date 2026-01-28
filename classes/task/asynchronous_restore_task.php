@@ -91,6 +91,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 $started,
                 $finished
             );
+
         } catch (\Exception $e) {
             // If an exception is thrown, mark the restore as failed.
             $rc->set_status(\backup::STATUS_FINISHED_ERR);
@@ -118,8 +119,6 @@ class asynchronous_restore_task extends \core\task\adhoc_task
     {
         try {
             mtrace('Executing after_restore_finished_hook...');
-
-            $customdata = $this->get_custom_data();
 
             mtrace('Executing after_restore_finished_hook completed...');
         } catch (\Exception $e) {
@@ -215,13 +214,42 @@ class asynchronous_restore_task extends \core\task\adhoc_task
         }
     }
 
+    private function get_section_name($section_id) : ?string {
+
+        $db = base_factory::make()->moodle()->db();
+        $section_name = $db->get_field(
+            'course_sections',
+            'name',
+            ['id' => $section_id],
+            strictness: IGNORE_MISSING
+        );
+
+        if(!$section_name){
+            return null;
+        }
+
+        return $section_name;
+    }
+
+    private function update_section_name($section_id, $section_name) : bool {
+
+        $db = base_factory::make()->moodle()->db();
+
+        return $db->set_field(
+            'course_sections',
+            'name',
+            $section_name,
+            ['id' => $section_id],
+        );
+
+    }
+
     private function only_include_specified_course_modules(
         \restore_controller $restore_controller,
         array $course_modules_to_include
     ): void {
         mtrace("Excluding/Including activities...");
 
-        //NEED FOR SUBSECTION CHILDREN DISCOVERY HERE!
         foreach ($restore_controller->get_plan()->get_tasks() as $task) {
             if ($task instanceof \restore_activity_task) {
                 $cm_id = (int)$task->get_old_moduleid();
@@ -233,12 +261,13 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 $task->get_setting('included')->set_value($include_activity);
             }
         }
+
     }
 
     private function trigger_restored_event(
         \restore_controller $controller,
         int $started,
-        int $finished
+        int $finished,
     ): void {
         foreach ($controller->get_plan()->get_tasks() as $task) {
             if ($task instanceof \restore_activity_task) {
@@ -257,6 +286,12 @@ class asynchronous_restore_task extends \core\task\adhoc_task
         int $started,
         int $finished
     ): void {
+
+        if($task->get_moduleid() === 0){
+            mtrace("Course module id was 0. Skipping event creation for this module.");
+            return;
+        }
+
         $event = \block_sharing_cart\event\restored_course_module::create_by_course_module(
             $task->get_courseid(),
             $task->get_moduleid(),
@@ -265,7 +300,6 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             $started,
             $finished
         );
-        mtrace(print_r($event, true));
         $event->trigger();
     }
 

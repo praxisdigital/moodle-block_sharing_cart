@@ -187,8 +187,15 @@ class import_item_modal_body implements \renderable, \core\output\named_templata
 
         unset($section->sectionid, $section->activities);
 
+
+        $notice_message = null;
+        if(!isset($section[array_key_first($section)]->modulename) && $){
+
+        }
+
         return [
             'can_configure_restore' => $this->can_configure_restore(),
+            'notice_msg' => "",
             'sections' => [
                 $section
             ],
