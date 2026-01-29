@@ -41,4 +41,9 @@ class factory
     {
         return new backup_settings_helper($this->base_factory);
     }
+
+    public function settings_repository()
+    {
+        return new backup_settings_queries($this->base_factory);
+    }
 }
