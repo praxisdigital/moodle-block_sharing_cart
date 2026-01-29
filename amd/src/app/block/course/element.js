@@ -206,6 +206,7 @@ export default class CourseElement {
     /**
      * Checks whether the section is allowed to have a clipboardTarget button prepended.
      * For example, subsections are not eligible as a clipboard target if the clipboard is a subsection.
+     * Subsections cannot nest subsections.
      * @param {Element} section
      * @param {ItemElement} item
      * @returns {boolean}
@@ -216,12 +217,18 @@ export default class CourseElement {
         if (section.querySelector('.clipboard_target')) {
             return false;
         }
-        //Sections can always we clipboardTargets if the item is not a subsection or section.
+
+        // If the item is nested under a subsection in the clipboard.
+        // And the clipboardTarget is a subsection. (That is not allowed)
+        if(item.isNestedUnderSubsection() && section.closest(".subsection")){
+            return false;
+        }
+
+        //Activities can always be inserted into any clipboardTarget.
         if(!item.isSubsection() && !item.isSection()) return true;
 
-        const parentActivityElement = section.closest('[data-region="activity-card"]')
-        //Sections can never be clipboardTargets if the item is a subsection or section.
-        if(parentActivityElement) return false;
+        //No section nor subsection can be inserted into an activity clipboardTarget.
+        if(section.closest('[data-region="activity-card"]')) return false;
 
         return true;
     }
@@ -233,7 +240,9 @@ export default class CourseElement {
     getSectionName(sectionId) {
         const section = this.reactive.state.section.get(sectionId);
 
-        return section.title ?? 'Unknown';
+        if(section.title) return section.title;
+
+        return 'Unknown';
     }
 
     /**

@@ -205,10 +205,10 @@ class repository extends \block_sharing_cart\app\repository
 
         $section = $this->base_factory->backup()->handler()->get_backup_item_tree($file);
 
+        if(isset($section['lone_activity'])) return;
         if(empty($section)){
             throw new \Exception("Backup file was empty.");
         }
-        if(isset($section['lone_activity'])) return;
 
         $this->insert_activities($section[array_key_first($section)]->activities, $root_item);
     }

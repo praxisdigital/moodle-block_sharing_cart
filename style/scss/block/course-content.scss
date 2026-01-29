@@ -1,3 +1,8 @@
+.user-messages {
+  margin-top: 5%;
+  margin-bottom: 0.5%;
+}
+
 body:has(.block.block_sharing_cart) .course-content {
   .clipboard {
     display: flex;
@@ -43,4 +48,6 @@ body:has(.block.block_sharing_cart) .course-content {
       opacity: 0.5;
     }
   }
+
+
 }

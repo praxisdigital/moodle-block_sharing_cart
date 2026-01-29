@@ -56,6 +56,8 @@ $string['no_course_modules_in_section'] = 'Ingen kursusmoduler i denne sektion';
 $string['no_course_modules_in_section_description'] = 'Denne sektion indeholder ikke nogen kursusmoduler, og du kan derfor ikke kopiere den.';
 
 $string['copy_section'] = 'Kopiér sektion';
+$string['import_subsection_into_default_named_section_warning'] = 'Du er ved at kopiere en delsektion ind til en sektion uden et navn. Dette vil overskrive navnet på sektionen.';
+$string['empty_section_restore'] = 'Noget gik galt i forsøget på at kopiere det valgte fra sharing cart. Det valgte emne er tomt.';
 
 $string['you_may_need_to_reload_the_course_warning'] = 'Element(er) indsat. Du skal muligvis genindlæse kursussiden for at se ændringerne afspejlet korrekt.';
 

@@ -56,6 +56,8 @@ $string['no_course_modules_in_section'] = 'No course modules in this section';
 $string['no_course_modules_in_section_description'] = 'This section does not contain any course modules and you are therefore not able to copy it.';
 
 $string['copy_section'] = 'Copy section';
+$string['import_subsection_into_default_named_section_warning'] = 'You are about to copy a subsection into a section without a name. This will overwrite the section name.';
+$string['empty_section_restore'] = 'Something went wrong trying to copy the item from the sharing cart. The item was empty.';
 
 $string['you_may_need_to_reload_the_course_warning'] = 'Element(s) inserted. You may need to reload the course page to see the changes reflected correctly.';
 

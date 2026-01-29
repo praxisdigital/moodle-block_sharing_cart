@@ -36,6 +36,9 @@ function block_sharing_cart_output_fragment_item_restore_form($args)
 
     $item_id = clean_param($args['item_id'], PARAM_INT);
 
+    //Id of the section being targeted for an import.
+    $clipboard_target_id = clean_param($args['clipboard_target_id'], PARAM_INT);
+
     $base_factory = \block_sharing_cart\app\factory::make();
     $item = $base_factory->item()->repository()->get_by_id($item_id);
     if (!$item) {
@@ -53,7 +56,7 @@ function block_sharing_cart_output_fragment_item_restore_form($args)
         );
     }
 
-    $template = new \block_sharing_cart\output\modal\import_item_modal_body($base_factory, $item);
+    $template = new \block_sharing_cart\output\modal\import_item_modal_body($base_factory, $item, $clipboard_target_id);
 
     return fix_utf8($OUTPUT->render($template));
 }

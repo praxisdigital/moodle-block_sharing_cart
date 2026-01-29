@@ -295,6 +295,29 @@ export default class ItemElement {
     }
 
     /**
+     * Checks if the item's element is nested under a subsection in the clipboard.
+     * @returns {boolean}
+     */
+    isNestedUnderSubsection(){
+
+        let tempElem = this.getItemElement();
+        const maxIterations = 5;
+        let i = 0;
+        //Loop upwards in the tree, from item.
+        while(tempElem != null && i < maxIterations){
+            tempElem = tempElem.parentElement
+            if(tempElem.classList.contains("sharing_cart_item")) break;
+            i++;
+        }
+
+        if(!tempElem) return false;
+
+        if(tempElem.dataset.type && tempElem.dataset.type === "mod_subsection") return true;
+
+        return false;
+    }
+
+    /**
      * @param {Event} e
      */
     toggleCollapseRecursively(e) {

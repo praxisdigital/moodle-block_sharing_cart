@@ -729,14 +729,13 @@ export default class BlockElement {
         const divElement = document.getElementById('block_sharing_cart');
         const pageContextId = divElement.getAttribute('data-contextid');
 
-        console.log(item.getItemId())
-
         const {html, js} = await this.#baseFactory.moodle().template().renderFragment(
             'block_sharing_cart',
             'item_restore_form',
             pageContextId,
             {
-                item_id: item.getItemId()
+                item_id: item.getItemId(),
+                clipboard_target_id:sectionId
             }
         );
 

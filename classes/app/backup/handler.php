@@ -95,6 +95,7 @@ class handler
         )->trigger();
 
         return array("task" => $task, "controller" => $backup_controller);
+
     }
 
     public function get_backup_course_info(\stored_file $file): array
