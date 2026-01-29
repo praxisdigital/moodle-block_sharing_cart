@@ -56,12 +56,8 @@ class backup_settings_queries
         JOIN {modules} AS m ON m.id = cm.module)
 
         SELECT 
-               imc.id,
-               imc.name,
                imc.parent_section_id,
                cs2.id AS section_id ,
-               imc.instance,
-               cs2.itemid,
                cs2.sequence AS child_module_ids
         FROM immediate_module_children AS imc
         JOIN {course_sections} AS cs2 ON imc.instance = cs2.itemid

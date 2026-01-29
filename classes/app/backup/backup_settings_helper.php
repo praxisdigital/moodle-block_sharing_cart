@@ -54,17 +54,18 @@ class backup_settings_helper
             $backup_plan_settings['anonymize'] = true;
         }
 
-        [$section_id, $course_module_id] = $this->get_ids_by_item($item_entity);
+        $section_id = $this->get_section_id($item_entity);
 
-        //Returns all course modules with the same course number as $item.
+        //Returns all course modules with the same course number as $item_entity.
         $course_modules = $this->backup_settings_repository->get_course_modules_by_section_id($section_id);
-        //Returns all sections with the same course number as $item.
-        $sections = $this->backup_settings_repository->get_course_sections_by_section_id($section_id);
+
+        //Returns all sections with the same course number as $item_entity.
+        $course_sections = $this->backup_settings_repository->get_course_sections_by_section_id($section_id);
 
         //Add module settings
         $backup_plan_settings += $this->get_course_module_settings($course_modules, $item_entity, $section_id, $backup_plan_settings['users']);
         //Add section settings
-        $backup_plan_settings += $this->get_section_settings($sections, $section_id, $backup_plan_settings['users']);
+        $backup_plan_settings += $this->get_section_settings($course_sections, $section_id, $backup_plan_settings['users']);
 
         return $backup_plan_settings;
     }
@@ -88,28 +89,26 @@ class backup_settings_helper
 
     }
 
-    private function get_ids_by_item(entity $item): array
+    private function get_section_id(entity $item_entity): string
     {
-        $course_module_id = null;
 
-        if($item->type === 'section' || $item->type === 'mod_subsection') {
-            return [$item->old_instance_id, $course_module_id];
+        if($item_entity->get_type() == $item_entity::TYPE_SECTION || $item_entity->get_type() == $item_entity::TYPE_MOD_SUBSECTION) {
+            return $item_entity->old_instance_id;
         }
-        $course_module_id = $item->old_instance_id;
 
-        $section_id = $this->base_factory->moodle()->db()->get_record(
+        return $this->base_factory->moodle()->db()->get_record(
             'course_modules',
-            ['id' => $course_module_id],
+            ['id' => $item_entity->old_instance_id],
             'section',
             MUST_EXIST
         )->section;
 
-        return [$section_id, $course_module_id];
     }
 
     private function get_section_settings(array $sections, int $section_id, bool $include_users): array
     {
         $settings = [];
+
         foreach ($sections as $section){
             $settings["section_".$section->id."_userinfo"] = false;
             $settings["section_".$section->id."_included"] = false;
@@ -123,25 +122,19 @@ class backup_settings_helper
 
     private function get_course_module_settings(
         array $course_modules,
-        entity $item,
+        entity $item_entity,
         int $section_id,
         bool $include_users
     ): array
     {
         $settings = [];
 
-        //REFACTOR THIS,
-        // SET ALL SETTINGS TO FALSE PER DEFAULT, EXPLICITLY HERE.
-        // THE SQL QUERY SHOULD OUTPUT THE SETTING NAME AND THE VALUE
-
         foreach($course_modules as $course_module) {
-
             //Include all immediate child modules of section(section_id) in the backup plan settings.
-            $settings = [$settings, ...$this->set_setting($course_module->name,
+            $settings = [...$settings, ...$this->set_setting($course_module->name,
                 $course_module->id,
                 $course_module->section == $section_id,
                 ($course_module->section == $section_id) ? $include_users : false)];
-
         }
 
         $immediate_child_modules = $this->backup_settings_repository->get_immediate_child_modules_of_section($section_id);
@@ -151,7 +144,7 @@ class backup_settings_helper
         foreach($immediate_child_modules as $immediate_child_module) {
 
             //Include the section (The corresponding section of the subsection module, must be included.)
-            $settings = [$settings, ...$this->set_setting("section",$immediate_child_module->section_id,true,$include_users)];
+            $settings = [...$settings, ...$this->set_setting("section",$immediate_child_module->section_id,true,$include_users)];
 
             if(!empty($immediate_child_module->child_module_ids)){
                 //Add the module ids of the childrens child modules.
@@ -171,12 +164,12 @@ class backup_settings_helper
 
         //Include all subsections, child modules.
         foreach($subsection_child_modules as $subsection_child_module) {
-            $settings = [$settings, ...$this->set_setting($subsection_child_module->name,$subsection_child_module->id,true,$include_users)];
+            $settings = [...$settings, ...$this->set_setting($subsection_child_module->name,$subsection_child_module->id,true,$include_users)];
         }
 
 
         //Subsection's parent section must be included for the backup to work regardless of backup type.
-        if($item->get_type() == "mod_subsection"){
+        if($item_entity->get_type() == $item_entity::TYPE_MOD_SUBSECTION){
 
             $subsection_info = $this->backup_settings_repository->get_mod_subsection_info($section_id);
 
@@ -187,11 +180,11 @@ class backup_settings_helper
             $parent_section_id = $subsection_info[array_key_first($subsection_info)]->parent_section_id;
             $own_module_id = $subsection_info[array_key_first($subsection_info)]->own_module_id;
 
-            //Include the subsections parent section id.
-            $settings = [$settings, ...$this->set_setting("section",$parent_section_id,true,$include_users)];
+            //Include the subsections parent section id (A course section).
+            $settings = [...$settings, ...$this->set_setting("section",$parent_section_id,true,$include_users)];
 
             //The subsection's own module id must also be included.
-            $settings = [$settings, ...$this->set_setting("subsection",$own_module_id,true,$include_users)];
+            $settings = [...$settings, ...$this->set_setting("subsection",$own_module_id,true,$include_users)];
 
         }
 
