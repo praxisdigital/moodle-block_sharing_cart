@@ -44,12 +44,12 @@ class backup_settings_helper
             'filename' => 'sharing_cart_backup-' . $item_entity->get_id() . '.mbz'
         ];
 
-        if ($custom_data->backup_settings->users) {
+        if ($custom_data->backup_settings["users"]) {
             require_capability('moodle/backup:userinfo', $backup_controller_context);
             $backup_plan_settings['users'] = true;
         }
 
-        if ($custom_data->backup_settings->anonymize && $backup_plan_settings['users']) {
+        if ($custom_data->backup_settings["anonymize"] && $backup_plan_settings['users']) {
             require_capability('moodle/backup:anonymise', $backup_controller_context);
             $backup_plan_settings['anonymize'] = true;
         }
@@ -140,7 +140,6 @@ class backup_settings_helper
 
         $immediate_child_modules = $this->backup_settings_repository->get_immediate_child_modules_of_section($section_id);
 
-        mtrace(print_r($immediate_child_modules, true));
         if(!empty($immediate_child_modules)) {
 
             $child_module_ids = [];
@@ -191,7 +190,7 @@ class backup_settings_helper
             $settings = [...$settings, ...$this->set_setting("subsection",$own_module_id,true,$include_users)];
 
         }
-        mtrace(print_r($settings, true));
+
         return $settings;
     }
 
