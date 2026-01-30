@@ -326,13 +326,11 @@ export default class ItemElement {
         e.stopImmediatePropagation();
 
         this.toggleCollapse(this.#element);
-
-        let paddingLeftPercent = 0;
+        console.log(this.isNestedUnderSubsection())
+        let paddingLeftPercentDefault = 12.5;
         this.getItemChildrenRecursively().forEach((item) => {
 
-            //Increase padding left pr. item child.
-            paddingLeftPercent = Math.max(12.5,paddingLeftPercent+2);
-            this.toggleCollapse(item, this.#element.dataset.collapsed === 'true', paddingLeftPercent);
+            this.toggleCollapse(item, this.#element.dataset.collapsed === 'true', paddingLeftPercentDefault);
 
         });
     }
