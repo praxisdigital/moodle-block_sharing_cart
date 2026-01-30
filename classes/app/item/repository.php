@@ -251,23 +251,6 @@ class repository extends \block_sharing_cart\app\repository
         return $item;
     }
 
-    public function get_is_subsection($section_id): bool{
-
-        $sql = "SELECT cm.id, cm.section, m.name
-                FROM {course_modules} cm
-                JOIN {modules} as m on cm.module = m.id
-                WHERE cm.course = (SELECT cs.course
-                                   FROM {course_sections} cs
-                                   WHERE cs.id = :section_id)";
-        $params = [
-            'section_id' => $section_id
-        ];
-
-        $this->db->get_records_sql($sql, $params);
-
-        return false;
-    }
-
     public function get_stored_file_by_item(entity $item): ?\stored_file
     {
         /**

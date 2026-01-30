@@ -50,21 +50,22 @@ class backup_settings_queries
     {
         $db = $this->base_factory->moodle()->db();
 
-        $sql = "WITH immediate_module_children AS (SELECT cm.id AS id, cm.section AS parent_section_id, m.name, cm.instance
+        $sql = "WITH immediate_module_children AS (SELECT cm.id AS module_id, cm.section AS parent_section_id, m.name, cm.instance, cs.course
         FROM {course_sections} AS cs
         JOIN {course_modules} AS cm ON cm.section = cs.id AND cm.section = cs.id
         JOIN {modules} AS m ON m.id = cm.module)
 
         SELECT 
+               imc.module_id,
                imc.parent_section_id,
                cs2.id AS section_id ,
                cs2.sequence AS child_module_ids
         FROM immediate_module_children AS imc
-        JOIN {course_sections} AS cs2 ON imc.instance = cs2.itemid
+        LEFT JOIN {course_sections} AS cs2 ON imc.instance = cs2.itemid AND cs2.course = imc.course
         WHERE imc.parent_section_id = :section_id 
         ";
         $params = [
-            'section_id' => $section_id
+            'section_id' => $section_id,
         ];
 
         return $db->get_records_sql($sql, $params);

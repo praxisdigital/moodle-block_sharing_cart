@@ -66,9 +66,9 @@ class item_into_section extends external_api
             $settings['course_modules_to_include'] = $params['course_modules_to_include'] ?? [];
         }
 
-        $base_factory->restore()->handler()->restore_item_into_section($item, $params['section_id'], $settings);
+        $result = $base_factory->restore()->handler()->restore_item_into_section($item, $params['section_id'],$params['item_id'], $settings);
 
-        return true;
+        return $result == null;
     }
 
     public static function execute_returns(): external_description

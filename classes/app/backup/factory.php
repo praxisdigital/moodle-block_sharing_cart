@@ -37,12 +37,12 @@ class factory
         return new handler($this->base_factory);
     }
 
-    public function settings_helper()
+    public function settings_helper(): backup_settings_helper
     {
         return new backup_settings_helper($this->base_factory);
     }
 
-    public function settings_repository()
+    public function settings_repository(): backup_settings_queries
     {
         return new backup_settings_queries($this->base_factory);
     }

@@ -64,6 +64,7 @@ class backup_settings_helper
 
         //Add module settings
         $backup_plan_settings += $this->get_course_module_settings($course_modules, $item_entity, $section_id, $backup_plan_settings['users']);
+
         //Add section settings
         $backup_plan_settings += $this->get_section_settings($course_sections, $section_id, $backup_plan_settings['users']);
 
@@ -138,35 +139,38 @@ class backup_settings_helper
         }
 
         $immediate_child_modules = $this->backup_settings_repository->get_immediate_child_modules_of_section($section_id);
+
         mtrace(print_r($immediate_child_modules, true));
+        if(!empty($immediate_child_modules)) {
 
-        $child_module_ids = [];
-        foreach($immediate_child_modules as $immediate_child_module) {
+            $child_module_ids = [];
+            foreach($immediate_child_modules as $immediate_child_module) {
 
-            //Include the section (The corresponding section of the subsection module, must be included.)
-            $settings = [...$settings, ...$this->set_setting("section",$immediate_child_module->section_id,true,$include_users)];
+                if(empty($immediate_child_module->section_id)) continue;
 
-            if(!empty($immediate_child_module->child_module_ids)){
-                //Add the module ids of the childrens child modules.
-                $child_module_ids = array_merge(
-                    $child_module_ids,
-                    explode(',', $immediate_child_module->child_module_ids)
-                );
+                //Include the section (The corresponding section of the module, must be included.) (Activities don't have corresponding sections)
+                $settings = [...$settings, ...$this->set_setting("section",$immediate_child_module->section_id,true,$include_users)];
 
+                if(!empty($immediate_child_module->child_module_ids)){
+                    //Add the module ids of the childrens child modules.
+                    $child_module_ids = array_merge(
+                        $child_module_ids,
+                        explode(',', $immediate_child_module->child_module_ids)
+                    );
+
+                }
             }
+
+            $subsection_child_modules = array_filter($course_modules, function($course_module) use($child_module_ids) {
+                return in_array($course_module->id, $child_module_ids);
+            });
+
+            //Include all subsection's nested child modules.
+            foreach($subsection_child_modules as $subsection_child_module) {
+                $settings = [...$settings, ...$this->set_setting($subsection_child_module->name,$subsection_child_module->id,true,$include_users)];
+            }
+
         }
-
-        $subsection_child_modules = array_filter($course_modules, function($course_module) use($child_module_ids) {
-            return in_array($course_module->id, $child_module_ids);
-        });
-
-        mtrace(print_r($subsection_child_modules, true));
-
-        //Include all subsections, child modules.
-        foreach($subsection_child_modules as $subsection_child_module) {
-            $settings = [...$settings, ...$this->set_setting($subsection_child_module->name,$subsection_child_module->id,true,$include_users)];
-        }
-
 
         //Subsection's parent section must be included for the backup to work regardless of backup type.
         if($item_entity->get_type() == $item_entity::TYPE_MOD_SUBSECTION){
@@ -174,7 +178,7 @@ class backup_settings_helper
             $subsection_info = $this->backup_settings_repository->get_mod_subsection_info($section_id);
 
             if(empty($subsection_info)){
-                //ERROR
+                throw new \Exception("Could not complete backup plan settings construction. Section was empty.");
             }
 
             $parent_section_id = $subsection_info[array_key_first($subsection_info)]->parent_section_id;
@@ -187,15 +191,14 @@ class backup_settings_helper
             $settings = [...$settings, ...$this->set_setting("subsection",$own_module_id,true,$include_users)];
 
         }
-
         mtrace(print_r($settings, true));
         return $settings;
     }
 
     private function set_setting(string $setting_name, string $setting_id, bool $setting_value, bool $include_users) : array{
         return [
-            $setting_name."_".$setting_id."_userinfo" => $include_users,
-            $setting_name."_".$setting_id."_included" => $setting_value
+            $setting_name."_".$setting_id."_"."userinfo" => $include_users,
+            $setting_name."_".$setting_id."_"."included" => $setting_value
         ];
     }
 
