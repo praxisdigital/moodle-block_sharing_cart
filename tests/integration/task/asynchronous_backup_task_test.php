@@ -131,7 +131,7 @@ class asynchronous_backup_task_test extends \advanced_testcase
         $generator->enrol_user($user->id, $course->id, 'editingteacher');
 
         $item = $this->factory->item()->repository()->insert_section(
-            $section->id,
+            $section,
             $user->id,
             null,
             entity::STATUS_AWAITING_BACKUP
@@ -139,18 +139,19 @@ class asynchronous_backup_task_test extends \advanced_testcase
 
         $handler = $this->factory->backup()->handler();
         $task = $this->create_task($handler->backup_section(
-            $section->id,
+            $section,
             $item,
             [
                 'users' => false,
                 'anonymize' => false,
             ]
-        ));
+        )["task"]);
 
         $controller = $task->get_backup_controller();
         self::assertNotEmpty($controller);
 
         $plan = $controller->get_plan();
+
         if (!$plan->setting_exists('questionbank')) {
             self::markTestSkipped(
                 "Skip the test because the 'questionbank' setting does not exist in the backup plan."
@@ -190,7 +191,7 @@ class asynchronous_backup_task_test extends \advanced_testcase
         $generator->enrol_user($user->id, $course->id, 'editingteacher');
 
         $item = $this->factory->item()->repository()->insert_section(
-            $section->id,
+            $section,
             $user->id,
             null,
             entity::STATUS_AWAITING_BACKUP
@@ -198,13 +199,13 @@ class asynchronous_backup_task_test extends \advanced_testcase
 
         $handler = $this->factory->backup()->handler();
         $task = $this->create_task($handler->backup_section(
-            $section->id,
+            $section,
             $item,
             [
                 'users' => false,
                 'anonymize' => false,
             ]
-        ));
+        )["task"]);
 
         $controller = $task->get_backup_controller();
         self::assertNotEmpty($controller);
