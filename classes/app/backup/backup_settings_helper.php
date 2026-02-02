@@ -44,12 +44,15 @@ class backup_settings_helper
             'filename' => 'sharing_cart_backup-' . $item_entity->get_id() . '.mbz'
         ];
 
-        if ($custom_data->backup_settings["users"]) {
+        //Cast for safety.
+        $backupsettings = (object)$custom_data->backup_settings;
+
+        if (!empty($backupsettings->users)) {
             require_capability('moodle/backup:userinfo', $backup_controller_context);
             $backup_plan_settings['users'] = true;
         }
 
-        if ($custom_data->backup_settings["anonymize"] && $backup_plan_settings['users']) {
+        if (!empty($backupsettings->anonymize) && !empty($backup_plan_settings['users'])) {
             require_capability('moodle/backup:anonymise', $backup_controller_context);
             $backup_plan_settings['anonymize'] = true;
         }
