@@ -1,31 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.3/phpunit.xsd"
+        xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.5/phpunit.xsd"
         bootstrap="../../lib/phpunit/bootstrap.php"
-        convertErrorsToExceptions="true"
-        convertNoticesToExceptions="true"
-        convertWarningsToExceptions="true"
+        colors="true"
         processIsolation="false"
         backupGlobals="false"
-        backupStaticAttributes="false"
         cacheResult="false"
-        stopOnError="false"
-        stopOnFailure="false"
+        stopOnError="true"
+        stopOnFailure="true"
         stopOnIncomplete="false"
         stopOnSkipped="false"
         beStrictAboutTestsThatDoNotTestAnything="false"
         beStrictAboutOutputDuringTests="true"
         defaultTestSuite="unit"
+        displayDetailsOnTestsThatTriggerDeprecations="true"
+        displayDetailsOnTestsThatTriggerNotices="true"
+        displayDetailsOnTestsThatTriggerErrors="true"
+        displayDetailsOnTestsThatTriggerWarnings="true"
+        displayDetailsOnPhpunitDeprecations="true"
 >
-    <coverage includeUncoveredFiles="true" processUncoveredFiles="true">
+    <source>
         <include>
             <directory suffix=".php">classes</directory>
         </include>
         <exclude>
             <directory suffix=".php">classes/admin_settings</directory>
         </exclude>
-    </coverage>
+    </source>
     <php>
         <const name="PHPUNIT_SEQUENCE_START" value="138000"/>
     </php>

@@ -37,7 +37,7 @@ class handler
             throw new \Exception('Backup file not found for item (id: ' . $item->get_id() . ')');
         }
 
-        if(!$this->restore_is_valid($item_id,$section_id)) return null;
+        if(!$this->restore_is_valid($item_id, $section_id)) return null;
 
         $restore_controller = $this->base_factory->restore()->restore_controller(
             $backup_file,
@@ -71,8 +71,8 @@ class handler
 
         $subject_item = $DB->get_record_sql($sql,$params,MUST_EXIST);
 
-        $is_target_a_section = !empty($target_section->component) && !empty($target_section->itemid);
-        $is_target_a_subsection = empty($target_section->component) && $target_section->component == 'mod_subsection';
+        $is_target_a_section = empty($target_section->component) && empty($target_section->itemid);
+        $is_target_a_subsection = !empty($target_section->component) && $target_section->component == 'mod_subsection';
 
         //Attempt to restore a section into a non-section?
         if(!$is_target_a_section){
