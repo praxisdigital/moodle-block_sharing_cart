@@ -62,8 +62,8 @@ class handler
         $sql = "SELECT
                 I1.type AS own_type
                 ,I2.type AS parent_type
-                FROM mdl_block_sharing_cart_items AS I1
-                LEFT JOIN mdl_block_sharing_cart_items AS I2 ON I1.parent_item_id = I2.id
+                FROM {$DB->get_prefix()}block_sharing_cart_items AS I1
+                LEFT JOIN {$DB->get_prefix()}block_sharing_cart_items AS I2 ON I1.parent_item_id = I2.id
                 WHERE I1.id = :item_id";
         $params = [
             'item_id' => $item_id,

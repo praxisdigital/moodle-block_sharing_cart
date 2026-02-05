@@ -40,8 +40,9 @@ export default class ItemElement {
     }
 
     #pollItem(currentTry = 0, retries = -1, uuid = null) {
+
         if (uuid === null) {
-            uuid = crypto.randomUUID();
+            uuid = crypto.getRandomValues(new Uint32Array(1))[0]
 
             if (polls[this.getItemId()]) {
                 return;
