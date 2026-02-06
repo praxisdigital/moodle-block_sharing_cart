@@ -49,9 +49,17 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             mtrace('Bad restore controller status, invalid controller, ending restore execution.');
             return;
         }
+
         /** @var \restore_controller $rc */
         $rc = \restore_controller::load_controller($restoreid);
-        $rc->execute_precheck(true);
+
+        if (!$rc->execute_precheck(true)) {
+            $results = $rc->get_precheck_results();
+            if (!empty($results['errors'])) {
+                throw new \Exception("Errors found during restore precheck:\n" . implode("\n", $results['errors']));
+            }
+        }
+
         try {
             $rc->set_progress(new \core\progress\db_updater($restorerecord->id, 'backup_controllers', 'progress'));
 

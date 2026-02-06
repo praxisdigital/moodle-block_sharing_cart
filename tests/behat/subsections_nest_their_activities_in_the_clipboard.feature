@@ -2,7 +2,7 @@
 @javascript
 
 Feature: As an editing teacher that has successfully copied a section with a subsection containing an activity,
-  in the sharing cart clipboard, the subsection icon should on click unfold the nested activity in the clipboard with padding on the left.
+  in the sharing cart clipboard, the subsection should nest it's activities inside of it.
 
   Background:
     Given the following "users" exist:

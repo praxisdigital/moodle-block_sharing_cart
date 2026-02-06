@@ -33,30 +33,30 @@ The editing teacher copies the section and inserts it into a different section.
   And I wait until "//li[@id='section-1']//*[@class='fa fa-shopping-basket add_to_sharing_cart']" "xpath_element" exists
   And I click on "//li[@id='section-1']//*[@class='fa fa-shopping-basket add_to_sharing_cart']" "xpath_element"
 
-  And I wait "5" seconds
+  And I wait "2" seconds
   And I wait until "//div[@class='modal-footer']/button[@data-action='save']" "xpath_element" exists
   And I click on "//div[@class='modal-footer']/button[@data-action='save']" "xpath_element"
 
+    #Wait for the ad_hoc task to be queued.
   And I wait "15" seconds
   And I run all adhoc tasks
 
-  And I wait "10" seconds
+  And I wait "2" seconds
   And I wait until "(//div[@class='sharing_cart_item' and @data-type='section']//i[@class='fa fa-clone'])[1]" "xpath_element" exists
   And I click on "(//div[@class='sharing_cart_item' and @data-type='section']//i[@class='fa fa-clone'])[1]" "xpath_element"
 
   And I click on "//li[@id='section-2']//*[@class='clipboard_target']" "xpath_element"
 
-  And I wait "5" seconds
   And I wait until "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element" exists
   And I click on "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element"
-  
-  And I wait "20" seconds
+
+    #Wait for the ad_hoc task to be queued.
+  And I wait "15" seconds
   And I reload the page
-  And I run all adhoc tasks
   #Region End
 
   When I run all adhoc tasks
-  And I wait "5" seconds
+  And I wait "20" seconds
   And I reload the page
     #Subsection should be visible
   Then "//li[@id='section-2']//div[@data-activityname='Subsection1']" "xpath_element" should be visible
