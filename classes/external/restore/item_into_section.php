@@ -68,7 +68,7 @@ class item_into_section extends external_api
 
         $result = $base_factory->restore()->handler()->restore_item_into_section($item, $params['section_id'],$params['item_id'], $settings);
 
-        return $result == null;
+        return $result != null;
     }
 
     public static function execute_returns(): external_description
