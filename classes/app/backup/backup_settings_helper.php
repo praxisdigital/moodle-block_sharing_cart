@@ -44,7 +44,6 @@ class backup_settings_helper
             'filename' => 'sharing_cart_backup-' . $item_entity->get_id() . '.mbz'
         ];
 
-        //Cast for safety.
         $backupsettings = (object)$custom_data->backup_settings;
 
         if (!empty($backupsettings->users)) {

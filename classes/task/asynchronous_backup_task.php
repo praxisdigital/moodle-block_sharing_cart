@@ -178,8 +178,6 @@ class asynchronous_backup_task extends \core\task\adhoc_task
                 );
             }
 
-            mtrace($backup_controller->debug_display_all_settings_values());
-
             $backup_controller_context = $this->get_backup_controller_context($backup_controller);
 
             // Construct backup plan settings
@@ -194,8 +192,6 @@ class asynchronous_backup_task extends \core\task\adhoc_task
 
             $this->filter_away_disabled_course_modules($backup_controller);
 
-            mtrace("These are the settings");
-            mtrace(print_r($backup_controller->debug_display_all_settings_values(), true));
             $this->output('Executing before_backup_started_hook completed, continuing with backup...');
         } catch (\Exception $e) {
             $this->output("An error occurred during before_backup_started_hook");
