@@ -41,10 +41,16 @@ class section_into_sharing_cart extends external_api
             'settings' => $settings,
         ]);
 
+        $section_fields = 'id, section, sequence, course, itemid';
+        // "itemid" is not supported until moodle 4.5+
+        if(get_config('core', 'version') < 2024100709){
+            $section_fields = 'id, section, sequence, course';
+        }
+
         $section = $DB->get_record(
             'course_sections',
             ['id' => $params['section_id']],
-            'id, section, sequence, course, itemid',
+            $section_fields,
             MUST_EXIST
         );
 

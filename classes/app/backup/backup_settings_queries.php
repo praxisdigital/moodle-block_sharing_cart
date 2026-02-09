@@ -46,8 +46,22 @@ class backup_settings_queries
         return $db->get_records_sql($sql, $params);
     }
 
+    /**
+     * Returns the immediate child modules of a course section.
+     *
+     * On Moodle versions prior to 4.5, this method always returns an empty array.
+     *
+     * @param int $section_id Course section ID
+     * @return array List of child modules, or an empty array if unsupported
+     */
     public function get_immediate_child_modules_of_section(int $section_id): array
     {
+        // query is not supported until moodle 4.5+
+        if(get_config('core', 'version') < 2024100709){
+            mtrace("Tried querying database for immediate child modules of a section. Moodle version is too low for this call. Returning empty array.");
+            return [];
+        }
+
         $db = $this->base_factory->moodle()->db();
 
         $sql = "WITH immediate_module_children AS (SELECT cm.id AS module_id, cm.section AS parent_section_id, m.name, cm.instance, cs.course
@@ -83,7 +97,6 @@ class backup_settings_queries
         ";
         $params = [
             'subsection_section_id' => $subsection_section_id,
-            'module' => "20"
         ];
 
         return $db->get_records_sql($sql, $params);
