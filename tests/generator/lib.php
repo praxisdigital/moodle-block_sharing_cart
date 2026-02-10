@@ -7,9 +7,9 @@ defined('MOODLE_INTERNAL') || die();
 class block_sharing_cart_generator extends testing_data_generator
 {
 
-    private $created_items_ids_history = [];
+    private array $created_items_ids_history = [];
 
-    public function create_sharing_cart_item($sharing_cart_item) {
+    public function create_sharing_cart_item(array $sharing_cart_item):void {
         global $DB;
 
         $time = time();

@@ -159,7 +159,7 @@ class repository extends \block_sharing_cart\app\repository
         //Handle multiple activities
         foreach ($activities as $activity) {
 
-                if($activity->modulename == "subsection") {
+                if($activity->modulename === "subsection") {
                     $subsection_entity = $this->insert_activity(
                         $activity->moduleid,
                         $root_item->get_user_id(),
