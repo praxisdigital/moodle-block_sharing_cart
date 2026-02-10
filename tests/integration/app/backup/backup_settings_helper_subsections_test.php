@@ -9,9 +9,6 @@ defined('MOODLE_INTERNAL') || die();
 
 use block_sharing_cart\app\factory as base_factory;
 use block_sharing_cart\app\backup\backup_settings_helper;
-use block_sharing_cart\app\item\entity;
-use core\exception\required_capability_exception as core_required_capability_exception;
-use \section_info as section_info;
 
 class backup_settings_helper_subsections_test extends \advanced_testcase
 {
