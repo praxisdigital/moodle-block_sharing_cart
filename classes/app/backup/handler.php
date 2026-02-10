@@ -118,7 +118,7 @@ class handler
 
         foreach ($info->sections as $section) {
 
-            if(isset($section->modname) && $section->modname == 'subsection') {
+            if(isset($section->modname) && $section->modname === 'subsection') {
                 $subsections[$section->sectionid] = (object)[
                     'moduleid' => $section->parentcmid,
                     'sectionid' => $section->sectionid,
@@ -153,7 +153,7 @@ class handler
 
         foreach ($info->activities as $activity) {
 
-            if(isset($activity->modulename) && $activity->modulename == 'subsection' ) continue;
+            if(isset($activity->modulename) && $activity->modulename === 'subsection' ) continue;
 
             //Activities that live in the section
             if(isset($sections[$activity->sectionid])){
@@ -191,7 +191,6 @@ class handler
         $asynctask->set_userid($backup_controller->get_userid());
         $task_id = \core\task\manager::queue_adhoc_task($asynctask);
 
-        //This is not in the core way to do it???
         $asynctask->set_id($task_id);
 
         return $asynctask;

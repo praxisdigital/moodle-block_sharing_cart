@@ -120,7 +120,7 @@ class import_item_modal_body implements \renderable, \core\output\named_templata
         ];
     }
 
-    private function get_user_msgs($section) : array{
+    private function get_user_msgs(object $section) : array{
 
         $user_msgs = [];
 
@@ -136,7 +136,7 @@ class import_item_modal_body implements \renderable, \core\output\named_templata
 
     }
 
-    private function is_subsection_imported_into_default_named_section($section) : bool{
+    private function is_subsection_imported_into_default_named_section(object $section) : bool{
 
         if(!isset($section)) return false;
 

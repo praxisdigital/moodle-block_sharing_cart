@@ -144,7 +144,7 @@ class repository extends \block_sharing_cart\app\repository
     {
 
         //Handle a single subsection (with possible nested activities)
-        if($root_item->get_type() == "mod_subsection"){
+        if($root_item->get_type() === "mod_subsection"){
             foreach($activities[array_key_first($activities)]->subsection_activities as $subsection_activity) {
                 $this->insert_activity(
                     $subsection_activity->moduleid,

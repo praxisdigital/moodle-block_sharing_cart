@@ -73,7 +73,7 @@ class backup_settings_helper
         return $backup_plan_settings;
     }
 
-    public function apply_backup_plan_settings(array $backup_plan_settings,\backup_plan $backup_plan){
+    public function apply_backup_plan_settings(array $backup_plan_settings,\backup_plan $backup_plan) : void{
 
         foreach ($backup_plan_settings as $name => $value) {
 
@@ -95,7 +95,7 @@ class backup_settings_helper
     private function get_section_id(entity $item_entity): string
     {
 
-        if($item_entity->get_type() == $item_entity::TYPE_SECTION || $item_entity->get_type() == $item_entity::TYPE_MOD_SUBSECTION) {
+        if($item_entity->get_type() === $item_entity::TYPE_SECTION || $item_entity->get_type() === $item_entity::TYPE_MOD_SUBSECTION) {
             return $item_entity->old_instance_id;
         }
 
@@ -187,7 +187,7 @@ class backup_settings_helper
         }
 
         //Subsection's parent section must be included for the backup to work regardless of backup type.
-        if($item_entity->get_type() == $item_entity::TYPE_MOD_SUBSECTION){
+        if($item_entity->get_type() === $item_entity::TYPE_MOD_SUBSECTION){
 
             $subsection_info = $this->backup_settings_repository->get_mod_subsection_info($section_id);
 
