@@ -104,6 +104,10 @@ class backup_settings_helper_test extends \advanced_testcase
 
     public function test_construct_backup_plan_settings_terminates_with_error_when_users_are_set_to_true_and_lacks_capability(){
 
+        if(!class_exists('core\exception\required_capability_exception')){
+            $this->markTestSkipped("Skipping test. Required class core\exception\required_capability_exception does not exist in this version of moodle");
+        }
+
         $this->custom_data_1->backup_settings["users"] = true;
         $this->custom_data_1->item["old_instance_id"] = $this->section_1_course_1->id;
         $this->custom_data_1->item["type"] = "section";
