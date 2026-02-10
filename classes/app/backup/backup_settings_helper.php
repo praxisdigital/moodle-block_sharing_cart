@@ -134,10 +134,15 @@ class backup_settings_helper
 
         foreach($course_modules as $course_module) {
             //Include all immediate child modules of section(section_id) in the backup plan settings.
-            $settings = [...$settings, ...$this->set_setting($course_module->name,
-                $course_module->id,
-                $course_module->section == $section_id,
-                ($course_module->section == $section_id) ? $include_users : false)];
+            $settings = array_merge(
+                $settings,
+                $this->set_setting(
+                    $course_module->name,
+                    $course_module->id,
+                    $course_module->section == $section_id,
+                    ($course_module->section == $section_id) ? $include_users : false
+                )
+            );
         }
 
         $immediate_child_modules = $this->backup_settings_repository->get_immediate_child_modules_of_section($section_id);
@@ -150,7 +155,15 @@ class backup_settings_helper
                 if(empty($immediate_child_module->section_id)) continue;
 
                 //Include the section (The corresponding section of the module, must be included.) (Activities don't have corresponding sections)
-                $settings = [...$settings, ...$this->set_setting("section",$immediate_child_module->section_id,true,$include_users)];
+                $settings = array_merge(
+                    $settings,
+                    $this->set_setting(
+                        "section",
+                        $immediate_child_module->section_id,
+                        true,
+                        $include_users
+                    )
+                );
 
                 if(!empty($immediate_child_module->child_module_ids)){
                     //Add the module ids of the childrens child modules.
@@ -168,7 +181,7 @@ class backup_settings_helper
 
             //Include all subsection's nested child modules.
             foreach($subsection_child_modules as $subsection_child_module) {
-                $settings = [...$settings, ...$this->set_setting($subsection_child_module->name,$subsection_child_module->id,true,$include_users)];
+                $settings = array_merge($settings,$this->set_setting($subsection_child_module->name,$subsection_child_module->id,true,$include_users));
             }
 
         }
@@ -186,10 +199,10 @@ class backup_settings_helper
             $own_module_id = $subsection_info[array_key_first($subsection_info)]->own_module_id;
 
             //Include the subsections parent section id (A course section).
-            $settings = [...$settings, ...$this->set_setting("section",$parent_section_id,true,$include_users)];
+            $settings = array_merge($settings,$this->set_setting("section",$parent_section_id,true,$include_users));
 
             //The subsection's own module id must also be included.
-            $settings = [...$settings, ...$this->set_setting("subsection",$own_module_id,true,$include_users)];
+            $settings = array_merge($settings, $this->set_setting("subsection",$own_module_id,true,$include_users));
 
         }
 
