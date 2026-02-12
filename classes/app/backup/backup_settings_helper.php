@@ -21,7 +21,7 @@ class backup_settings_helper
         $this->backup_settings_repository = $base_factory->backup()->settings_repository();
     }
 
-    public function construct_backup_plan_settings(mixed $custom_data, \core\context $backup_controller_context, false|entity $item_entity) : array{
+    public function construct_backup_plan_settings(object $custom_data, \core\context $backup_controller_context, false|entity $item_entity) : array{
 
         if(!$item_entity) {
             throw new \Exception("Item entity not specified. Could not construct backup plan settings.");
