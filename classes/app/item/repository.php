@@ -110,7 +110,7 @@ class repository extends \block_sharing_cart\app\repository
         return $entity;
     }
 
-    public function insert_section(mixed $section, int $user_id, ?int $parent_item_id, int $status): entity
+    public function insert_section(object $section, int $user_id, ?int $parent_item_id, int $status): entity
     {
 
         $course_format = course_get_format($section->course);
