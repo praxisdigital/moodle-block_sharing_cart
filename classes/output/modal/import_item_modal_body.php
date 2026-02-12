@@ -51,7 +51,7 @@ class import_item_modal_body implements \renderable, \core\output\named_templata
 
        foreach ($section->activities as $activity) {
 
-            if($activity->modulename == "subsection"){
+            if($activity->modulename === "subsection"){
 
                 foreach($activity->subsection_activities as $subsection_activity){
 
@@ -74,25 +74,26 @@ class import_item_modal_body implements \renderable, \core\output\named_templata
                 }
                 $activity->course_modules = $activity->subsection_activities;
                 $activity->id = $activity->moduleid;
-            }
-            else {
-                $activity->title = format_string($activity->title);
-                $activity->title = strlen($activity->title) > 50 ? substr(
-                        $activity->title,
-                        0,
-                        50
-                    ) . '...' : $activity->title;
 
-                $activity->id = $activity->moduleid;
-                $activity->type = 'coursemodule';
-                $activity->mod_icon = $output->image_url('icon', "mod_{$activity->modulename}");
-                if(!isset($activity->course_modules)) $activity->course_modules = [];
-                $activity->module_is_disabled_on_site = $this->db->get_record('modules', [
-                    'name' => $activity->modulename,
-                    'visible' => false
-                ]);
-                $activity->locked = $activity->module_is_disabled_on_site || $can_configure_restore === false;
+                continue;
             }
+
+            $activity->title = format_string($activity->title);
+            $activity->title = strlen($activity->title) > 50 ? substr(
+                    $activity->title,
+                    0,
+                    50
+                ) . '...' : $activity->title;
+
+            $activity->id = $activity->moduleid;
+            $activity->type = 'coursemodule';
+            $activity->mod_icon = $output->image_url('icon', "mod_{$activity->modulename}");
+            if(!isset($activity->course_modules)) $activity->course_modules = [];
+            $activity->module_is_disabled_on_site = $this->db->get_record('modules', [
+                'name' => $activity->modulename,
+                'visible' => false
+            ]);
+            $activity->locked = $activity->module_is_disabled_on_site || $can_configure_restore === false;
 
         }
 
@@ -140,7 +141,7 @@ class import_item_modal_body implements \renderable, \core\output\named_templata
 
         if(!isset($section)) return false;
 
-        if($section->type == $this->item->is_subsection() && $this->clipboard_target_id != 0){
+        if($this->item->is_subsection() && $this->clipboard_target_id !== 0){
 
             try{
                 $target_section_name = $this->db->get_field('course_sections', 'name', ['id' => $this->clipboard_target_id],MUST_EXIST);

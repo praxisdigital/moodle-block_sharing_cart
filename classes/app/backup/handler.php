@@ -69,7 +69,7 @@ class handler
         return $this->queue_async_backup($backup_controller, $root_item, $settings);
     }
 
-    public function backup_section(mixed $section, entity $root_item, array $settings = []): array
+    public function backup_section(object $section, entity $root_item, array $settings = []): array
     {
         global $USER;
 
@@ -94,7 +94,7 @@ class handler
             $USER->id
         )->trigger();
 
-        return array("task" => $task, "controller" => $backup_controller);
+        return ["task" => $task, "controller" => $backup_controller];
 
     }
 
@@ -115,6 +115,7 @@ class handler
 
         $sections = [];
         $subsections = [];
+
 
         foreach ($info->sections as $section) {
 
@@ -164,14 +165,17 @@ class handler
                     'title' => $activity->title,
                     'activities' => []
                 ];
+                continue;
             }
-            else if(isset($sections["lone_activity"])){
+
+            if(isset($sections["lone_activity"])){
                 $sections["lone_activity"]->activities[] = $activity;
+                continue;
             }
-            else{
-                //Activities that live under subsections
-                $sections[array_key_first($sections)]->activities[$activity->sectionid]->subsection_activities[] = $activity;
-            }
+
+            //Activities that live under subsections
+            $sections[array_key_first($sections)]->activities[$activity->sectionid]->subsection_activities[] = $activity;
+
         }
 
         return $sections;

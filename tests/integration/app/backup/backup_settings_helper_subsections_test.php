@@ -38,7 +38,7 @@ class backup_settings_helper_subsections_test extends \advanced_testcase
     {
         global $CFG;
 
-        if(!$this->is_plugin_installed("block_sharing_cart") || $CFG->version < 2024100709){
+        if(!$this->is_plugin_installed("block_sharing_cart") || $CFG->version < 2024100700){
             $this->markTestSkipped("Skipping tests. Subsections are unsupported.");
         }
 

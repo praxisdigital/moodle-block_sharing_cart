@@ -43,7 +43,7 @@ class section_into_sharing_cart extends external_api
 
         $section_fields = 'id, section, sequence, course, itemid';
         // "itemid" is not supported until moodle 4.5+
-        if(get_config('core', 'version') < 2024100709){
+        if(get_config('core', 'version') < 2024100700){
             $section_fields = 'id, section, sequence, course';
         }
 
@@ -54,7 +54,7 @@ class section_into_sharing_cart extends external_api
             MUST_EXIST
         );
 
-        if($section == false){
+        if($section === false){
             throw new \Exception("Section does not exist");
         }
 

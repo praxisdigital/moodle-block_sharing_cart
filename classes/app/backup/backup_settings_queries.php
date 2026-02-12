@@ -57,7 +57,7 @@ class backup_settings_queries
     public function get_immediate_child_modules_of_section(int $section_id): array
     {
         // query is not supported until moodle 4.5+
-        if(get_config('core', 'version') < 2024100709){
+        if(get_config('core', 'version') < 2024100700){
             mtrace("Tried querying database for immediate child modules of a section. Moodle version is too low for this call. Returning empty array.");
             return [];
         }

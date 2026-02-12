@@ -139,8 +139,8 @@ class backup_settings_helper
                 $this->set_setting(
                     $course_module->name,
                     $course_module->id,
-                    $course_module->section == $section_id,
-                    ($course_module->section == $section_id) ? $include_users : false
+                    (int)$course_module->section === $section_id,
+                    ((int)$course_module->section === $section_id) ? $include_users : false
                 )
             );
         }

@@ -76,15 +76,15 @@ class handler
 
         //Attempt to restore a section into a non-section?
         if(!$is_target_a_section){
-            if($subject_item->own_type == 'section'){return false;}
+            if($subject_item->own_type === 'section'){return false;}
         }
 
         //Attempt to restore a subsection into a subsection?
         if($is_target_a_subsection){
-            if($subject_item->own_type == 'mod_subsection'){return false;}
+            if($subject_item->own_type === 'mod_subsection'){return false;}
 
             //Attempt to restore a subsections's child into a subsection?
-            if($subject_item->parent_type == 'subsection'){return false;}
+            if($subject_item->parent_type === 'subsection'){return false;}
         }
 
         return true;
