@@ -123,6 +123,11 @@ export default class CourseElement {
         this.#blockElement.clearClipboard();
     }
 
+    async reRenderClipboard(){
+        this.clearClipboard();
+        await this.renderClipboard();
+    }
+
     /**
      * @param {ItemElement} item
      */
@@ -147,12 +152,44 @@ export default class CourseElement {
         this.#clipboardTargetListenerAbortController.abort();
         this.#clipboardTargetListenerAbortController = new AbortController();
 
-        this.#element.querySelectorAll('[data-for="cmlist"]').forEach((section) => {
-            const clipboardTarget = section.querySelector('.clipboard_target') ?? element.cloneNode(true);
+        this.#element.querySelectorAll('[data-for="cmlist"],[data-for="course_sectionlist"]').forEach((section) => {
 
+            let clipboardTarget = null;
+            let sectionId = null;
+
+            if(section.matches('[data-for="course_sectionlist"]')){
+
+                const courseSectionsElementList = section.querySelectorAll('.section-item ul[data-for="cmlist"]');
+
+                if(!courseSectionsElementList){return;}
+
+                courseSectionsElementList.forEach((courseSectionElement) => {
+
+                    if(!this.isSectionClipboardTargetEligible(courseSectionElement,item)) return;
+
+                    clipboardTarget = courseSectionElement.querySelector('.clipboard_target') ?? element.cloneNode(true);
+                    courseSectionElement.prepend(clipboardTarget);
+                    sectionId = courseSectionElement.closest('[data-for="section"]').dataset.id;
+
+                    clipboardTarget.classList.remove('hidden');
+                    clipboardTarget.parentElement.classList.remove('hidden');
+                    clipboardTarget.addEventListener(
+                        'click',
+                        this.#blockElement.confirmImportBackupFromSharingCart.bind(this.#blockElement, item, sectionId),
+                        {
+                            signal: this.#clipboardTargetListenerAbortController.signal
+                        }
+                    );
+                })
+
+                return;
+            }
+
+            if(!this.isSectionClipboardTargetEligible(section,item)) return;
+
+            clipboardTarget = section.querySelector('.clipboard_target') ?? element.cloneNode(true);
             section.prepend(clipboardTarget);
-
-            const sectionId = section.closest('[data-for="section"]').dataset.id;
+            sectionId = section.closest('[data-for="section"]').dataset.id;
 
             clipboardTarget.classList.remove('hidden');
             clipboardTarget.parentElement.classList.remove('hidden');
@@ -167,13 +204,45 @@ export default class CourseElement {
     }
 
     /**
+     * Checks whether the section is allowed to have a clipboardTarget button prepended.
+     * For example, subsections are not eligible as a clipboard target if the clipboard is a subsection.
+     * Subsections cannot nest subsections.
+     * @param {Element} section
+     * @param {ItemElement} item
+     * @returns {boolean}
+     */
+    isSectionClipboardTargetEligible(section,item){
+
+        //Has already been made a clipboardTarget.
+        if (section.querySelector('.clipboard_target')) {
+            return false;
+        }
+
+        // If the item is nested under a subsection in the clipboard.
+        // And the clipboardTarget is a subsection. (That is not allowed)
+        if(item.isNestedUnderSubsection() && section.closest(".subsection")){
+            return false;
+        }
+
+        //Activities can always be inserted into any clipboardTarget.
+        if(!item.isSubsection() && !item.isSection()) return true;
+
+        //No section nor subsection can be inserted into an activity clipboardTarget.
+        if(section.closest('[data-region="activity-card"]')) return false;
+
+        return true;
+    }
+
+    /**
      * @param {Number} sectionId
      * @returns {String}
      */
     getSectionName(sectionId) {
         const section = this.reactive.state.section.get(sectionId);
 
-        return section.title ?? 'Unknown';
+        if(section.title) return section.title;
+
+        return 'Unknown';
     }
 
     /**
@@ -252,6 +321,9 @@ export default class CourseElement {
     async setClipboard(item) {
         if (!this.#clipboard) {
             await this.renderClipboard();
+        }
+        else{
+            await this.reRenderClipboard();
         }
 
         this.updateClipboard(item);

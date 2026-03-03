@@ -45,6 +45,7 @@ class content implements \renderable, \core\output\named_templatable
             $backup_tasks
         );
 
+
         $all_item_contexts = $this->base_factory->item()->repository()->get_by_user_id($this->user_id)->map(
             static function (entity $item) use ($backup_tasks) {
                 return item::export_item_for_template($item, $backup_tasks);

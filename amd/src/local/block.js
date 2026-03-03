@@ -191,12 +191,10 @@ export default class Block extends BaseComponent {
                             if (e.currentTarget.classList.contains('disabled')) {
                                 return;
                             }
-
                             this.block.addSectionBackupToSharingCart(element.id);
                         }
                     );
                 }
-
                 backupButton = sectionTitle.parentElement.querySelector('.add_to_sharing_cart');
 
                 const disabled = element.cmlist.length === 0;

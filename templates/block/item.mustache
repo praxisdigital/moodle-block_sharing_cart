@@ -1,8 +1,10 @@
 <div class="sharing_cart_item" data-type="{{type}}" data-itemid="{{id}}" data-oldinstanceid="{{old_instance_id}}"
+
      {{#module_is_disabled_on_site}}title="{{#str}}module_is_disabled_on_site, block_sharing_cart{{/str}}"{{/module_is_disabled_on_site}}
      data-module_is_disabled_on_site="{{#module_is_disabled_on_site}}1{{/module_is_disabled_on_site}}{{^module_is_disabled_on_site}}0{{/module_is_disabled_on_site}}"
      data-status="{{status}}"
-     {{^is_module}}data-collapsed="true"{{/is_module}}
+     {{#is_section}}data-collapsed="true"{{/is_section}}
+     {{#is_subsection}}data-collapsed="true"{{/is_subsection}}
     {{#original_course_fullname}}title="{{#str}}original_course, block_sharing_cart{{/str}} {{.}}"{{/original_course_fullname}}
 >
     <div class="item-body">
