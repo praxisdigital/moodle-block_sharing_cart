@@ -52,8 +52,9 @@ class item implements \renderable, \core\output\named_templatable
         $item_context->is_root = $item->get_parent_item_id() === null;
 
         $item_context->is_section = $item->is_section();
-
+        $item_context->is_subsection = $item->is_subsection();
         $item_context->is_module = $item->is_module();
+
         $item_context->mod_icon = self::get_mod_icon($item);
         $item_context->can_copy_to_course = has_capability('moodle/restore:restoreactivity', $PAGE->context, $USER);
 
@@ -109,6 +110,7 @@ class item implements \renderable, \core\output\named_templatable
             $task->item_id = json_decode($task->customdata)?->item?->id;
             unset($task->customdata);
         });
+
         $backup_tasks = array_combine(
             array_column($backup_tasks, 'item_id'),
             $backup_tasks

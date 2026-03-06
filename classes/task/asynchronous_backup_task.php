@@ -166,7 +166,7 @@ class asynchronous_backup_task extends \core\task\adhoc_task
             $db = $this->db();
             $item_entity = $this->factory()->item()->repository()->get_by_id($custom_data->item->id);
 
-            if ($item_entity->get_type() === 'section') {
+            if ($item_entity->get_type() === 'section' || $item_entity->get_type() === 'mod_subsection') {
                 $db->get_record(
                     'course_sections',
                     ['id' => $item_entity->get_old_instance_id()],
@@ -180,54 +180,17 @@ class asynchronous_backup_task extends \core\task\adhoc_task
                 );
             }
 
-            $settings = [
-                'role_assignments' => false,
-                'activities' => true,
-                'blocks' => false,
-                'filters' => false,
-                'comments' => false,
-                'calendarevents' => false,
-                'userscompletion' => false,
-                'logs' => false,
-                'grade_histories' => false,
-                'users' => false,
-                'anonymize' => false,
-                'badges' => false,
-                'filename' => 'sharing_cart_backup-' . $item_entity->get_id() . '.mbz'
-            ];
+            $backup_controller_context = $this->get_backup_controller_context($backup_controller);
 
-            $context = $this->get_backup_controller_context($backup_controller);
+            // Construct backup plan settings
+            $backup_plan_settings = $this->factory()->backup()->settings_helper()->construct_backup_plan_settings($custom_data, $backup_controller_context,$item_entity);
 
-            if ($custom_data->backup_settings->users) {
-                require_capability('moodle/backup:userinfo', $context);
+            $backup_plan = $backup_controller->get_plan();
 
-                $settings['users'] = true;
-            }
+            // Apply the backup plan settings to the backup plan
+            $this->factory()->backup()->settings_helper()->apply_backup_plan_settings($backup_plan_settings,$backup_plan);
 
-            if ($custom_data->backup_settings->anonymize && $settings['users']) {
-                require_capability('moodle/backup:anonymise', $context);
-
-                $settings['anonymize'] = true;
-            }
-            $settings += $this->factory()->backup()
-                ->settings_helper()
-                ->get_course_settings_by_item($item_entity, $settings['users']);
-
-            $plan = $backup_controller->get_plan();
-            foreach ($settings as $name => $value) {
-                if ($plan->setting_exists($name)) {
-                    $setting = $plan->get_setting($name);
-
-                    // If locked
-                    if (\base_setting::NOT_LOCKED !== $setting->get_status()) {
-                        continue;
-                    }
-
-                    $setting->set_value($value);
-                }
-            }
-
-            $this->toggle_question_bank_setting($plan, $item_entity);
+            $this->toggle_question_bank_setting($backup_plan, $item_entity);
 
             $this->filter_away_disabled_course_modules($backup_controller);
 
@@ -329,6 +292,7 @@ class asynchronous_backup_task extends \core\task\adhoc_task
         $this->output("Excluding activities which are disabled on the site...");
 
         foreach ($backup_controller->get_plan()->get_tasks() as $task) {
+
             if ($task instanceof \backup_activity_task) {
                 $cm_id = (int)$task->get_moduleid();
                 $modulename = $task->get_modulename();
@@ -343,6 +307,8 @@ class asynchronous_backup_task extends \core\task\adhoc_task
                     $task->get_setting('included')->set_value(false);
                 }
             }
+
+
         }
     }
 

@@ -516,6 +516,7 @@ export default class BlockElement {
      * @return {Promise<Modal>}
      */
     async createBackupItemToSharingCartModal(backupType, itemId, itemName, onSave) {
+
         const strings = await get_strings([
             {
                 key: 'backup_item',
@@ -697,7 +698,8 @@ export default class BlockElement {
                 task_id: item.task_id ?? null,
                 status_finished: false,
                 status_failed: false,
-                is_module: item.type !== 'section',
+                is_module: item.type !== 'section' && item.type !== 'mod_subsection',
+                is_subsection:item.type === 'mod_subsection',
                 is_section: item.type === 'section',
                 is_root: true,
             }
@@ -716,7 +718,7 @@ export default class BlockElement {
         this.#course.clearClipboard();
 
         const courseModuleIds = [];
-        modal.querySelectorAll('input[type="checkbox"][data-type="coursemodule"]:checked').forEach((checkbox) => {
+        modal.querySelectorAll('input[type="checkbox"]:checked').forEach((checkbox) => {
             courseModuleIds.push(checkbox.dataset.id);
         });
 
@@ -730,7 +732,7 @@ export default class BlockElement {
             return false;
         }
 
-        if (item.isModule()) {
+        if (item.isModule() && !item.isSubsection()) {
             courseModuleIds.push(item.getItemOldInstanceId());
         }
 
@@ -789,7 +791,8 @@ export default class BlockElement {
             'item_restore_form',
             pageContextId,
             {
-                item_id: item.getItemId()
+                item_id: item.getItemId(),
+                clipboard_target_id:sectionId
             }
         );
 

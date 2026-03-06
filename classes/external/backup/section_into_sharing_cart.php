@@ -41,28 +41,38 @@ class section_into_sharing_cart extends external_api
             'settings' => $settings,
         ]);
 
-        $course_id = $DB->get_field('course_sections', 'course', ['id' => $params['section_id']], MUST_EXIST);
-
-        self::validate_context(
-            \context_course::instance($course_id)
-        );
-
-        $sequence = $DB->get_field('course_sections', 'sequence', ['id' => $params['section_id']], MUST_EXIST);
-        if (empty($sequence)) {
-            throw new \Exception('Section is empty');
+        $section_fields = 'id, section, sequence, course, itemid';
+        // "itemid" is not supported until moodle 4.5+
+        if(get_config('core', 'version') < 2024100700){
+            $section_fields = 'id, section, sequence, course';
         }
 
+        $section = $DB->get_record(
+            'course_sections',
+            ['id' => $params['section_id']],
+            $section_fields,
+            MUST_EXIST
+        );
+
+        if($section === false){
+            throw new \Exception("Section does not exist");
+        }
+
+        self::validate_context(
+            \context_course::instance($section->course)
+        );
+
         $item = $base_factory->item()->repository()->insert_section(
-            $params['section_id'],
+            $section,
             $USER->id,
             null,
             entity::STATUS_AWAITING_BACKUP
         );
 
-        $backup_task = $base_factory->backup()->handler()->backup_section($params['section_id'], $item, $settings);
+        $backup_task = $base_factory->backup()->handler()->backup_section($section, $item, $settings);
 
         $return = $item->to_array();
-        $return['task_id'] = $backup_task->get_id();
+        $return['task_id'] = $backup_task["task"]->get_id();
 
         return (object)$return;
     }

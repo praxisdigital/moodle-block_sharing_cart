@@ -3,7 +3,12 @@
     {{#sections}}
         <div class="form-check">
             <label class="form-check-label">
-                <i class="fa fa-folder-o"></i>
+                {{#is_subsection}}
+                    <i class="fa fa-bars-staggered"></i>
+                {{/is_subsection}}
+                {{#is_section}}
+                    <i class="fa fa-folder-o"></i>
+                {{/is_section}}
                 {{{title}}}
             </label>
             <div class="item-children form-check">
@@ -13,4 +18,11 @@
             </div>
         </div>
     {{/sections}}
+
+    {{#user_msgs}}
+        <div class="user-messages">
+            <small>{{.}}</small>
+        </div>
+    {{/user_msgs}}
+
 </div>

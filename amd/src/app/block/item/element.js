@@ -40,8 +40,9 @@ export default class ItemElement {
     }
 
     #pollItem(currentTry = 0, retries = -1, uuid = null) {
+
         if (uuid === null) {
-            uuid = crypto.randomUUID();
+            uuid = crypto.getRandomValues(new Uint32Array(1))[0];
 
             if (polls[this.getItemId()]) {
                 return;
@@ -64,7 +65,7 @@ export default class ItemElement {
                 item_id: this.getItemId(),
                 course_id: M.cfg.courseId
             },
-            done: async(item) => {
+            done: async (item) => {
                 const actionsContainer = this.#element.querySelector(':scope > .item-body .sharing_cart_item_actions');
                 const runNowButton = actionsContainer?.querySelector('[data-action="run_now"]');
                 if (!runNowButton && item.show_run_now) {
@@ -111,7 +112,7 @@ export default class ItemElement {
         );
         actionsContainer?.querySelector('[data-action="copy_to_course"]')?.addEventListener(
             'click',
-            this.copyItemToCourse.bind(this)
+            this.copyToCourse.bind(this)
         );
         actionsContainer?.querySelector('[data-action="run_now"]')?.addEventListener(
             'click',
@@ -119,7 +120,7 @@ export default class ItemElement {
         );
     }
 
-    async copyItemToCourse(e) {
+    async copyToCourse(e) {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
@@ -238,9 +239,15 @@ export default class ItemElement {
     /**
      * @param {HTMLElement} item
      * @param {Boolean|NULL} collapse
+     * @param {Number|NULL} paddingLeftPercent
      */
-    toggleCollapse(item, collapse = null) {
-        if (item.dataset.type !== 'section' &&
+    toggleCollapse(item, collapse = null, paddingLeftPercent = 0) {
+
+        if (item.style.paddingLeft === '') {
+            item.style.paddingLeft = `${paddingLeftPercent}%`;
+        }
+
+        if ((item.dataset.type !== 'section' && item.dataset.type !== 'mod_subsection') &&
             item.dataset.status !== '0' &&
             item.dataset.status !== '2') {
             return;
@@ -257,8 +264,22 @@ export default class ItemElement {
             !iconElement.classList.contains('fa-exclamation-triangle') &&
             !iconElement.classList.contains('fa-exclamation-circle')
         ) {
-            iconElement.classList.remove('fa-folder-o', 'fa-folder-open-o');
-            iconElement.classList.add(item.dataset.collapsed === 'true' ? 'fa-folder-o' : 'fa-folder-open-o');
+
+            let classMap;
+            if (item.dataset.type === "mod_subsection") {
+                classMap = ['fa-bars', 'fa-bars-staggered'];
+            } else if (item.dataset.type === "section") {
+                classMap = ['fa-folder-o', 'fa-folder-open-o'];
+            }
+
+            if (classMap) {
+                iconElement.classList.remove(...classMap);
+
+                //Add the correct class based on collapsed state
+                const collapsed = item.dataset.collapsed === 'true';
+                const classToAdd = collapsed ? classMap[0] : classMap[1];
+                iconElement.classList.add(classToAdd);
+            }
         }
     }
 
@@ -270,6 +291,39 @@ export default class ItemElement {
         return this.#element.dataset.type === 'section';
     }
 
+    isSubsection() {
+        return this.#element.dataset.type === 'mod_subsection';
+    }
+
+    /**
+     * Checks if the item's element is nested under a subsection in the clipboard.
+     * @returns {boolean}
+     */
+    isNestedUnderSubsection() {
+
+        let tempElem = this.getItemElement();
+        const maxIterations = 5;
+        let i = 0;
+        // Loop upwards in the tree, from item.
+        while (tempElem !== null && i < maxIterations) {
+            tempElem = tempElem.parentElement;
+            if (tempElem.classList.contains("sharing_cart_item")) {
+                break;
+            }
+            i++;
+        }
+
+        if (!tempElem) {
+            return false;
+        }
+
+        if (tempElem.dataset.type && tempElem.dataset.type === "mod_subsection") {
+            return true;
+        }
+
+        return false;
+    }
+
     /**
      * @param {Event} e
      */
@@ -278,13 +332,12 @@ export default class ItemElement {
         e.stopPropagation();
         e.stopImmediatePropagation();
 
-        if (this.isModule() || this.#element.dataset.status !== '1') {
-            return;
-        }
-
         this.toggleCollapse(this.#element);
+
+        let paddingLeftPercentDefault = 12.5;
         this.getItemChildrenRecursively().forEach((item) => {
-            this.toggleCollapse(item, this.#element.dataset.collapsed === 'true');
+            this.toggleCollapse(item, this.#element.dataset.collapsed === 'true', paddingLeftPercentDefault);
+
         });
     }
 
