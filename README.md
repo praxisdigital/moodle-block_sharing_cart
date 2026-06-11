@@ -61,7 +61,7 @@ Versions
       TYPE_1ACTIVITY for activities was to avoid copying all question banks from the course.
 
 Important: This versioning helps users identify legacy sharing cart items.
-As of 6.0 release 1, restoration of Legacy items is still supported.
+As of 5.2 release 1, restoration of Legacy items is still supported.
 
 License
 -------
@@ -70,7 +70,9 @@ GPL v3
 Change Log
 ----------
 
-* 5.0, release 7 2026.03.06
+* 5.2, release 1 2026.06.11
+    * Added support for Moodle 5.2
+* 5.0, release 7 2025.11.13
     * Added support for PHP 8.4
     * Add pluginfile function to support download of backups from sharing cart
     * Made various UI/UX improvements to reduce confusion and minimize wasted block region space.
