@@ -1,4 +1,4 @@
-<div class="sharing_cart_item" data-type="{{type}}" data-itemid="{{id}}" data-oldinstanceid="{{old_instance_id}}"
+<div class="sharing_cart_item {{#status_awaiting}}alert alert-info mb-0{{/status_awaiting}}" data-type="{{type}}" data-itemid="{{id}}" data-oldinstanceid="{{old_instance_id}}"
 
      {{#module_is_disabled_on_site}}title="{{#str}}module_is_disabled_on_site, block_sharing_cart{{/str}}"{{/module_is_disabled_on_site}}
      data-module_is_disabled_on_site="{{#module_is_disabled_on_site}}1{{/module_is_disabled_on_site}}{{^module_is_disabled_on_site}}0{{/module_is_disabled_on_site}}"
