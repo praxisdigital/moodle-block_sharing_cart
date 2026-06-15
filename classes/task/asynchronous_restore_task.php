@@ -276,7 +276,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
     private function trigger_restored_event(
         \restore_controller $controller,
         int $started,
-        int $finished,
+        int $finished
     ): void {
         foreach ($controller->get_plan()->get_tasks() as $task) {
             if ($task instanceof \restore_activity_task) {

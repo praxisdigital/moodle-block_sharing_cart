@@ -8,7 +8,6 @@ defined('MOODLE_INTERNAL') || die();
 
 use block_sharing_cart\app\item\entity;
 use block_sharing_cart\app\factory as base_factory;
-use format_theunittest\output\courseformat\state\course;
 
 class backup_settings_helper
 {

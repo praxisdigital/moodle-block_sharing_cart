@@ -14,7 +14,7 @@ jobs:
         php: [ 8.3, 8.4 ]
         os: [ ubuntu-latest ]
         moodle: [ MOODLE_502_STABLE ]
-        dbtype: [ mysqli, sqlsrv ]
+        dbtype: [ mysqli, sqlsrv, pgsql ]
         experimental: [ false ]
 
     steps:
