@@ -12,83 +12,105 @@ use block_sharing_cart\app\factory as base_factory;
 class backup_settings_helper
 {
     private base_factory $base_factory;
+    private backup_settings_queries $backup_settings_repository;
 
     public function __construct(base_factory $base_factory)
     {
         $this->base_factory = $base_factory;
+        $this->backup_settings_repository = $base_factory->backup()->settings_repository();
     }
 
-    public function get_course_settings_by_item(entity $item, bool $include_users): array
-    {
-        $settings = [];
+    public function construct_backup_plan_settings(object $custom_data, \core\context $backup_controller_context, false|entity $item_entity) : array{
 
-        [$section_id, $course_module_id] = $this->get_ids_by_item($item);
-
-        $sections = $this->get_course_sections_by_section_id($section_id);
-
-        $course_modules = $this->get_course_modules_by_section_id($section_id);
-
-        $settings += $this->get_course_module_settings($course_modules, $section_id, $course_module_id, $include_users);
-
-        $settings += $this->get_section_settings($sections, $section_id, $include_users);
-
-        return $settings;
-    }
-
-    private function get_ids_by_item(entity $item): array
-    {
-        $course_module_id = null;
-
-        if($item->type === 'section') {
-            return [$item->old_instance_id, $course_module_id];
+        if(!$item_entity) {
+            throw new \Exception("Item entity not specified. Could not construct backup plan settings.");
         }
-        $course_module_id = $item->old_instance_id;
-        $section_id = $this->base_factory->moodle()->db()->get_record(
+
+        //Base settings
+        $backup_plan_settings = [
+            'role_assignments' => false,
+            'activities' => true,
+            'blocks' => false,
+            'filters' => false,
+            'comments' => false,
+            'calendarevents' => false,
+            'userscompletion' => false,
+            'logs' => false,
+            'grade_histories' => false,
+            'users' => false,
+            'anonymize' => false,
+            'badges' => false,
+            'filename' => 'sharing_cart_backup-' . $item_entity->get_id() . '.mbz'
+        ];
+
+        $backupsettings = (object)$custom_data->backup_settings;
+
+        if (!empty($backupsettings->users)) {
+            require_capability('moodle/backup:userinfo', $backup_controller_context);
+            $backup_plan_settings['users'] = true;
+        }
+
+        if (!empty($backupsettings->anonymize) && !empty($backup_plan_settings['users'])) {
+            require_capability('moodle/backup:anonymise', $backup_controller_context);
+            $backup_plan_settings['anonymize'] = true;
+        }
+
+        $section_id = $this->get_section_id($item_entity);
+
+        //Returns all course modules with the same course number as $item_entity.
+        $course_modules = $this->backup_settings_repository->get_course_modules_by_section_id($section_id);
+
+        //Returns all sections with the same course number as $item_entity.
+        $course_sections = $this->backup_settings_repository->get_course_sections_by_section_id($section_id);
+
+        //Add module settings
+        $backup_plan_settings += $this->get_course_module_settings($course_modules, $item_entity, $section_id, $backup_plan_settings['users']);
+
+        //Add section settings
+        $backup_plan_settings += $this->get_section_settings($course_sections, $section_id, $backup_plan_settings['users']);
+
+        return $backup_plan_settings;
+    }
+
+    public function apply_backup_plan_settings(array $backup_plan_settings,\backup_plan $backup_plan) : void{
+
+        foreach ($backup_plan_settings as $name => $value) {
+
+            if ($backup_plan->setting_exists($name)) {
+
+                $setting = $backup_plan->get_setting($name);
+
+                if (\base_setting::NOT_LOCKED !== $setting->get_status()) {
+                    continue;
+                }
+
+                $setting->set_value($value);
+            }
+
+        }
+
+    }
+
+    private function get_section_id(entity $item_entity): string
+    {
+
+        if($item_entity->get_type() === $item_entity::TYPE_SECTION || $item_entity->get_type() === $item_entity::TYPE_MOD_SUBSECTION) {
+            return $item_entity->old_instance_id;
+        }
+
+        return $this->base_factory->moodle()->db()->get_record(
             'course_modules',
-            ['id' => $course_module_id],
+            ['id' => $item_entity->old_instance_id],
             'section',
             MUST_EXIST
         )->section;
 
-        return [$section_id, $course_module_id];
-    }
-
-    private function get_course_sections_by_section_id(int $section_id): array
-    {
-        $db = $this->base_factory->moodle()->db();
-        // Get all sections in the course by section_id
-        $sql = "SELECT cs.id, cs.sequence
-                   FROM {course_sections} cs
-                  WHERE cs.course = (SELECT cs.course
-                                       FROM {course_sections} cs
-                                      WHERE cs.id = :section_id)";
-        $params =  [
-            'section_id' => $section_id
-        ];
-
-        return $db->get_records_sql($sql, $params);
-    }
-
-    private function get_course_modules_by_section_id(int $section_id): array
-    {
-        $db = $this->base_factory->moodle()->db();
-        // Get all course_modules within course by section_id
-        $sql = "SELECT cm.id, cm.section, m.name
-                FROM {course_modules} cm
-                JOIN {modules} as m on cm.module = m.id
-                WHERE cm.course = (SELECT cs.course
-                                   FROM {course_sections} cs
-                                   WHERE cs.id = :section_id)";
-        $params = [
-            'section_id' => $section_id
-        ];
-
-        return $db->get_records_sql($sql, $params);
     }
 
     private function get_section_settings(array $sections, int $section_id, bool $include_users): array
     {
         $settings = [];
+
         foreach ($sections as $section){
             $settings["section_".$section->id."_userinfo"] = false;
             $settings["section_".$section->id."_included"] = false;
@@ -102,34 +124,95 @@ class backup_settings_helper
 
     private function get_course_module_settings(
         array $course_modules,
+        entity $item_entity,
         int $section_id,
-        ?int $course_module_id,
         bool $include_users
     ): array
     {
         $settings = [];
-        foreach ($course_modules as $course_module) {
-            $settings[$course_module->name . "_" . $course_module->id . "_userinfo"] = false;
-            $settings[$course_module->name . "_" . $course_module->id . "_included"] = false;
 
+        foreach($course_modules as $course_module) {
+            //Include all immediate child modules of section(section_id) in the backup plan settings.
+            $settings = array_merge(
+                $settings,
+                $this->set_setting(
+                    $course_module->name,
+                    $course_module->id,
+                    (int)$course_module->section === $section_id,
+                    ((int)$course_module->section === $section_id) ? $include_users : false
+                )
+            );
         }
 
-        if ($course_module_id !== null) {
-            // get the one module
-            $keep_modules = array_filter($course_modules, static function ($course_module) use ($course_module_id) {
-                return (int) $course_module->id === $course_module_id;
+        $immediate_child_modules = $this->backup_settings_repository->get_immediate_child_modules_of_section($section_id);
+
+        if(!empty($immediate_child_modules)) {
+
+            $child_module_ids = [];
+            foreach($immediate_child_modules as $immediate_child_module) {
+
+                if(empty($immediate_child_module->section_id)) continue;
+
+                //Include the section (The corresponding section of the module, must be included.) (Activities don't have corresponding sections)
+                $settings = array_merge(
+                    $settings,
+                    $this->set_setting(
+                        "section",
+                        $immediate_child_module->section_id,
+                        true,
+                        $include_users
+                    )
+                );
+
+                if(!empty($immediate_child_module->child_module_ids)){
+                    //Add the module ids of the childrens child modules.
+                    $child_module_ids = array_merge(
+                        $child_module_ids,
+                        explode(',', $immediate_child_module->child_module_ids)
+                    );
+
+                }
+            }
+
+            $subsection_child_modules = array_filter($course_modules, function($course_module) use($child_module_ids) {
+                return in_array($course_module->id, $child_module_ids);
             });
-        } else {
-            // get all section modules
-            $keep_modules = array_filter($course_modules, static function ($course_module) use ($section_id) {
-                return (int) $course_module->section === $section_id;
-            });
+
+            //Include all subsection's nested child modules.
+            foreach($subsection_child_modules as $subsection_child_module) {
+                $settings = array_merge($settings,$this->set_setting($subsection_child_module->name,$subsection_child_module->id,true,$include_users));
+            }
+
         }
 
-        foreach ($keep_modules as $course_module) {
-            $settings[$course_module->name . "_" . $course_module->id . "_userinfo"] = $include_users;
-            $settings[$course_module->name . "_" . $course_module->id . "_included"] = true;
+        //Subsection's parent section must be included for the backup to work regardless of backup type.
+        if($item_entity->get_type() === $item_entity::TYPE_MOD_SUBSECTION){
+
+            $subsection_info = $this->backup_settings_repository->get_mod_subsection_info($section_id);
+
+            if(empty($subsection_info)){
+                throw new \Exception("Could not complete backup plan settings construction. Section was empty.");
+            }
+
+            $parent_section_id = $subsection_info[array_key_first($subsection_info)]->parent_section_id;
+            $own_module_id = $subsection_info[array_key_first($subsection_info)]->own_module_id;
+
+            //Include the subsections parent section id (A course section).
+            $settings = array_merge($settings,$this->set_setting("section",$parent_section_id,true,$include_users));
+
+            //The subsection's own module id must also be included.
+            $settings = array_merge($settings, $this->set_setting("subsection",$own_module_id,true,$include_users));
+
         }
+
         return $settings;
     }
+
+    private function set_setting(string $setting_name, string $setting_id, bool $setting_value, bool $include_users) : array{
+        return [
+            $setting_name."_".$setting_id."_"."userinfo" => $include_users,
+            $setting_name."_".$setting_id."_"."included" => $setting_value
+        ];
+    }
+
 }

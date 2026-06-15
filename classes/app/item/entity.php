@@ -14,6 +14,7 @@ class entity extends \block_sharing_cart\app\entity
     public const STATUS_BACKUP_FAILED = 2;
 
     public const TYPE_SECTION = 'section';
+    public const TYPE_MOD_SUBSECTION = 'mod_subsection';
 
     Public const CURRENT_BACKUP_VERSION = 3;
 
@@ -135,6 +136,11 @@ class entity extends \block_sharing_cart\app\entity
     public function is_section(): bool
     {
         return $this->get_type() === self::TYPE_SECTION;
+    }
+
+    public function is_subsection(): bool
+    {
+        return $this->get_type() === self::TYPE_MOD_SUBSECTION;
     }
 
     public function is_module(): bool

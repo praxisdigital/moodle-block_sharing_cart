@@ -44,7 +44,7 @@ class restored_course_module extends restore
                 'cmid' => $course_module_id,
                 'module' => $type,
                 'starttime' => $start_time,
-                'finishtime' => $finish_time,
+                'finishtime' => $finish_time
             ],
         ]);
     }

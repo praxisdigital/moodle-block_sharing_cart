@@ -74,6 +74,14 @@ Change Log
     * Added support for Moodle 5.2
 * 5.0, release 7 2025.11.13
     * Added support for PHP 8.4
+    * Add pluginfile function to support download of backups from sharing cart
+    * Made various UI/UX improvements to reduce confusion and minimize wasted block region space.
+    * Added support for backup & restore of subsections with nested activities.
+    * Added notice message to users in the copy modal dialog when restoring into unnamed sections, that section name
+      will be overwritten.
+    * Improved UI to show a tree-like hierarchy of items in the clipboard.
+    * Made subsections clickable to show the nested activities in the clipboard.
+    * Added front-and-backend validity checks on attempts to restore.
 * 5.0, release 6 2025.09.24
     * Added a CLI script to delete all the items from the sharing cart.
     * Fix an issue when restoring non-local backup files.

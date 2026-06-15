@@ -36,6 +36,9 @@ function block_sharing_cart_output_fragment_item_restore_form($args)
 
     $item_id = clean_param($args['item_id'], PARAM_INT);
 
+    //Id of the section being targeted for an import.
+    $clipboard_target_id = clean_param($args['clipboard_target_id'], PARAM_INT);
+
     $base_factory = \block_sharing_cart\app\factory::make();
     $item = $base_factory->item()->repository()->get_by_id($item_id);
     if (!$item) {
@@ -46,14 +49,14 @@ function block_sharing_cart_output_fragment_item_restore_form($args)
         return '';
     }
 
-    if ($item->is_module()) {
+    if ($item->is_module() && !$item->is_subsection()) {
         return get_string(
             'confirm_copy_item',
             'block_sharing_cart'
         );
     }
 
-    $template = new \block_sharing_cart\output\modal\import_item_modal_body($base_factory, $item);
+    $template = new \block_sharing_cart\output\modal\import_item_modal_body($base_factory, $item, $clipboard_target_id);
 
     return fix_utf8($OUTPUT->render($template));
 }
@@ -66,4 +69,56 @@ function block_sharing_cart_output_fragment_item_queue($args)
     $template = new \block_sharing_cart\output\block\queue\items($base_factory);
 
     return fix_utf8($OUTPUT->render($template));
+}
+
+/**
+ * Plugin file handler to allow sharing cart backups to be downloaded.
+ *
+ * @param object $course the course object
+ * @param object $cm the course module object
+ * @param context $context the newmodule's context
+ * @param string $filearea the name of the file area
+ * @param array $args extra arguments (itemid, path)
+ * @param bool $forcedownload whether or not force download
+ * @param array $options additional options affecting the file serving
+ * @return void|false
+ * @throws coding_exception
+ * @throws dml_exception
+ * @throws moodle_exception
+ * @throws require_login_exception
+ * @package block_sharing_cart
+ */
+function block_sharing_cart_pluginfile(
+    $course,
+    $cm,
+    $context,
+    $filearea,
+    $args,
+    $forcedownload,
+    array $options = []
+) {
+    require_login($course, false, $cm);
+    if (!has_all_capabilities(['moodle/backup:backupactivity', 'moodle/restore:restoreactivity'], $context)) {
+        return false;
+    }
+
+    if ($filearea !== 'backup') {
+        return false;
+    }
+
+    $factory = \block_sharing_cart\app\factory::make();
+    $itemid = array_shift($args);
+
+    $item = $factory->item()->repository()->get_by_id((int)$itemid);
+    if (!$item) {
+        return false;
+    }
+
+    $file = $factory->item()->repository()->get_stored_file_by_item($item);
+    if ($file) {
+        send_stored_file($file, 0, 0, $forcedownload, $options);
+        return true;
+    }
+
+    send_file_not_found();
 }

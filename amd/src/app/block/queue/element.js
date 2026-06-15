@@ -40,16 +40,23 @@ export default class QueueElement {
     #preventReload = false;
 
     /**
+     * @type {boolean}
+     */
+    #showCopiesQueuedSegmentWhenEmpty = true;
+
+    /**
      *
      * @param {BaseFactory} baseFactory
      * @param {BlockElement} blockElement
      * @param {HTMLElement} element
+     * @param {boolean} showCopiesQueuedSegmentWhenEmpty
      */
-    constructor(baseFactory, blockElement, element) {
+    constructor(baseFactory, blockElement, element, showCopiesQueuedSegmentWhenEmpty) {
         this.#baseFactory = baseFactory;
         this.#blockElement = blockElement;
         this.#element = element;
         this.#reactive = getCurrentCourseEditor();
+        this.#showCopiesQueuedSegmentWhenEmpty = showCopiesQueuedSegmentWhenEmpty;
 
         this.tryReloadQueue(true);
 
@@ -197,7 +204,23 @@ export default class QueueElement {
                 this.#element.appendChild(element);
             });
 
+            if (!this.#showCopiesQueuedSegmentWhenEmpty) {
+                if (queueItems.length > 0) {
+                    this.showSegment();
+                } else {
+                    this.hideSegment();
+                }
+            }
+
             resolve();
         });
+    }
+
+    hideSegment() {
+        this.#element.parentElement.classList.add('d-none');
+    }
+
+    showSegment() {
+        this.#element.parentElement.classList.remove('d-none');
     }
 }

@@ -69,6 +69,11 @@ export default class BlockElement {
     #showSharingCartBasket = false;
 
     /**
+     * @type {Boolean}
+     */
+    #showCopiesQueuedSegmentWhenEmpty = true;
+
+    /**
      * @type {Number|null}
      */
     #draggedCourseModuleId = null;
@@ -90,14 +95,24 @@ export default class BlockElement {
      * @param {Boolean} canAnonymizeUserdata
      * @param {Boolean} canBackup
      * @param {Boolean} showSharingCartBasket
+     * @param {Boolean} showCopiesQueuedSegmentWhenEmpty
      */
-    constructor(baseFactory, element, canBackupUserdata, canAnonymizeUserdata, canBackup, showSharingCartBasket) {
+    constructor(
+        baseFactory,
+        element,
+        canBackupUserdata,
+        canAnonymizeUserdata,
+        canBackup,
+        showSharingCartBasket,
+        showCopiesQueuedSegmentWhenEmpty
+    ) {
         this.#baseFactory = baseFactory;
         this.#element = element;
         this.#canBackupUserdata = canBackupUserdata;
         this.#canAnonymizeUserdata = canAnonymizeUserdata;
         this.#canBackup = canBackup;
         this.#showSharingCartBasket = showSharingCartBasket;
+        this.#showCopiesQueuedSegmentWhenEmpty = showCopiesQueuedSegmentWhenEmpty;
     }
 
     /**
@@ -122,7 +137,7 @@ export default class BlockElement {
     setupQueue() {
         const queue = document.querySelector('.sharing_cart_queue');
 
-        this.#queue = this.#baseFactory.block().queue().element(this, queue);
+        this.#queue = this.#baseFactory.block().queue().element(this, queue, this.#showCopiesQueuedSegmentWhenEmpty);
     }
 
     async setupItems() {
@@ -134,6 +149,7 @@ export default class BlockElement {
 
         this.#sortable = new Sortable(this.#element.querySelector('.sharing_cart_items'), {
             dataIdAttr: 'data-itemid',
+            draggable: '.sharing_cart_item',
             onUpdate: () => {
                 Ajax.call([{
                     methodname: 'block_sharing_cart_reorder_sharing_cart_items',
@@ -272,6 +288,12 @@ export default class BlockElement {
         }
 
         this.#element.querySelector('.no-items').classList.add('d-none');
+        this.#element.querySelector('.has-items').classList.remove('d-none');
+
+        const rootItems = this.#element.querySelectorAll('.sharing_cart_items > .sharing_cart_item');
+        if (this.#bulkDeleteEnabled === false && rootItems.length > 1) {
+            this.#element.querySelector('#block_sharing_cart_bulk_delete').classList.remove('d-none');
+        }
 
         const existingItemIndex = this.#items.findIndex((i) => i.getItemId() === itemElement.getItemId());
         if (existingItemIndex !== -1) {
@@ -373,7 +395,27 @@ export default class BlockElement {
 
         if (this.#items.length === 0) {
             this.#element.querySelector('.no-items').classList.remove('d-none');
+            this.#element.querySelector('.has-items').classList.add('d-none');
         }
+
+        const rootItems = this.#element.querySelectorAll('.sharing_cart_items > .sharing_cart_item');
+        if (rootItems.length < 2) {
+            this.hideBulkDelete();
+        }
+    }
+
+    hideBulkDelete() {
+        this.#bulkDeleteEnabled = false;
+        this.#element.querySelector('#block_sharing_cart_cancel_bulk_delete').classList.add('d-none');
+        this.#element.querySelector('#block_sharing_cart_bulk_delete_confirm').classList.add('d-none');
+        this.#element.querySelector('#block_sharing_cart_bulk_delete').classList.add('d-none');
+        this.#element.querySelector('#select_all_container').classList.add('d-none');
+
+        this.getItemCheckboxes().forEach((checkbox) => {
+            checkbox.classList.add('d-none');
+            checkbox.checked = false;
+        });
+        this.updateSelectAllState();
     }
 
     /**
@@ -475,6 +517,7 @@ export default class BlockElement {
      * @return {Promise<Modal>}
      */
     async createBackupItemToSharingCartModal(backupType, itemId, itemName, onSave) {
+
         const strings = await get_strings([
             {
                 key: 'backup_item',
@@ -655,7 +698,8 @@ export default class BlockElement {
                 task_id: item.task_id ?? null,
                 status_finished: false,
                 status_failed: false,
-                is_module: item.type !== 'section',
+                is_module: item.type !== 'section' && item.type !== 'mod_subsection',
+                is_subsection:item.type === 'mod_subsection',
                 is_section: item.type === 'section',
                 is_root: true,
             }
@@ -674,7 +718,7 @@ export default class BlockElement {
         this.#course.clearClipboard();
 
         const courseModuleIds = [];
-        modal.querySelectorAll('input[type="checkbox"][data-type="coursemodule"]:checked').forEach((checkbox) => {
+        modal.querySelectorAll('input[type="checkbox"]:checked').forEach((checkbox) => {
             courseModuleIds.push(checkbox.dataset.id);
         });
 
@@ -688,7 +732,7 @@ export default class BlockElement {
             return false;
         }
 
-        if (item.isModule()) {
+        if (item.isModule() && !item.isSubsection()) {
             courseModuleIds.push(item.getItemOldInstanceId());
         }
 
@@ -747,7 +791,8 @@ export default class BlockElement {
             'item_restore_form',
             pageContextId,
             {
-                item_id: item.getItemId()
+                item_id: item.getItemId(),
+                clipboard_target_id:sectionId
             }
         );
 

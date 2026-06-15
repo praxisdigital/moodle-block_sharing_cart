@@ -110,11 +110,12 @@ class repository extends \block_sharing_cart\app\repository
         return $entity;
     }
 
-    public function insert_section(int $section_id, int $user_id, ?int $parent_item_id, int $status): entity
+    public function insert_section(object $section, int $user_id, ?int $parent_item_id, int $status): entity
     {
-        $section = $this->db->get_record('course_sections', ['id' => $section_id], strictness: MUST_EXIST);
 
         $course_format = course_get_format($section->course);
+
+        $entity_type = isset($section->itemid) ? entity::TYPE_MOD_SUBSECTION : entity::TYPE_SECTION;
 
         $time = time();
         $item_id = $this->insert(
@@ -123,13 +124,13 @@ class repository extends \block_sharing_cart\app\repository
                     'user_id' => $user_id,
                     'file_id' => null,
                     'parent_item_id' => $parent_item_id,
-                    'old_instance_id' => $section_id,
-                    'type' => entity::TYPE_SECTION,
+                    'old_instance_id' => $section->id,
+                    'type' => $entity_type,
                     'name' => $course_format->get_section_name($section),
                     'status' => $status,
                     'version' => entity::CURRENT_BACKUP_VERSION,
                     'timecreated' => $time,
-                    'timemodified' => $time,
+                    'timemodified' => $time
                 ]
             )
         );
@@ -141,14 +142,52 @@ class repository extends \block_sharing_cart\app\repository
 
     private function insert_activities(array $activities, entity $root_item): void
     {
-        foreach ($activities as $activity) {
-            $this->insert_activity(
-                $activity->moduleid,
-                $root_item->get_user_id(),
-                $root_item->get_id(),
-                entity::STATUS_BACKEDUP
-            );
+
+        //Handle a single subsection (with possible nested activities)
+        if($root_item->get_type() === "mod_subsection"){
+            foreach($activities[array_key_first($activities)]->subsection_activities as $subsection_activity) {
+                $this->insert_activity(
+                    $subsection_activity->moduleid,
+                    $root_item->get_user_id(),
+                    $root_item->get_id(),
+                    entity::STATUS_BACKEDUP
+                );
+            }
+            return;
         }
+
+        //Handle multiple activities
+        foreach ($activities as $activity) {
+
+                if($activity->modulename === "subsection") {
+                    $subsection_entity = $this->insert_activity(
+                        $activity->moduleid,
+                        $root_item->get_user_id(),
+                        $root_item->get_id(),
+                        entity::STATUS_BACKEDUP
+                    );
+                    foreach($activity->subsection_activities as $subsection_activity) {
+                        $this->insert_activity(
+                            $subsection_activity->moduleid,
+                            $root_item->get_user_id(),
+                            $subsection_entity->get_id(),
+                            entity::STATUS_BACKEDUP
+                        );
+                    }
+
+                    continue;
+                }
+
+                $this->insert_activity(
+                    $activity->moduleid,
+                    $root_item->get_user_id(),
+                    $root_item->get_id(),
+                    entity::STATUS_BACKEDUP
+                );
+
+            }
+
+
     }
 
     public function update_sharing_cart_item_with_backup_file(entity $root_item, \stored_file $file): void
@@ -164,13 +203,14 @@ class repository extends \block_sharing_cart\app\repository
 
         $this->update($root_item);
 
-        if ($root_item->get_type() !== entity::TYPE_SECTION) {
-            return;
+        $section = $this->base_factory->backup()->handler()->get_backup_item_tree($file);
+
+        if(isset($section['lone_activity'])) return;
+        if(empty($section)){
+            throw new \Exception("Backup file was empty.");
         }
 
-        $tree = $this->base_factory->backup()->handler()->get_backup_item_tree($file);
-        $section = array_values($tree)[0];
-        $this->insert_activities($section->activities, $root_item);
+        $this->insert_activities($section[array_key_first($section)]->activities, $root_item);
     }
 
     public function get_recursively_by_parent_id(int $item_id, ?collection $items = null): collection

@@ -19,7 +19,12 @@
     {{/is_section}}
     {{#is_module}}
         {{#is_current_version}}
-            <img src="{{mod_icon}}" alt=""/>
+            {{#is_subsection}}
+                <i class="fa fa-bars"></i>
+            {{/is_subsection}}
+            {{^is_subsection}}
+                <img src="{{mod_icon}}" alt=""/>
+            {{/is_subsection}}
         {{/is_current_version}}
         {{^is_current_version}}
             <i class="fa fa-exclamation-circle text-info"

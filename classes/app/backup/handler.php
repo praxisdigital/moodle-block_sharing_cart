@@ -69,13 +69,13 @@ class handler
         return $this->queue_async_backup($backup_controller, $root_item, $settings);
     }
 
-    public function backup_section(int $section_id, entity $root_item, array $settings = []): asynchronous_backup_task
+    public function backup_section(object $section, entity $root_item, array $settings = []): array
     {
         global $USER;
 
         $course_id = $this->base_factory->moodle()->db()->get_record(
             'course_sections',
-            ['id' =>  $section_id],
+            ['id' =>  $section->id],
             'course',
             MUST_EXIST
         )->course;
@@ -90,11 +90,12 @@ class handler
 
         backup_section::create_by_section(
             $course_id,
-            $section_id,
+            $section->id,
             $USER->id
         )->trigger();
 
-        return $task;
+        return ["task" => $task, "controller" => $backup_controller];
+
     }
 
     public function get_backup_course_info(\stored_file $file): array
@@ -109,27 +110,75 @@ class handler
 
     public function get_backup_item_tree(\stored_file $file): array
     {
-        $tree = [];
 
         $info = $this->get_backup_info($file);
 
+        $sections = [];
+        $subsections = [];
+
+
         foreach ($info->sections as $section) {
-            $tree[$section->sectionid] = (object)[
-                'sectionid' => $section->sectionid,
-                'title' => $section->title,
-                'activities' => []
-            ];
-        }
-        foreach ($info->activities as $activity) {
-            $tree[$activity->sectionid]->activities[$activity->moduleid] = (object)[
-                'moduleid' => $activity->moduleid,
-                'sectionid' => $activity->sectionid,
-                'modulename' => $activity->modulename,
-                'title' => $activity->title
-            ];
+
+            if(isset($section->modname) && $section->modname === 'subsection') {
+                $subsections[$section->sectionid] = (object)[
+                    'moduleid' => $section->parentcmid,
+                    'sectionid' => $section->sectionid,
+                    'title' => $section->title,
+                    'modulename' => $section->modname,
+                    'subsection_activities' => []
+                    ];
+            }
+            else{
+                $sections[$section->sectionid] = (object)[
+                    'sectionid' => $section->sectionid,
+                    'title' => $section->title,
+                    'modulename' => $section->modname,
+                    'activities' => []
+                ];
+            }
+
         }
 
-        return $tree;
+        //Add all subsections under the section's activities.
+        if(!empty($sections)){
+            $sections[array_key_first($sections)]->activities = $subsections;
+        }
+
+        if(empty($sections)){
+            if(empty($subsections)){
+                //If no sections and no subsections are supplied, it's a single activity. Make artificial activities array.
+                $sections["lone_activity"] = (object) ['activities' => []];
+            }
+            else $sections = $subsections;
+        }
+
+        foreach ($info->activities as $activity) {
+
+            if(isset($activity->modulename) && $activity->modulename === 'subsection' ) continue;
+
+            //Activities that live in the section
+            if(isset($sections[$activity->sectionid])){
+                $sections[$activity->sectionid]->activities[$activity->moduleid] = (object)[
+                    'moduleid' => $activity->moduleid,
+                    'sectionid' => $activity->sectionid,
+                    'modulename' => $activity->modulename,
+                    'title' => $activity->title,
+                    'activities' => []
+                ];
+                continue;
+            }
+
+            if(isset($sections["lone_activity"])){
+                $sections["lone_activity"]->activities[] = $activity;
+                continue;
+            }
+
+            //Activities that live under subsections
+            $sections[array_key_first($sections)]->activities[$activity->sectionid]->subsection_activities[] = $activity;
+
+        }
+
+        return $sections;
     }
 
     private function queue_async_backup(
