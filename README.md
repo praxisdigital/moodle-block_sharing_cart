@@ -69,7 +69,9 @@ GPL v3
 
 Change Log
 ----------
-* 5.0 release 8 2026.09.02
+* 5.1 release 1 2026.06.11
+    * Added support for 5.1
+* 5.0 release 8 2026.02.09
     * Added support for backup & restore of subsections with nested activities.
     * Added notice message to users in the copy modal dialog when restoring into unnamed sections, that section name will be overwritten.
     * Improved UI to show a tree-like hierarchy of items in the clipboard.
