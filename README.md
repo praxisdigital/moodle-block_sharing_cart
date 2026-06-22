@@ -72,7 +72,9 @@ Change Log
 
 * 5.2, release 1 2026.06.11
     * Added support for Moodle 5.2
-* 5.0, release 7 2025.11.13
+* 5.1 release 1 2026.06.11
+    * Added support for 5.1
+* 5.0 release 7/8 2026.02.09
     * Added support for PHP 8.4
     * Add pluginfile function to support download of backups from sharing cart
     * Made various UI/UX improvements to reduce confusion and minimize wasted block region space.
