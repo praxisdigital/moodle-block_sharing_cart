@@ -69,7 +69,8 @@ GPL v3
 
 Change Log
 ----------
-
+* 5.2, release 2 2026.07.09
+    * Improved Sharing Cart icon placement compatibility with course formats that render multiple course content containers, such as OneTopic with section 0 displayed before tabs.
 * 5.2, release 1 2026.06.11
     * Added support for Moodle 5.2
 * 5.1 release 1 2026.06.11

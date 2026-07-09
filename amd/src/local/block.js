@@ -84,8 +84,8 @@ export default class Block extends BaseComponent {
         this.block = block;
         this.queue = queue;
 
-        const courseContent = document.querySelector('.course-content');
-        if (courseContent) {
+        const courseContents = document.querySelectorAll('.course-content');
+        courseContents.forEach(courseContent => {
             const sectionElements = courseContent.querySelectorAll('[data-for="section"]');
             sectionElements.forEach(sectionElement => {
                 const section = this.reactive.state.section.get(sectionElement.dataset.id);
@@ -97,7 +97,7 @@ export default class Block extends BaseComponent {
                 const courseModule = this.reactive.state.cm.get(courseModuleElement.dataset.id);
                 this._refreshCourseModule({element: courseModule});
             });
-        }
+        });
 
         const showCopySectionInBlockSegment = this.getElement(this.selectors.COPY_SECTION_CONTAINER);
         if (showCopySectionInBlockSegment) {
