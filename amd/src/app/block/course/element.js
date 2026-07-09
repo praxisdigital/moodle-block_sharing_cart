@@ -165,7 +165,7 @@ export default class CourseElement {
 
                 courseSectionsElementList.forEach((courseSectionElement) => {
 
-                    if(!this.isSectionClipboardTargetEligible(courseSectionElement,item)) return;
+                    if(!this.isSectionClipboardTargetEligible(courseSectionElement,item)){return;}
 
                     clipboardTarget = courseSectionElement.querySelector('.clipboard_target') ?? element.cloneNode(true);
                     courseSectionElement.prepend(clipboardTarget);
@@ -180,12 +180,12 @@ export default class CourseElement {
                             signal: this.#clipboardTargetListenerAbortController.signal
                         }
                     );
-                })
+                });
 
                 return;
             }
 
-            if(!this.isSectionClipboardTargetEligible(section,item)) return;
+            if(!this.isSectionClipboardTargetEligible(section,item)) {return;}
 
             clipboardTarget = section.querySelector('.clipboard_target') ?? element.cloneNode(true);
             section.prepend(clipboardTarget);
@@ -225,10 +225,10 @@ export default class CourseElement {
         }
 
         //Activities can always be inserted into any clipboardTarget.
-        if(!item.isSubsection() && !item.isSection()) return true;
+        if(!item.isSubsection() && !item.isSection()) {return true;}
 
         //No section nor subsection can be inserted into an activity clipboardTarget.
-        if(section.closest('[data-region="activity-card"]')) return false;
+        if(section.closest('[data-region="activity-card"]')) {return false;}
 
         return true;
     }
@@ -240,7 +240,7 @@ export default class CourseElement {
     getSectionName(sectionId) {
         const section = this.reactive.state.section.get(sectionId);
 
-        if(section.title) return section.title;
+        if(section.title) {return section.title;}
 
         return 'Unknown';
     }

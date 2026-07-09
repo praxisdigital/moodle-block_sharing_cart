@@ -42,7 +42,7 @@ export default class ItemElement {
     #pollItem(currentTry = 0, retries = -1, uuid = null) {
 
         if (uuid === null) {
-            uuid = crypto.getRandomValues(new Uint32Array(1))[0]
+            uuid = crypto.getRandomValues(new Uint32Array(1))[0];
 
             if (polls[this.getItemId()]) {
                 return;
@@ -305,15 +305,15 @@ export default class ItemElement {
         const maxIterations = 5;
         let i = 0;
         //Loop upwards in the tree, from item.
-        while(tempElem != null && i < maxIterations){
-            tempElem = tempElem.parentElement
-            if(tempElem.classList.contains("sharing_cart_item")) break;
+        while(tempElem !== null && i < maxIterations){
+            tempElem = tempElem.parentElement;
+            if(tempElem.classList.contains("sharing_cart_item")) {break;}
             i++;
         }
 
-        if(!tempElem) return false;
+        if(!tempElem) {return false;}
 
-        if(tempElem.dataset.type && tempElem.dataset.type === "mod_subsection") return true;
+        if(tempElem.dataset.type && tempElem.dataset.type === "mod_subsection") {return true;}
 
         return false;
     }
