@@ -65,7 +65,7 @@ export default class ItemElement {
                 item_id: this.getItemId(),
                 course_id: M.cfg.courseId
             },
-            done: async(item) => {
+            done: async (item) => {
                 const actionsContainer = this.#element.querySelector(':scope > .item-body .sharing_cart_item_actions');
                 const runNowButton = actionsContainer?.querySelector('[data-action="run_now"]');
                 if (!runNowButton && item.show_run_now) {
@@ -243,7 +243,7 @@ export default class ItemElement {
      */
     toggleCollapse(item, collapse = null, paddingLeftPercent = 0) {
 
-        if(item.style.paddingLeft === ''){
+        if (item.style.paddingLeft === '') {
             item.style.paddingLeft = `${paddingLeftPercent}%`;
         }
 
@@ -291,7 +291,7 @@ export default class ItemElement {
         return this.#element.dataset.type === 'section';
     }
 
-    isSubsection(){
+    isSubsection() {
         return this.#element.dataset.type === 'mod_subsection';
     }
 
@@ -299,21 +299,27 @@ export default class ItemElement {
      * Checks if the item's element is nested under a subsection in the clipboard.
      * @returns {boolean}
      */
-    isNestedUnderSubsection(){
+    isNestedUnderSubsection() {
 
         let tempElem = this.getItemElement();
         const maxIterations = 5;
         let i = 0;
-        //Loop upwards in the tree, from item.
-        while(tempElem !== null && i < maxIterations){
+        // Loop upwards in the tree, from item.
+        while (tempElem !== null && i < maxIterations) {
             tempElem = tempElem.parentElement;
-            if(tempElem.classList.contains("sharing_cart_item")) {break;}
+            if (tempElem.classList.contains("sharing_cart_item")) {
+                break;
+            }
             i++;
         }
 
-        if(!tempElem) {return false;}
+        if (!tempElem) {
+            return false;
+        }
 
-        if(tempElem.dataset.type && tempElem.dataset.type === "mod_subsection") {return true;}
+        if (tempElem.dataset.type && tempElem.dataset.type === "mod_subsection") {
+            return true;
+        }
 
         return false;
     }
