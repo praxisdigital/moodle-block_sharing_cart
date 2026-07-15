@@ -73,18 +73,20 @@ export default class Block extends BaseComponent {
         this.block = block;
         this.queue = queue;
 
-        const courseContent = document.querySelector('.course-content');
-        if (courseContent) {
-            const sectionElements = courseContent.querySelectorAll('[data-for="section"]');
-            sectionElements.forEach(sectionElement => {
-                const section = this.reactive.state.section.get(sectionElement.dataset.id);
-                this._refreshSection({element: section});
-            });
+        const courseContents = document.querySelectorAll('.course-content');
+        if (courseContents.length > 0) {
+            courseContents.forEach(courseContent => {
+                const sectionElements = courseContent.querySelectorAll('[data-for="section"]');
+                sectionElements.forEach(sectionElement => {
+                    const section = this.reactive.state.section.get(sectionElement.dataset.id);
+                    this._refreshSection({element: section});
+                });
 
-            const courseModuleElements = courseContent.querySelectorAll('[data-for="cmitem"]');
-            courseModuleElements.forEach(courseModuleElement => {
-                const courseModule = this.reactive.state.cm.get(courseModuleElement.dataset.id);
-                this._refreshCourseModule({element: courseModule});
+                const courseModuleElements = courseContent.querySelectorAll('[data-for="cmitem"]');
+                courseModuleElements.forEach(courseModuleElement => {
+                    const courseModule = this.reactive.state.cm.get(courseModuleElement.dataset.id);
+                    this._refreshCourseModule({element: courseModule});
+                });
             });
         }
 

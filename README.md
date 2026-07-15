@@ -69,6 +69,8 @@ GPL v3
 
 Change Log
 ----------
+* 5.1 release 2 2026.07.15
+    * Fixed sharing cart icon doesn't appear after course module items due to JS only scanning the first element of course content.
 * 5.1 release 1 2026.06.11
     * Added support for 5.1
 * 5.0 release 8 2026.02.09
