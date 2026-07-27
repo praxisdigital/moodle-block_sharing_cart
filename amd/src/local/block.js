@@ -20,6 +20,13 @@ export default class Block extends BaseComponent {
     queue;
 
     /**
+     * Observes the course content DOM so the sharing-cart icon can be
+     * re-added whenever core_courseformat replaces a course module's DOM node.
+     * @type {MutationObserver}
+     */
+    #courseContentObserver;
+
+    /**
      * Constructor hook.
      * @param {Object} descriptor
      */
@@ -84,18 +91,20 @@ export default class Block extends BaseComponent {
         this.block = block;
         this.queue = queue;
 
-        const courseContent = document.querySelector('.course-content');
-        if (courseContent) {
-            const sectionElements = courseContent.querySelectorAll('[data-for="section"]');
-            sectionElements.forEach(sectionElement => {
-                const section = this.reactive.state.section.get(sectionElement.dataset.id);
-                this._refreshSection({element: section});
-            });
+        const courseContents = document.querySelectorAll('.course-content');
+        if (courseContents.length > 0) {
+            courseContents.forEach(courseContent => {
+                const sectionElements = courseContent.querySelectorAll('[data-for="section"]');
+                sectionElements.forEach(sectionElement => {
+                    const section = this.reactive.state.section.get(sectionElement.dataset.id);
+                    this._refreshSection({element: section});
+                });
 
-            const courseModuleElements = courseContent.querySelectorAll('[data-for="cmitem"]');
-            courseModuleElements.forEach(courseModuleElement => {
-                const courseModule = this.reactive.state.cm.get(courseModuleElement.dataset.id);
-                this._refreshCourseModule({element: courseModule});
+                const courseModuleElements = courseContent.querySelectorAll('[data-for="cmitem"]');
+                courseModuleElements.forEach(courseModuleElement => {
+                    const courseModule = this.reactive.state.cm.get(courseModuleElement.dataset.id);
+                    this._refreshCourseModule({element: courseModule});
+                });
             });
         }
 
@@ -109,6 +118,62 @@ export default class Block extends BaseComponent {
                 await this.block.addSectionBackupToSharingCart(select.value);
             });
         }
+
+        this._initCourseContentObserver();
+    }
+
+    /**
+     * Sets up a MutationObserver watching the course content area(s) so the
+     * sharing-cart icon can be re-added whenever core_courseformat replaces
+     * a course module's DOM node
+     */
+    _initCourseContentObserver() {
+        if (!this.showSharingCartBasket || !this.canBackup) {
+            return;
+        }
+
+        const courseContents = document.querySelectorAll('.course-content');
+        if (courseContents.length === 0) {
+            return;
+        }
+
+        if (this.#courseContentObserver) {
+            this.#courseContentObserver.disconnect();
+        }
+
+        this.#courseContentObserver = new MutationObserver((mutations) => {
+            const affectedCourseModuleIds = new Set();
+
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (!(node instanceof HTMLElement)) {
+                        return;
+                    }
+
+                    if (node.matches('[data-for="cmitem"]')) {
+                        affectedCourseModuleIds.add(node.dataset.id);
+                    }
+
+                    node.querySelectorAll('[data-for="cmitem"]').forEach((cmitem) => {
+                        affectedCourseModuleIds.add(cmitem.dataset.id);
+                    });
+                });
+            });
+
+            affectedCourseModuleIds.forEach((courseModuleId) => {
+                const courseModule = this.reactive.state.cm.get(courseModuleId);
+                if (courseModule) {
+                    this._refreshCourseModule({element: courseModule});
+                }
+            });
+        });
+
+        courseContents.forEach((courseContent) => {
+            this.#courseContentObserver.observe(courseContent, {
+                childList: true,
+                subtree: true,
+            });
+        });
     }
 
     /**
