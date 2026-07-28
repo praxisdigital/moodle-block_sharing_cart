@@ -1,31 +1,35 @@
-name: Integration & Unit test
+name: Moodle CI
 
 on:
   pull_request:
     branches:
+      - main
+      - master
       - MOODLE_*_STABLE
+  push:
+    branches:
+      - main
+      - master
+      - MOODLE_*_STABLE
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: write
+  issues: write
+  statuses: write
 
 jobs:
-  PHPUnit:
-    runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.experimental }}
-    strategy:
-      matrix:
-        php: [ 8.3, 8.4 ]
-        os: [ ubuntu-latest ]
-        moodle: [ MOODLE_502_STABLE ]
-        dbtype: [ mysqli, sqlsrv, pgsql ]
-        experimental: [ false ]
-
-    steps:
-      - name: Unit testing & integration testing
-        uses: praxisdigital/moodle-test-action@master
-        with:
-          plugin: block_sharing_cart
-          plugin-path: blocks/sharing_cart
-          os: ${{ matrix.os }}
-          php: ${{ matrix.php }}
-          dbtype: ${{ matrix.dbtype }}
-          moodle: ${{ matrix.moodle }}
-          experimental: ${{ matrix.experimental }}
-          PRIVATE_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  ci:
+    uses: praxisdigital/moodle-test-action/.github/workflows/ci.yml@mma_BehatOnDemand
+    secrets: inherit
+    with:
+      action_ref: 'mma_BehatOnDemand'
+      behat_on_pull_request: 'true'
