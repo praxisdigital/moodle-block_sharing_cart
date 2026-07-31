@@ -25,9 +25,7 @@ The editing teacher copies the section and inserts it into a different section.
 
   Given I log in as "admin"
   And I am on "Course 1" course homepage with editing mode on
-  And I click on "//a[@data-key='addblock']" "xpath_element"
-  And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists
-  And I click on "//a[@data-blockname='sharing_cart']" "xpath_element"
+  And I enable the sharing cart plugin
 
   #Region Start: All the steps to copy the section that has a subsection with an activity inside it
   And I wait until "//li[@id='section-1']//*[@class='fa fa-shopping-basket add_to_sharing_cart']" "xpath_element" exists
