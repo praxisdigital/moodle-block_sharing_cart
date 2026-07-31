@@ -1,4 +1,4 @@
-@blocks @blocks_sharing_cart
+@block @block_sharing_cart
 @javascript
 
 Feature: As an editing teacher that has successfully copied a section with a subsection containing an activity,
@@ -30,11 +30,7 @@ Feature: As an editing teacher that has successfully copied a section with a sub
     Given I log in as "admin"
 
     And I am on "Course 1" course homepage with editing mode on
-
-    #Enable sharing cart plugin
-    And I click on "//a[@data-key='addblock']" "xpath_element"
-    And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists
-    And I click on "//a[@data-blockname='sharing_cart']" "xpath_element"
+    And I enable the sharing cart plugin
 
     And I wait "5" seconds
 

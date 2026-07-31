@@ -113,6 +113,8 @@ class asynchronous_backup_task extends \core\task\adhoc_task
             // Check that the backup is in the correct status and
             // that is set for asynchronous execution.
             if ($status == \backup::STATUS_AWAITING && $execution == \backup::EXECUTION_DELAYED) {
+                \backup_controller_dbops::apply_version_and_release();
+
                 $this->before_backup_started_hook($bc);
 
                 // Execute the backup.
