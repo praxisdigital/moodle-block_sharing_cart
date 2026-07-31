@@ -1,4 +1,4 @@
-@blocks @blocks_sharing_cart
+@block @block_sharing_cart
 @javascript
 
 Feature: As an editing teacher, copying a section with a subsection, should automatically
