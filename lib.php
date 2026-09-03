@@ -56,7 +56,15 @@ function block_sharing_cart_output_fragment_item_restore_form($args)
         );
     }
 
-    $template = new \block_sharing_cart\output\modal\import_item_modal_body($base_factory, $item, $clipboard_target_id);
+    // Whether the item is inserted as a new section (no merge, so nothing to replace).
+    $as_new_section = (bool)clean_param($args['as_new_section'] ?? 0, PARAM_BOOL);
+
+    $template = new \block_sharing_cart\output\modal\import_item_modal_body(
+        $base_factory,
+        $item,
+        $clipboard_target_id,
+        $as_new_section
+    );
 
     return fix_utf8($OUTPUT->render($template));
 }

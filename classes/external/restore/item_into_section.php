@@ -31,6 +31,19 @@ class item_into_section extends external_api
                 VALUE_DEFAULT,
                 []
             ),
+            'insert_as_new_section' => new external_value(
+                PARAM_BOOL,
+                'Create the copied section as a new section under section_id (0 = top level of course_id) instead of merging into it',
+                VALUE_DEFAULT,
+                false
+            ),
+            'course_id' => new external_value(PARAM_INT, 'Required when section_id is 0', VALUE_DEFAULT, 0),
+            'replace_section_details' => new external_value(
+                PARAM_BOOL,
+                'When merging into section_id, replace its title and description with the copied section\'s',
+                VALUE_DEFAULT,
+                false
+            ),
         ]);
     }
 
@@ -38,7 +51,10 @@ class item_into_section extends external_api
         int $item_id,
         int $section_id,
         array $course_modules_to_include,
-        array $sections_to_include = []
+        array $sections_to_include = [],
+        bool $insert_as_new_section = false,
+        int $course_id = 0,
+        bool $replace_section_details = false
     ): bool {
         global $USER, $DB;
 
@@ -49,6 +65,9 @@ class item_into_section extends external_api
             'section_id' => $section_id,
             'course_modules_to_include' => $course_modules_to_include,
             'sections_to_include' => $sections_to_include,
+            'insert_as_new_section' => $insert_as_new_section,
+            'course_id' => $course_id,
+            'replace_section_details' => $replace_section_details,
         ]);
 
         self::validate_context(
@@ -64,10 +83,21 @@ class item_into_section extends external_api
             return false;
         }
 
-        $course_id = (int)$DB->get_field('course_sections', 'course', ['id' => $params['section_id']], MUST_EXIST);
+        if ($params['section_id'] > 0) {
+            $course_id = (int)$DB->get_field('course_sections', 'course', ['id' => $params['section_id']], MUST_EXIST);
+        } else {
+            // Top level of the course: only meaningful when creating a new section.
+            if (!$params['insert_as_new_section'] || $params['course_id'] <= 0) {
+                return false;
+            }
+            $course_id = (int)$DB->get_field('course', 'id', ['id' => $params['course_id']], MUST_EXIST);
+        }
         $context = \core\context\course::instance($course_id);
 
-        $settings = [];
+        $settings = [
+            'insert_as_new_section' => $params['insert_as_new_section'],
+            'replace_section_details' => $params['replace_section_details'],
+        ];
 
         // Only pass include/exclude list when the user can configure restore in the target course context.
         if (has_capability('moodle/restore:configure', $context)) {
@@ -75,7 +105,13 @@ class item_into_section extends external_api
             $settings['sections_to_include'] = $params['sections_to_include'] ?? [];
         }
 
-        $result = $base_factory->restore()->handler()->restore_item_into_section($item, $params['section_id'],$params['item_id'], $settings);
+        $result = $base_factory->restore()->handler()->restore_item_into_section(
+            $item,
+            $params['section_id'],
+            $params['item_id'],
+            $settings,
+            $course_id
+        );
 
         return $result !== null;
     }

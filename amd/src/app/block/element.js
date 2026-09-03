@@ -713,8 +713,9 @@ export default class BlockElement {
      * @param {ItemElement} item
      * @param {Number} sectionId
      * @param {HTMLElement} modal
+     * @param {Object} options {asNewSection: Boolean, courseId: Number}
      */
-    importItem(item, sectionId, modal) {
+    importItem(item, sectionId, modal, options = {}) {
         this.#course.clearClipboard();
 
         // A nested section that is unchecked drops everything beneath it, whatever the state of the child boxes.
@@ -730,10 +731,15 @@ export default class BlockElement {
             return false;
         };
 
+        const replaceSectionDetails = Boolean(
+            modal.querySelector('input[data-action="replace_section_details"]')?.checked
+        );
+
         const courseModuleIds = [];
         const sectionIds = [];
         modal.querySelectorAll('input[type="checkbox"]:checked').forEach((checkbox) => {
-            if (isUnderUncheckedSection(checkbox)) {
+            // Option boxes (e.g. replace section details) are not content selections.
+            if (checkbox.dataset.type === 'option' || isUnderUncheckedSection(checkbox)) {
                 return;
             }
             if (checkbox.dataset.type === 'section') {
@@ -770,6 +776,9 @@ export default class BlockElement {
                 section_id: sectionId,
                 course_modules_to_include: courseModuleIds,
                 sections_to_include: sectionIds,
+                insert_as_new_section: Boolean(options.asNewSection),
+                course_id: options.courseId ?? 0,
+                replace_section_details: replaceSectionDetails,
             },
             done: async (success) => {
                 if (success) {
@@ -784,10 +793,11 @@ export default class BlockElement {
 
     /**
      * @param {ItemElement} item
-     * @param {Number} sectionId
+     * @param {Number} sectionId target section, 0 = top level of the course (only with options.asNewSection)
+     * @param {Object} options {asNewSection: Boolean, courseId: Number}
      * @param {Event} e
      */
-    async confirmImportBackupFromSharingCart(item, sectionId, e) {
+    async confirmImportBackupFromSharingCart(item, sectionId, options, e) {
         e.preventDefault();
         e.stopPropagation();
 
@@ -807,10 +817,21 @@ export default class BlockElement {
             {
                 key: 'cancel',
                 component: 'core',
-            }
+            },
+            {
+                key: 'as_new_section_in',
+                component: 'block_sharing_cart',
+            },
+            {
+                key: 'the_course',
+                component: 'block_sharing_cart',
+            },
         ]);
 
-        const sectionName = this.#course.getSectionName(sectionId);
+        options = options ?? {};
+        const asNewSection = Boolean(options.asNewSection);
+        const sectionName = sectionId > 0 ? this.#course.getSectionName(sectionId) : strings[5];
+        const intoText = asNewSection ? strings[4] : strings[1];
         const divElement = document.getElementById('block_sharing_cart');
         const pageContextId = divElement.getAttribute('data-contextid');
 
@@ -820,14 +841,15 @@ export default class BlockElement {
             pageContextId,
             {
                 item_id: item.getItemId(),
-                clipboard_target_id:sectionId
+                clipboard_target_id: sectionId,
+                as_new_section: asNewSection ? 1 : 0,
             }
         );
 
         const modal = await ModalSaveCancel.create({
             title: strings[0] + ': ' +
                 '"' + item.getItemName().slice(0, 50).trim() + '"' +
-                ' ' + strings[1] + ': ' +
+                ' ' + intoText + ': ' +
                 '"' + sectionName.slice(0, 50).trim() + '"',
             body: html,
             buttons: {
@@ -837,7 +859,7 @@ export default class BlockElement {
             removeOnClose: true,
         });
         modal.getRoot().on(ModalEvents.shown, () => this.#baseFactory.moodle().template().runTemplateJS(js));
-        modal.getRoot().on(ModalEvents.save, this.importItem.bind(this, item, sectionId, modal.getRoot()[0]));
+        modal.getRoot().on(ModalEvents.save, this.importItem.bind(this, item, sectionId, modal.getRoot()[0], options));
         await modal.show();
     }
 

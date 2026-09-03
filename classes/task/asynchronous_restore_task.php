@@ -188,10 +188,20 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 $this->only_include_specified_course_modules($restore_controller, $course_modules_to_include);
             }
 
-            $move_to_section_id = $backup_settings->move_to_section_id ?? null;
-            if ($move_to_section_id) {
-                $this->section_plan = $this->plan_sections($restore_controller, $customdata, (int)$move_to_section_id);
+            $move_to_section_id = (int)($backup_settings->move_to_section_id ?? 0);
+            $insert_as_new_section = !empty($backup_settings->insert_as_new_section);
+            if ($move_to_section_id > 0 || $insert_as_new_section) {
+                $this->section_plan = $this->plan_sections(
+                    $restore_controller,
+                    $customdata,
+                    $move_to_section_id,
+                    $insert_as_new_section
+                );
                 $this->apply_section_plan($restore_controller, $this->section_plan);
+
+                if (!empty($backup_settings->replace_section_details)) {
+                    $this->replace_target_section_details($restore_controller, $this->section_plan);
+                }
 
                 \core\di::get(\core\hook\manager::class)->dispatch(new before_sections_restored(
                     restore_id: $restore_controller->get_restoreid(),
@@ -226,20 +236,37 @@ class asynchronous_restore_task extends \core\task\adhoc_task
     /**
      * Decide which sections of the backup are restored and which section number each of them gets.
      *
-     * The restored item's own section is merged into the target section. Descendant section items (as recorded by a
-     * nesting course format at backup time) become new sections with fresh numbers above the course's current
+     * The restored item's own section is merged into the target section, or, with $insert_as_new_section, created as
+     * a new section under it ($target_section_id 0 = top level of the course). Descendant section items (as recorded
+     * by a nesting course format at backup time) become new sections with fresh numbers above the course's current
      * maximum, in depth-first order. Everything else in the backup is excluded.
      */
-    private function plan_sections(\restore_controller $restore_controller, object $customdata, int $target_section_id): array
-    {
+    private function plan_sections(
+        \restore_controller $restore_controller,
+        object $customdata,
+        int $target_section_id,
+        bool $insert_as_new_section = false
+    ): array {
         $db = base_factory::make()->moodle()->db();
 
-        $target = $db->get_record('course_sections', ['id' => $target_section_id], 'id, course, section', MUST_EXIST);
+        $course_id = (int)$restore_controller->get_courseid();
+
+        $target_section_number = 0;
+        if ($target_section_id > 0) {
+            $target = $db->get_record(
+                'course_sections',
+                ['id' => $target_section_id, 'course' => $course_id],
+                'id, course, section',
+                MUST_EXIST
+            );
+            $target_section_number = (int)$target->section;
+        }
 
         $plan = [
             'root_old_section_id' => 0,
-            'target_section_id' => (int)$target->id,
-            'target_section_number' => (int)$target->section,
+            'target_section_id' => $target_section_id,
+            'target_section_number' => $target_section_number,
+            'insert_as_new_section' => false,
             'selective' => false,
             'sections' => [],
         ];
@@ -249,11 +276,15 @@ class asynchronous_restore_task extends \core\task\adhoc_task
 
         // Core subsection items and single activity items keep the legacy behaviour.
         if (!$item || !$item->is_section()) {
+            if ($target_section_id === 0) {
+                throw new \Exception('Only section items can be restored to the top level of a course.');
+            }
             return $plan;
         }
 
         $plan['root_old_section_id'] = (int)$item->get_old_instance_id();
         $plan['selective'] = true;
+        $plan['insert_as_new_section'] = $insert_as_new_section;
 
         $sections_to_include = array_map('intval', (array)($customdata->backup_settings->sections_to_include ?? []));
 
@@ -273,10 +304,21 @@ class asynchronous_restore_task extends \core\task\adhoc_task
 
         $max_number = (int)$db->get_field_sql(
             'SELECT MAX(section) FROM {course_sections} WHERE course = ?',
-            [$target->course]
+            [$course_id]
         );
 
         $counter = 0;
+
+        // As a new section the root is planned like a descendant, with the target (or the top level) as parent.
+        if ($insert_as_new_section) {
+            $plan['sections'][$plan['root_old_section_id']] = (object)[
+                'old_section_id' => $plan['root_old_section_id'],
+                'old_parent_section_id' => 0,
+                'sort_order' => (int)($item->get_sortorder() ?? 0),
+                'new_section_number' => $max_number + (++$counter),
+            ];
+        }
+
         $walk = function (entity $parent) use (&$walk, &$plan, &$counter, $children_by_parent, $sections_to_include, $max_number): void {
             foreach ($children_by_parent[$parent->get_id()] ?? [] as $child) {
                 $old_section_id = (int)$child->get_old_instance_id();
@@ -372,16 +414,51 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 continue;
             }
 
-            if ($old_section_id === $root_old_section_id) {
-                $this->rewrite_xml_number($section_xml_path, 'number', $target_number);
-            } elseif (isset($planned[$old_section_id])) {
-                mtrace("...Restoring nested section (id: $old_section_id) as section number {$planned[$old_section_id]->new_section_number}");
+            if (isset($planned[$old_section_id])) {
+                // A descendant, or the root itself when it is inserted as a new section.
+                mtrace("...Restoring section (id: $old_section_id) as new section number {$planned[$old_section_id]->new_section_number}");
                 $this->rewrite_xml_number($section_xml_path, 'number', (int)$planned[$old_section_id]->new_section_number);
+            } elseif ($old_section_id === $root_old_section_id) {
+                $this->rewrite_xml_number($section_xml_path, 'number', $target_number);
             } else {
                 mtrace("...Excluding section (id: $old_section_id)");
                 $task->get_setting('included')->set_value(false);
             }
         }
+    }
+
+    /**
+     * When merging a section into an existing one, core only writes the copied title and description into fields
+     * that are empty. Blanking the target's title, description and description files first makes core take the
+     * copied ones (files included) as if the section were new.
+     */
+    private function replace_target_section_details(\restore_controller $restore_controller, array $plan): void
+    {
+        $target_section_id = (int)($plan['target_section_id'] ?? 0);
+        if (empty($plan['selective']) || !empty($plan['insert_as_new_section']) || $target_section_id === 0) {
+            return;
+        }
+
+        $db = base_factory::make()->moodle()->db();
+        $course_id = (int)$restore_controller->get_courseid();
+
+        mtrace("...Replacing the title and description of section (id: $target_section_id) with the copied section's");
+
+        $db->update_record('course_sections', (object)[
+            'id' => $target_section_id,
+            'name' => null,
+            'summary' => '',
+            'timemodified' => time(),
+        ]);
+
+        get_file_storage()->delete_area_files(
+            \core\context\course::instance($course_id)->id,
+            'course',
+            'section',
+            $target_section_id
+        );
+
+        rebuild_course_cache($course_id, true);
     }
 
     /**
@@ -409,7 +486,6 @@ class asynchronous_restore_task extends \core\task\adhoc_task
      */
     private function resolve_restored_sections(\restore_controller $restore_controller): array
     {
-        $root_old_section_id = (int)$this->section_plan['root_old_section_id'];
         $target_section_id = (int)$this->section_plan['target_section_id'];
 
         // The backup_ids temp table is dropped by the last restore step, but every section task still holds the id
@@ -433,10 +509,10 @@ class asynchronous_restore_task extends \core\task\adhoc_task
 
             $new_ids[$planned->old_section_id] = $new_section_id;
 
+            // The parent is the new id of the parent section when that was created in this restore (a descendant,
+            // or the root inserted as a new section); otherwise it is the target section (or 0 = top level).
             $old_parent_section_id = (int)$planned->old_parent_section_id;
-            $new_parent_section_id = $old_parent_section_id === $root_old_section_id
-                ? $target_section_id
-                : ($new_ids[$old_parent_section_id] ?? $target_section_id);
+            $new_parent_section_id = $new_ids[$old_parent_section_id] ?? $target_section_id;
 
             $restored[] = (object)[
                 'old_section_id' => (int)$planned->old_section_id,
@@ -455,7 +531,8 @@ class asynchronous_restore_task extends \core\task\adhoc_task
      */
     private function place_sections_after_target(int $course_id, int $target_section_id, array $restored_sections): void
     {
-        if (empty($restored_sections)) {
+        // Top level of the course: the fresh numbers already put the new sections at the end.
+        if (empty($restored_sections) || $target_section_id === 0) {
             return;
         }
 

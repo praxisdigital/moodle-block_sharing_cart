@@ -195,6 +195,41 @@ Degraded mode: if the target course's format registers no callback, content is
 still complete and the copied subsections sit as flat sections right after the
 target. Formats that nest simply attach them.
 
+### Replacing the target's title and description on merge
+
+Core only writes the copied section's title and description into a target
+whose fields are empty, so a merge silently kept the existing text. The import
+modal now offers "Also replace the title and description of X with those of the
+copied section" whenever the target has a title or description, and the web
+service accepts `replace_section_details`. The restore task implements it by
+blanking the target's title, description and description files right before
+the plan runs, so core fills them from the backup exactly as for a new section,
+files included. The option is not shown when inserting as a new section, where
+the copied values are used anyway.
+
+### Insert as a new section (front page)
+
+The insert web service also accepts `insert_as_new_section` and, for the top
+level of a course, `section_id = 0` together with `course_id`. In that mode the
+copied section itself is planned like a descendant: it gets a fresh number, core
+creates it from the backup (name, summary, visibility included), and it becomes
+the parent of its own subtree. `after_sections_restored` then carries the root
+too, with `new_parent_section_id` equal to the target section, or `0` for the
+top level. Only section items may use this mode.
+
+A course format offers this by rendering a placeholder wherever a "new section
+here" drop target makes sense:
+
+```html
+<div data-region="sharing-cart-course-target"
+     data-course-id="{{course_id}}" data-parent-section-id="{{parent_or_0}}"></div>
+```
+
+The block script fills the placeholder with the usual clipboard target while a
+section item is on the clipboard. pxgrid renders it under its card grid: on the
+front page with parent `0`, on a section page with that section as parent, so a
+copied section can also be dropped in as a new subsection.
+
 The optional `sections_to_include` parameter of the insert web service lets the
 import modal drop whole branches; an excluded section drops its subtree.
 
@@ -210,6 +245,11 @@ import modal drop whole branches; an excluded section drops its subtree.
 - Drop targets: a section item (root or nested) can be inserted into any regular
   section but not into a core subsection, the same rule that applies to root
   sections today.
+- After a restore finishes, the block refreshes the whole course editor state
+  (`courseState`) instead of only the target section. A restore can create
+  sections the client does not know yet; refreshing only the target left
+  pxgrid's card list unable to sort them, which showed newly created cards
+  behind the "add section" card until the page was reloaded.
 
 ## 9. What a nesting format implements (pxgrid as the example)
 
@@ -260,9 +300,10 @@ import modal drop whole branches; an excluded section drops its subtree.
 
 ## 13. Open questions
 
-- Should the copied section optionally be inserted as a new subsection under
-  the target instead of merging into it? The numbering algorithm supports it
-  (treat the root like a descendant), but the UI would need a choice.
+- Merging into a target section and inserting as a new section are both
+  supported now; the UI offers merge on section content lists and "new section"
+  on the format's placeholders. Whether merge should remain the default for
+  section lists is a product decision.
 - Should the generic default placement be skipped when a format callback is
   registered? Currently both run; formats that renumber sections themselves
   simply overwrite the placement.

@@ -10,19 +10,57 @@ defined('MOODLE_INTERNAL') || die();
 use block_sharing_cart\app\factory as base_factory;
 use block_sharing_cart\app\item\entity;
 
+global $CFG;
+require_once($CFG->dirroot . '/course/format/lib.php');
+
 class import_item_modal_body implements \renderable, \core\output\named_templatable
 {
     private base_factory $base_factory;
     private entity $item;
     private int $clipboard_target_id = 0;
+    private bool $as_new_section = false;
     private \moodle_database $db;
 
-    public function __construct(base_factory $base_factory, entity $item, int $clipboard_target_id)
-    {
+    public function __construct(
+        base_factory $base_factory,
+        entity $item,
+        int $clipboard_target_id,
+        bool $as_new_section = false
+    ) {
         $this->base_factory = $base_factory;
         $this->item = $item;
         $this->clipboard_target_id = $clipboard_target_id;
+        $this->as_new_section = $as_new_section;
         $this->db = $this->base_factory->moodle()->db();
+    }
+
+    /**
+     * When a section merges into an existing one, core keeps the target's title and description unless they are
+     * empty. Offer to replace them when the target actually has something to replace.
+     */
+    private function get_replace_section_details_context(): array
+    {
+        $context = ['can_replace_section_details' => false, 'target_section_name' => ''];
+
+        if ($this->as_new_section || !$this->item->is_section() || $this->clipboard_target_id <= 0) {
+            return $context;
+        }
+
+        $target_section = $this->db->get_record('course_sections', ['id' => $this->clipboard_target_id]);
+        if (!$target_section) {
+            return $context;
+        }
+
+        $has_name = (string)$target_section->name !== '';
+        $has_summary = trim(strip_tags((string)$target_section->summary)) !== ''
+            || str_contains((string)$target_section->summary, '<img');
+
+        $context['can_replace_section_details'] = $has_name || $has_summary;
+        $context['target_section_name'] = format_string(
+            course_get_format($target_section->course)->get_section_name($target_section)
+        );
+
+        return $context;
     }
 
     public function get_template_name(\renderer_base $renderer): string
@@ -75,7 +113,7 @@ class import_item_modal_body implements \renderable, \core\output\named_templata
             'sections' => [
                 $section
             ]
-        ];
+        ] + $this->get_replace_section_details_context();
     }
 
     private function export_node(

@@ -20,24 +20,41 @@ class handler
         $this->base_factory = $base_factory;
     }
 
+    /**
+     * @param entity $item
+     * @param int $section_id target section; 0 means the top level of $course_id (only with insert_as_new_section)
+     * @param int $item_id
+     * @param array $settings course_modules_to_include, sections_to_include, insert_as_new_section
+     * @param int $course_id required when $section_id is 0
+     */
     public function restore_item_into_section(
         entity $item,
         int $section_id,
         int $item_id,
-        array $settings = []
+        array $settings = [],
+        int $course_id = 0
     ): asynchronous_restore_task|null {
         global $USER, $DB;
 
-        $course_id = $DB->get_field('course_sections', 'course', ['id' => $section_id], MUST_EXIST);
+        if ($section_id > 0) {
+            $course_id = (int)$DB->get_field('course_sections', 'course', ['id' => $section_id], MUST_EXIST);
+        }
+
+        if ($course_id <= 0) {
+            return null;
+        }
 
         $settings['move_to_section_id'] = $section_id;
+        $settings['move_to_course_id'] = $course_id;
 
         $backup_file = $this->base_factory->item()->repository()->get_stored_file_by_item($item);
         if (!$backup_file) {
             throw new \Exception('Backup file not found for item (id: ' . $item->get_id() . ')');
         }
 
-        if(!$this->restore_is_valid($item_id, $section_id)) return null;
+        if (!$this->restore_is_valid($item_id, $section_id, !empty($settings['insert_as_new_section']))) {
+            return null;
+        }
 
         $restore_controller = $this->base_factory->restore()->restore_controller(
             $backup_file,
@@ -53,11 +70,9 @@ class handler
      * The UI presents the user with the options of where to restore the item copied from the clipboard.
      * This function is the backend check of that logic.
      */
-    private function restore_is_valid(int $item_id, int $target_section_id) : bool{
+    private function restore_is_valid(int $item_id, int $target_section_id, bool $insert_as_new_section = false) : bool{
 
         global $DB;
-
-        $target_section = $DB->get_record('course_sections', ['id' => $target_section_id], MUST_EXIST);
 
         $sql = "SELECT
                 I1.type AS own_type
@@ -70,6 +85,18 @@ class handler
         ];
 
         $subject_item = $DB->get_record_sql($sql,$params,MUST_EXIST);
+
+        // Creating a new section (top level or under a regular section) only makes sense for section items.
+        if ($insert_as_new_section && $subject_item->own_type !== 'section') {
+            return false;
+        }
+
+        // Top level of the course.
+        if ($target_section_id === 0) {
+            return $insert_as_new_section;
+        }
+
+        $target_section = $DB->get_record('course_sections', ['id' => $target_section_id], MUST_EXIST);
 
         $is_target_a_section = empty($target_section->component) && empty($target_section->itemid);
         $is_target_a_subsection = !empty($target_section->component) && $target_section->component == 'mod_subsection';
