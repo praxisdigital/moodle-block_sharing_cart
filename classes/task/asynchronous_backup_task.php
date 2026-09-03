@@ -238,9 +238,14 @@ class asynchronous_backup_task extends \core\task\adhoc_task
             $file->delete();
 
             $this->output("Updating items in sharing cart using contents of backup file...");
+            $section_tree = array_map(
+                static fn(object|array $node): array => (array)$node,
+                (array)($custom_data->backup_settings->section_tree ?? [])
+            );
             $this->factory()->item()->repository()->update_sharing_cart_item_with_backup_file(
                 $root_item,
-                $sharing_cart_file
+                $sharing_cart_file,
+                $section_tree
             );
 
             $this->output('Executing after_backup_finished_hook completed...');
@@ -349,13 +354,25 @@ class asynchronous_backup_task extends \core\task\adhoc_task
             $cms = [];
 
             if ($item->get_type() === 'section') {
-                $section = $mod_info->get_section_info_by_id($item_id);
-                if (empty($section->sequence)) {
+                // The copied section plus the descendant sections declared by a nesting course format.
+                $section_ids = array_merge(
+                    [$item_id],
+                    \block_sharing_cart\app\backup\backup_settings_helper::get_section_tree_ids(
+                        (object)($this->get_custom_data()->backup_settings ?? [])
+                    )
+                );
+                foreach ($section_ids as $section_id) {
+                    $section = $mod_info->get_section_info_by_id($section_id, IGNORE_MISSING);
+                    if (!$section || empty($section->sequence)) {
+                        continue;
+                    }
+                    $cms = array_merge($cms, array_map(static function ($id) {
+                        return (int)$id;
+                    }, explode(',', $section->sequence)));
+                }
+                if (empty($cms)) {
                     return [];
                 }
-                $cms = array_map(static function ($id) {
-                    return (int)$id;
-                }, explode(',', $section->sequence));
             } else {
                 $cms[] = $item_id;
             }

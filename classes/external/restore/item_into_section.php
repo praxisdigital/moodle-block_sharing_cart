@@ -25,13 +25,20 @@ class item_into_section extends external_api
             'course_modules_to_include' => new external_multiple_structure(
                 new external_value(PARAM_INT, '', VALUE_REQUIRED)
             ),
+            'sections_to_include' => new external_multiple_structure(
+                new external_value(PARAM_INT, 'Original ids of nested sections to restore; empty means all', VALUE_REQUIRED),
+                '',
+                VALUE_DEFAULT,
+                []
+            ),
         ]);
     }
 
     public static function execute(
         int $item_id,
         int $section_id,
-        array $course_modules_to_include
+        array $course_modules_to_include,
+        array $sections_to_include = []
     ): bool {
         global $USER, $DB;
 
@@ -41,6 +48,7 @@ class item_into_section extends external_api
             'item_id' => $item_id,
             'section_id' => $section_id,
             'course_modules_to_include' => $course_modules_to_include,
+            'sections_to_include' => $sections_to_include,
         ]);
 
         self::validate_context(
@@ -64,6 +72,7 @@ class item_into_section extends external_api
         // Only pass include/exclude list when the user can configure restore in the target course context.
         if (has_capability('moodle/restore:configure', $context)) {
             $settings['course_modules_to_include'] = $params['course_modules_to_include'] ?? [];
+            $settings['sections_to_include'] = $params['sections_to_include'] ?? [];
         }
 
         $result = $base_factory->restore()->handler()->restore_item_into_section($item, $params['section_id'],$params['item_id'], $settings);

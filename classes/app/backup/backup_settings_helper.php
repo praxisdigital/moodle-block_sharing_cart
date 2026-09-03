@@ -57,6 +57,12 @@ class backup_settings_helper
 
         $section_id = $this->get_section_id($item_entity);
 
+        // The copied section plus the descendant sections declared by the course format (nested formats only).
+        $section_ids = array_values(array_unique(array_merge(
+            [$section_id],
+            self::get_section_tree_ids($backupsettings)
+        )));
+
         //Returns all course modules with the same course number as $item_entity.
         $course_modules = $this->backup_settings_repository->get_course_modules_by_section_id($section_id);
 
@@ -64,12 +70,31 @@ class backup_settings_helper
         $course_sections = $this->backup_settings_repository->get_course_sections_by_section_id($section_id);
 
         //Add module settings
-        $backup_plan_settings += $this->get_course_module_settings($course_modules, $item_entity, $section_id, $backup_plan_settings['users']);
+        $backup_plan_settings += $this->get_course_module_settings($course_modules, $item_entity, $section_ids, $backup_plan_settings['users']);
 
         //Add section settings
-        $backup_plan_settings += $this->get_section_settings($course_sections, $section_id, $backup_plan_settings['users']);
+        $backup_plan_settings += $this->get_section_settings($course_sections, $section_ids, $backup_plan_settings['users']);
 
         return $backup_plan_settings;
+    }
+
+    /**
+     * Section ids of the descendant tree stored in the backup task custom data.
+     *
+     * @param object $backupsettings
+     * @return int[]
+     */
+    public static function get_section_tree_ids(object $backupsettings): array
+    {
+        $ids = [];
+        foreach ((array)($backupsettings->section_tree ?? []) as $node) {
+            $node = (object)$node;
+            if (!empty($node->section_id)) {
+                $ids[] = (int)$node->section_id;
+            }
+        }
+
+        return $ids;
     }
 
     public function apply_backup_plan_settings(array $backup_plan_settings,\backup_plan $backup_plan) : void{
@@ -91,14 +116,14 @@ class backup_settings_helper
 
     }
 
-    private function get_section_id(entity $item_entity): string
+    private function get_section_id(entity $item_entity): int
     {
 
         if($item_entity->get_type() === $item_entity::TYPE_SECTION || $item_entity->get_type() === $item_entity::TYPE_MOD_SUBSECTION) {
-            return $item_entity->old_instance_id;
+            return (int)$item_entity->old_instance_id;
         }
 
-        return $this->base_factory->moodle()->db()->get_record(
+        return (int)$this->base_factory->moodle()->db()->get_record(
             'course_modules',
             ['id' => $item_entity->old_instance_id],
             'section',
@@ -107,7 +132,7 @@ class backup_settings_helper
 
     }
 
-    private function get_section_settings(array $sections, int $section_id, bool $include_users): array
+    private function get_section_settings(array $sections, array $section_ids, bool $include_users): array
     {
         $settings = [];
 
@@ -116,8 +141,10 @@ class backup_settings_helper
             $settings["section_".$section->id."_included"] = false;
         }
 
-        $settings["section_".$section_id."_userinfo"] = $include_users;
-        $settings["section_".$section_id."_included"] = true;
+        foreach ($section_ids as $section_id) {
+            $settings["section_".$section_id."_userinfo"] = $include_users;
+            $settings["section_".$section_id."_included"] = true;
+        }
 
         return $settings;
     }
@@ -125,28 +152,32 @@ class backup_settings_helper
     private function get_course_module_settings(
         array $course_modules,
         entity $item_entity,
-        int $section_id,
+        array $section_ids,
         bool $include_users
     ): array
     {
         $settings = [];
 
         foreach($course_modules as $course_module) {
-            //Include all immediate child modules of section(section_id) in the backup plan settings.
+            //Include all immediate child modules of the copied sections in the backup plan settings.
+            $is_included = in_array((int)$course_module->section, $section_ids, true);
             $settings = array_merge(
                 $settings,
                 $this->set_setting(
                     $course_module->name,
                     $course_module->id,
-                    (int)$course_module->section === $section_id,
-                    ((int)$course_module->section === $section_id) ? $include_users : false
+                    $is_included,
+                    $is_included ? $include_users : false
                 )
             );
         }
 
-        $immediate_child_modules = $this->backup_settings_repository->get_immediate_child_modules_of_section($section_id);
+        foreach ($section_ids as $section_id) {
+            $immediate_child_modules = $this->backup_settings_repository->get_immediate_child_modules_of_section($section_id);
 
-        if(!empty($immediate_child_modules)) {
+            if (empty($immediate_child_modules)) {
+                continue;
+            }
 
             $child_module_ids = [];
             foreach($immediate_child_modules as $immediate_child_module) {
@@ -182,13 +213,12 @@ class backup_settings_helper
             foreach($subsection_child_modules as $subsection_child_module) {
                 $settings = array_merge($settings,$this->set_setting($subsection_child_module->name,$subsection_child_module->id,true,$include_users));
             }
-
         }
 
         //Subsection's parent section must be included for the backup to work regardless of backup type.
         if($item_entity->get_type() === $item_entity::TYPE_MOD_SUBSECTION){
 
-            $subsection_info = $this->backup_settings_repository->get_mod_subsection_info($section_id);
+            $subsection_info = $this->backup_settings_repository->get_mod_subsection_info($section_ids[0]);
 
             if(empty($subsection_info)){
                 throw new \Exception("Could not complete backup plan settings construction. Section was empty.");

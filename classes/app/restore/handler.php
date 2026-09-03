@@ -84,7 +84,7 @@ class handler
             if($subject_item->own_type === 'mod_subsection'){return false;}
 
             //Attempt to restore a subsections's child into a subsection?
-            if($subject_item->parent_type === 'subsection'){return false;}
+            if($subject_item->parent_type === 'mod_subsection'){return false;}
         }
 
         return true;

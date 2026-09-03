@@ -717,12 +717,39 @@ export default class BlockElement {
     importItem(item, sectionId, modal) {
         this.#course.clearClipboard();
 
+        // A nested section that is unchecked drops everything beneath it, whatever the state of the child boxes.
+        const isUnderUncheckedSection = (checkbox) => {
+            let parent = checkbox.closest('.form-check')?.parentElement?.closest('.form-check');
+            while (parent) {
+                const parentCheckbox = parent.querySelector(':scope > label > input[type="checkbox"]');
+                if (parentCheckbox && parentCheckbox.dataset.type === 'section' && !parentCheckbox.checked) {
+                    return true;
+                }
+                parent = parent.parentElement?.closest('.form-check');
+            }
+            return false;
+        };
+
         const courseModuleIds = [];
+        const sectionIds = [];
         modal.querySelectorAll('input[type="checkbox"]:checked').forEach((checkbox) => {
-            courseModuleIds.push(checkbox.dataset.id);
+            if (isUnderUncheckedSection(checkbox)) {
+                return;
+            }
+            if (checkbox.dataset.type === 'section') {
+                sectionIds.push(checkbox.dataset.id);
+            } else {
+                courseModuleIds.push(checkbox.dataset.id);
+            }
         });
 
-        if (item.isSection() && courseModuleIds.length === 0) {
+        // The backend treats an empty list as "all nested sections", so signal "none" explicitly.
+        const hasNestedSections = modal.querySelector('input[type="checkbox"][data-type="section"]') !== null;
+        if (hasNestedSections && sectionIds.length === 0) {
+            sectionIds.push(0);
+        }
+
+        if (item.isSection() && courseModuleIds.length === 0 && (!hasNestedSections || sectionIds[0] === 0)) {
             modal.querySelectorAll('.form-check-input').forEach(async (item) => {
                 item.setCustomValidity(
                     await get_string('atleast_one_course_module_must_be_included', 'block_sharing_cart')
@@ -742,6 +769,7 @@ export default class BlockElement {
                 item_id: item.getItemId(),
                 section_id: sectionId,
                 course_modules_to_include: courseModuleIds,
+                sections_to_include: sectionIds,
             },
             done: async (success) => {
                 if (success) {
