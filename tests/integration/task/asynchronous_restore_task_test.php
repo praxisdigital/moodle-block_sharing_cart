@@ -201,7 +201,7 @@ class asynchronous_restore_task_test extends \advanced_testcase
 
         // The format is told the new hierarchy.
         $this->assertNotNull($payload);
-        $this->assertSame($target->id, $payload->course_id);
+        $this->assertSame((int)$target->id, $payload->course_id);
         $this->assertSame($target_section_id, $payload->target_section_id);
         $this->assertCount(2, $payload->restored_sections);
         [$child, $grandchild] = $payload->restored_sections;
