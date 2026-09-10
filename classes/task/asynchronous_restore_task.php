@@ -9,7 +9,7 @@ defined('MOODLE_INTERNAL') || die();
 
 use async_helper;
 use block_sharing_cart\app\factory as base_factory;
-use block_sharing_cart\app\item\entity;
+use block_sharing_cart\app\restore\section_plan;
 use block_sharing_cart\hook\restore\after_sections_restored;
 use block_sharing_cart\hook\restore\before_sections_restored;
 
@@ -18,19 +18,15 @@ require_once($CFG->dirroot . '/backup/util/includes/restore_includes.php');
 
 class asynchronous_restore_task extends \core\task\adhoc_task
 {
-    /**
-     * Section plan built before the restore plan executes and consumed after it finished.
-     *
-     * Shape:
-     *   root_old_section_id   int   original id of the restored item's own section (0 for legacy items)
-     *   target_section_id     int   section chosen by the user; the root section merges into it
-     *   target_section_number int
-     *   selective             bool  true when the restored item is a 'section' item and other sections in the backup
-     *                               must be excluded
-     *   sections              array keyed by old section id: descendant sections in depth-first order,
-     *                               {old_section_id, old_parent_section_id, sort_order, new_section_number}
-     */
-    private array $section_plan = [];
+    private ?section_plan $section_plan = null;
+
+    /** Section whose title and description were blanked for replacement; 0 when none. */
+    private int $replaced_section_id = 0;
+
+    protected function factory(): base_factory
+    {
+        return base_factory::make();
+    }
 
     /**
      * Should always resemble
@@ -42,7 +38,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
      */
     public function execute(): void
     {
-        $db = base_factory::make()->moodle()->db();
+        $db = $this->factory()->moodle()->db();
         $started = time();
 
         $customdata = $this->get_custom_data();
@@ -93,6 +89,8 @@ class asynchronous_restore_task extends \core\task\adhoc_task
 
                 $this->after_restore_finished_hook($rc);
 
+                $this->discard_replaced_section_details($rc);
+
                 // Send message to user if enabled.
                 $coremessageenabled = (bool)get_config('backup', 'backup_async_message_users');
                 $cartmessageenabled = (bool)get_config('block_sharing_cart', 'backup_async_message_users');
@@ -119,6 +117,8 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             );
 
         } catch (\Exception $e) {
+            $this->rollback_replaced_section_details($rc);
+
             // If an exception is thrown, mark the restore as failed.
             $rc->set_status(\backup::STATUS_FINISHED_ERR);
 
@@ -141,19 +141,87 @@ class asynchronous_restore_task extends \core\task\adhoc_task
         return false;
     }
 
+    /**
+     * Runs before execute_plan(): decides which sections are restored and where, and lets the course format prepare.
+     */
+    private function before_restore_finished_hook(\restore_controller $restore_controller): void
+    {
+        try {
+            mtrace('Executing before_restore_finished_hook...');
+
+            $customdata = $this->get_custom_data();
+            $backup_settings = $customdata->backup_settings ?? (object)[];
+
+            $course_modules_to_include = array_map('intval', $backup_settings->course_modules_to_include ?? []);
+            if (!empty($course_modules_to_include) && $course_modules_to_include !== [0]) {
+                $this->only_include_specified_course_modules($restore_controller, $course_modules_to_include);
+            }
+
+            $move_to_section_id = (int)($backup_settings->move_to_section_id ?? 0);
+            $insert_as_new_section = !empty($backup_settings->insert_as_new_section);
+            if ($move_to_section_id > 0 || $insert_as_new_section) {
+                $planner = $this->factory()->restore()->section_planner();
+
+                $this->section_plan = $planner->plan(
+                    $restore_controller,
+                    $this->factory()->item()->repository()->get_by_id((int)($customdata->item->id ?? 0)),
+                    $move_to_section_id,
+                    $insert_as_new_section,
+                    array_map('intval', (array)($backup_settings->sections_to_include ?? []))
+                );
+                $planner->apply($restore_controller, $this->section_plan);
+
+                if (!empty($backup_settings->replace_section_details) && $this->section_plan->merges_into_target()) {
+                    $this->replace_section_details($restore_controller);
+                }
+
+                \core\di::get(\core\hook\manager::class)->dispatch(new before_sections_restored(
+                    restore_id: $restore_controller->get_restoreid(),
+                    course_id: (int)$restore_controller->get_courseid(),
+                    target_section_id: $this->section_plan->target_section_id,
+                    planned_sections: array_values($this->section_plan->sections),
+                ));
+            }
+
+            $has_atleast_one_course_module_included = false;
+            foreach ($restore_controller->get_plan()->get_tasks() as $task) {
+                if (($task instanceof \restore_activity_task) && $task->get_setting('included')->get_value()) {
+                    $has_atleast_one_course_module_included = true;
+                    break;
+                }
+            }
+
+            if (!$has_atleast_one_course_module_included && !($this->section_plan?->has_sections() ?? false)) {
+                throw new \Exception('No course modules were included in the restore.');
+            }
+
+            mtrace('Executing before_restore_finished_hook completed, continuing with restore');
+        } catch (\Exception $e) {
+            mtrace("An error occurred: " . $e->getMessage());
+            mtrace($e->getTraceAsString());
+
+            // Uh uhh, something went wrong.
+            throw $e;
+        }
+    }
+
+    /**
+     * Runs after execute_plan(): places the new sections and lets the course format attach them to its hierarchy.
+     */
     private function after_restore_finished_hook(\restore_controller $restore_controller): void
     {
         try {
             mtrace('Executing after_restore_finished_hook...');
 
-            if (!empty($this->section_plan)) {
+            if ($this->section_plan !== null) {
+                $planner = $this->factory()->restore()->section_planner();
                 $course_id = (int)$restore_controller->get_courseid();
-                $target_section_id = (int)$this->section_plan['target_section_id'];
+                $target_section_id = $this->section_plan->target_section_id;
 
-                $restored_sections = $this->resolve_restored_sections($restore_controller);
+                $restored_sections = $planner->resolve_restored_sections($restore_controller, $this->section_plan);
 
                 mtrace('Placing ' . count($restored_sections) . ' restored nested section(s) after the target section...');
-                $this->place_sections_after_target($course_id, $target_section_id, $restored_sections);
+                $planner->place_after_target($course_id, $target_section_id, $restored_sections);
 
                 \core\di::get(\core\hook\manager::class)->dispatch(new after_sections_restored(
                     course_id: $course_id,
@@ -174,412 +242,47 @@ class asynchronous_restore_task extends \core\task\adhoc_task
         }
     }
 
-    private function before_restore_finished_hook(\restore_controller $restore_controller): void
+    private function replace_section_details(\restore_controller $restore_controller): void
     {
+        $section_id = $this->section_plan->target_section_id;
+        mtrace("...Replacing the title and description of section (id: $section_id) with the copied section's");
+
+        $this->factory()->restore()->section_details_replacement()->snapshot_and_blank(
+            (int)$restore_controller->get_courseid(),
+            $section_id
+        );
+        $this->replaced_section_id = $section_id;
+    }
+
+    private function discard_replaced_section_details(\restore_controller $restore_controller): void
+    {
+        if ($this->replaced_section_id === 0) {
+            return;
+        }
+
+        $this->factory()->restore()->section_details_replacement()->discard(
+            (int)$restore_controller->get_courseid(),
+            $this->replaced_section_id
+        );
+        $this->replaced_section_id = 0;
+    }
+
+    private function rollback_replaced_section_details(\restore_controller $restore_controller): void
+    {
+        if ($this->replaced_section_id === 0) {
+            return;
+        }
+
         try {
-            mtrace('Executing before_restore_finished_hook...');
-
-            $customdata = $this->get_custom_data();
-
-            $backup_settings = $customdata->backup_settings ?? null;
-
-            $course_modules_to_include = array_map('intval', $backup_settings->course_modules_to_include ?? []);
-            if (!empty($course_modules_to_include) && $course_modules_to_include !== [0]) {
-                $this->only_include_specified_course_modules($restore_controller, $course_modules_to_include);
-            }
-
-            $move_to_section_id = (int)($backup_settings->move_to_section_id ?? 0);
-            $insert_as_new_section = !empty($backup_settings->insert_as_new_section);
-            if ($move_to_section_id > 0 || $insert_as_new_section) {
-                $this->section_plan = $this->plan_sections(
-                    $restore_controller,
-                    $customdata,
-                    $move_to_section_id,
-                    $insert_as_new_section
-                );
-                $this->apply_section_plan($restore_controller, $this->section_plan);
-
-                if (!empty($backup_settings->replace_section_details)) {
-                    $this->replace_target_section_details($restore_controller, $this->section_plan);
-                }
-
-                \core\di::get(\core\hook\manager::class)->dispatch(new before_sections_restored(
-                    restore_id: $restore_controller->get_restoreid(),
-                    course_id: (int)$restore_controller->get_courseid(),
-                    target_section_id: (int)$this->section_plan['target_section_id'],
-                    planned_sections: array_values($this->section_plan['sections']),
-                ));
-            }
-
-            $has_atleast_one_course_module_included = false;
-            foreach ($restore_controller->get_plan()->get_tasks() as $task) {
-                if (($task instanceof \restore_activity_task) && $task->get_setting('included')->get_value()) {
-                    $has_atleast_one_course_module_included = true;
-                    break;
-                }
-            }
-
-            if (!$has_atleast_one_course_module_included && empty($this->section_plan['sections'])) {
-                throw new \Exception('No course modules were included in the restore.');
-            }
-
-            mtrace('Executing before_restore_finished_hook completed, continuing with restore');
-        } catch (\Exception $e) {
-            mtrace("An error occurred: " . $e->getMessage());
-            mtrace($e->getTraceAsString());
-
-            // Uh uhh, something went wrong.
-            throw $e;
-        }
-    }
-
-    /**
-     * Decide which sections of the backup are restored and which section number each of them gets.
-     *
-     * The restored item's own section is merged into the target section, or, with $insert_as_new_section, created as
-     * a new section under it ($target_section_id 0 = top level of the course). Descendant section items (as recorded
-     * by a nesting course format at backup time) become new sections with fresh numbers above the course's current
-     * maximum, in depth-first order. Everything else in the backup is excluded.
-     */
-    private function plan_sections(
-        \restore_controller $restore_controller,
-        object $customdata,
-        int $target_section_id,
-        bool $insert_as_new_section = false
-    ): array {
-        $db = base_factory::make()->moodle()->db();
-
-        $course_id = (int)$restore_controller->get_courseid();
-
-        $target_section_number = 0;
-        if ($target_section_id > 0) {
-            $target = $db->get_record(
-                'course_sections',
-                ['id' => $target_section_id, 'course' => $course_id],
-                'id, course, section',
-                MUST_EXIST
+            mtrace("Restore failed, putting back the title and description of section (id: {$this->replaced_section_id})...");
+            $this->factory()->restore()->section_details_replacement()->rollback(
+                (int)$restore_controller->get_courseid(),
+                $this->replaced_section_id
             );
-            $target_section_number = (int)$target->section;
+        } catch (\Exception $e) {
+            mtrace('Could not put back the section details: ' . $e->getMessage());
         }
-
-        $plan = [
-            'root_old_section_id' => 0,
-            'target_section_id' => $target_section_id,
-            'target_section_number' => $target_section_number,
-            'insert_as_new_section' => false,
-            'selective' => false,
-            'sections' => [],
-        ];
-
-        $repository = base_factory::make()->item()->repository();
-        $item = $repository->get_by_id((int)($customdata->item->id ?? 0));
-
-        // Core subsection items and single activity items keep the legacy behaviour.
-        if (!$item || !$item->is_section()) {
-            if ($target_section_id === 0) {
-                throw new \Exception('Only section items can be restored to the top level of a course.');
-            }
-            return $plan;
-        }
-
-        $plan['root_old_section_id'] = (int)$item->get_old_instance_id();
-        $plan['selective'] = true;
-        $plan['insert_as_new_section'] = $insert_as_new_section;
-
-        $sections_to_include = array_map('intval', (array)($customdata->backup_settings->sections_to_include ?? []));
-
-        $children_by_parent = [];
-        foreach ($repository->get_recursively_by_parent_id($item->get_id()) as $descendant) {
-            if (!$descendant->is_section() || $descendant->get_parent_item_id() === null) {
-                continue;
-            }
-            $children_by_parent[$descendant->get_parent_item_id()][] = $descendant;
-        }
-        foreach ($children_by_parent as &$siblings) {
-            usort($siblings, static function (entity $a, entity $b): int {
-                return (($a->get_sortorder() ?? 0) <=> ($b->get_sortorder() ?? 0)) ?: ($a->get_id() <=> $b->get_id());
-            });
-        }
-        unset($siblings);
-
-        $max_number = (int)$db->get_field_sql(
-            'SELECT MAX(section) FROM {course_sections} WHERE course = ?',
-            [$course_id]
-        );
-
-        $counter = 0;
-
-        // As a new section the root is planned like a descendant, with the target (or the top level) as parent.
-        if ($insert_as_new_section) {
-            $plan['sections'][$plan['root_old_section_id']] = (object)[
-                'old_section_id' => $plan['root_old_section_id'],
-                'old_parent_section_id' => 0,
-                'sort_order' => (int)($item->get_sortorder() ?? 0),
-                'new_section_number' => $max_number + (++$counter),
-            ];
-        }
-
-        $walk = function (entity $parent) use (&$walk, &$plan, &$counter, $children_by_parent, $sections_to_include, $max_number): void {
-            foreach ($children_by_parent[$parent->get_id()] ?? [] as $child) {
-                $old_section_id = (int)$child->get_old_instance_id();
-
-                // An excluded section drops its whole branch.
-                if (!empty($sections_to_include) && !in_array($old_section_id, $sections_to_include, true)) {
-                    continue;
-                }
-
-                $plan['sections'][$old_section_id] = (object)[
-                    'old_section_id' => $old_section_id,
-                    'old_parent_section_id' => (int)$parent->get_old_instance_id(),
-                    'sort_order' => (int)($child->get_sortorder() ?? 0),
-                    'new_section_number' => $max_number + (++$counter),
-                ];
-
-                $walk($child);
-            }
-        };
-        $walk($item);
-
-        return $plan;
-    }
-
-    /**
-     * Rewrite the section numbers in the extracted backup and switch off the section tasks that are not part of the
-     * plan.
-     *
-     * The section number is hardcoded in section.xml and module.xml and cannot be changed through the
-     * restore_controller API, hence the rewrite on disk. Core places a section by that number: an existing number is
-     * reused (merge), an unused number creates a new section. Modules are placed through the course_section mapping
-     * first and only fall back to their sectionnumber, so only modules of the root section need rewriting.
-     */
-    private function apply_section_plan(\restore_controller $restore_controller, array $plan): void
-    {
-        $target_number = (int)$plan['target_section_number'];
-        $selective = (bool)$plan['selective'];
-        $root_old_section_id = (int)$plan['root_old_section_id'];
-        $planned = $plan['sections'];
-
-        // Old module id => old section id, and delegated (core subsection) section id => the section owning its
-        // parent module, used to tell whether something belongs to an included branch.
-        $module_sections = [];
-        foreach ($restore_controller->get_info()->activities ?? [] as $activity) {
-            $module_sections[(int)$activity->moduleid] = (int)$activity->sectionid;
-        }
-        $delegated_owners = [];
-        foreach ($restore_controller->get_info()->sections ?? [] as $section) {
-            if (!empty($section->parentcmid) && isset($module_sections[(int)$section->parentcmid])) {
-                $delegated_owners[(int)$section->sectionid] = $module_sections[(int)$section->parentcmid];
-            }
-        }
-
-        $included_section_ids = array_merge([$root_old_section_id], array_keys($planned));
-        $is_included = static function (int $old_section_id) use ($included_section_ids, $delegated_owners): bool {
-            $old_section_id = $delegated_owners[$old_section_id] ?? $old_section_id;
-            return in_array($old_section_id, $included_section_ids, true);
-        };
-
-        foreach ($restore_controller->get_plan()->get_tasks() as $task) {
-            if ($task instanceof \restore_activity_task) {
-                $old_section_id = $module_sections[(int)$task->get_old_moduleid()] ?? 0;
-                if ($selective && !$is_included($old_section_id)) {
-                    // Its section is not restored, so the module must not be either (whatever the modal sent).
-                    $task->get_setting('included')->set_value(false);
-                    continue;
-                }
-                if (!$selective || !isset($planned[$old_section_id])) {
-                    $this->rewrite_xml_number("{$task->get_taskbasepath()}/module.xml", 'sectionnumber', $target_number);
-                }
-                continue;
-            }
-
-            if (!($task instanceof \restore_section_task)) {
-                continue;
-            }
-
-            $old_section_id = $this->old_section_id_of_task($task);
-            $section_xml_path = "{$task->get_taskbasepath()}/section.xml";
-
-            if (!$selective) {
-                // Legacy behaviour: everything merges into the target section.
-                $this->rewrite_xml_number($section_xml_path, 'number', $target_number);
-                continue;
-            }
-
-            if ($task->get_delegated_cm() !== null) {
-                // Core numbers delegated sections itself; only make sure excluded branches stay excluded.
-                if (!$is_included($old_section_id)) {
-                    mtrace("...Excluding delegated section (id: $old_section_id)");
-                    $task->get_setting('included')->set_value(false);
-                }
-                continue;
-            }
-
-            if (isset($planned[$old_section_id])) {
-                // A descendant, or the root itself when it is inserted as a new section.
-                mtrace("...Restoring section (id: $old_section_id) as new section number {$planned[$old_section_id]->new_section_number}");
-                $this->rewrite_xml_number($section_xml_path, 'number', (int)$planned[$old_section_id]->new_section_number);
-            } elseif ($old_section_id === $root_old_section_id) {
-                $this->rewrite_xml_number($section_xml_path, 'number', $target_number);
-            } else {
-                mtrace("...Excluding section (id: $old_section_id)");
-                $task->get_setting('included')->set_value(false);
-            }
-        }
-    }
-
-    /**
-     * When merging a section into an existing one, core only writes the copied title and description into fields
-     * that are empty. Blanking the target's title, description and description files first makes core take the
-     * copied ones (files included) as if the section were new.
-     */
-    private function replace_target_section_details(\restore_controller $restore_controller, array $plan): void
-    {
-        $target_section_id = (int)($plan['target_section_id'] ?? 0);
-        if (empty($plan['selective']) || !empty($plan['insert_as_new_section']) || $target_section_id === 0) {
-            return;
-        }
-
-        $db = base_factory::make()->moodle()->db();
-        $course_id = (int)$restore_controller->get_courseid();
-
-        mtrace("...Replacing the title and description of section (id: $target_section_id) with the copied section's");
-
-        $db->update_record('course_sections', (object)[
-            'id' => $target_section_id,
-            'name' => null,
-            'summary' => '',
-            'timemodified' => time(),
-        ]);
-
-        get_file_storage()->delete_area_files(
-            \core\context\course::instance($course_id)->id,
-            'course',
-            'section',
-            $target_section_id
-        );
-
-        rebuild_course_cache($course_id, true);
-    }
-
-    /**
-     * Original (backup side) id of the section a section task restores. restore_task::get_info() returns the whole
-     * backup manifest, so the id is read from the task directory, which core names sections/section_<oldid>.
-     */
-    private function old_section_id_of_task(\restore_section_task $task): int
-    {
-        $directory = basename($task->get_taskbasepath());
-
-        return (int)substr($directory, strlen('section_'));
-    }
-
-    private function rewrite_xml_number(string $path, string $element, int $value): void
-    {
-        $xml = simplexml_load_string(file_get_contents($path));
-        $xml->{$element} = $value;
-        $xml->asXML($path);
-    }
-
-    /**
-     * Map the planned descendant sections to the sections core created, in depth-first order.
-     *
-     * @return object[] {old_section_id, new_section_id, new_parent_section_id, sort_order}
-     */
-    private function resolve_restored_sections(\restore_controller $restore_controller): array
-    {
-        $target_section_id = (int)$this->section_plan['target_section_id'];
-
-        // The backup_ids temp table is dropped by the last restore step, but every section task still holds the id
-        // of the section it created or merged into (set by restore_section_structure_step::process_section).
-        $created_ids = [];
-        foreach ($restore_controller->get_plan()->get_tasks() as $task) {
-            if ($task instanceof \restore_section_task) {
-                $created_ids[$this->old_section_id_of_task($task)] = (int)$task->get_sectionid();
-            }
-        }
-
-        $new_ids = [];
-        $restored = [];
-        foreach ($this->section_plan['sections'] as $planned) {
-            $new_section_id = $created_ids[(int)$planned->old_section_id] ?? 0;
-
-            if ($new_section_id === 0 || $new_section_id === $target_section_id) {
-                mtrace("...No new section found for nested section (id: {$planned->old_section_id}), skipping");
-                continue;
-            }
-
-            $new_ids[$planned->old_section_id] = $new_section_id;
-
-            // The parent is the new id of the parent section when that was created in this restore (a descendant,
-            // or the root inserted as a new section); otherwise it is the target section (or 0 = top level).
-            $old_parent_section_id = (int)$planned->old_parent_section_id;
-            $new_parent_section_id = $new_ids[$old_parent_section_id] ?? $target_section_id;
-
-            $restored[] = (object)[
-                'old_section_id' => (int)$planned->old_section_id,
-                'new_section_id' => $new_section_id,
-                'new_parent_section_id' => $new_parent_section_id,
-                'sort_order' => (int)$planned->sort_order,
-            ];
-        }
-
-        return $restored;
-    }
-
-    /**
-     * Generic placement: put the restored sections directly after the target section, keeping depth-first order.
-     * Nesting formats reorder afterwards through the after_sections_restored hook.
-     */
-    private function place_sections_after_target(int $course_id, int $target_section_id, array $restored_sections): void
-    {
-        // Top level of the course: the fresh numbers already put the new sections at the end.
-        if (empty($restored_sections) || $target_section_id === 0) {
-            return;
-        }
-
-        $actions = \core_courseformat\formatactions::section($course_id);
-
-        $preceding_section_id = $target_section_id;
-        foreach ($restored_sections as $restored) {
-            $modinfo = get_fast_modinfo($course_id);
-            $section = $modinfo->get_section_info_by_id($restored->new_section_id, IGNORE_MISSING);
-            $preceding = $modinfo->get_section_info_by_id($preceding_section_id, IGNORE_MISSING);
-            if (!$section || !$preceding) {
-                continue;
-            }
-
-            $actions->move_after($section, $preceding);
-            $preceding_section_id = $restored->new_section_id;
-        }
-    }
-
-    private function get_section_name($section_id) : ?string {
-
-        $db = base_factory::make()->moodle()->db();
-        $section_name = $db->get_field(
-            'course_sections',
-            'name',
-            ['id' => $section_id],
-            strictness: IGNORE_MISSING
-        );
-
-        if(!$section_name){
-            return null;
-        }
-
-        return $section_name;
-    }
-
-    private function update_section_name($section_id, $section_name) : bool {
-
-        $db = base_factory::make()->moodle()->db();
-
-        return $db->set_field(
-            'course_sections',
-            'name',
-            $section_name,
-            ['id' => $section_id],
-        );
-
+        $this->replaced_section_id = 0;
     }
 
     private function only_include_specified_course_modules(

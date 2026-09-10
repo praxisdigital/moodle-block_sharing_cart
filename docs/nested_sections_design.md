@@ -4,7 +4,7 @@ Design note for supporting course formats whose sections nest (for example
 `format_pxgrid`) so that copying a section into the sharing cart also copies its
 child sections, and inserting it into another course recreates that structure.
 
-Status: proof of concept on a local experimental branch. Nothing here is released.
+Status: under review in pull request #214. Nothing here is released yet.
 
 ## 1. Problem
 
@@ -117,6 +117,12 @@ Dispatched after `execute_plan()`, before the controller is destroyed.
 
 ## 6. Backup side
 
+- Whether a section can be copied at all is decided server side, after the tree
+  is resolved: a section without activities is still copyable when one of its
+  declared descendants has activities (a structural parent that only holds
+  subsections). An empty section with no populated descendants is rejected with
+  the existing "no course modules in this section" message.
+
 - `app\backup\handler::backup_section` dispatches `resolve_section_tree` and
   stores the answer in the task custom data as `backup_settings.section_tree`.
 - `app\backup\backup_settings_helper` works on a set of section ids (root plus
@@ -151,9 +157,11 @@ section (root, has the backup file)
 ## 7. Restore side
 
 The restored item can be the root item or any child section item. The subtree
-is read from the cart items table, not from the backup file.
+is read from the cart items table, not from the backup file. The adhoc task
+only orchestrates; the decisions live in `app\restore\section_planner`
+(producing a `section_plan`) and `app\restore\section_details_replacement`.
 
-Numbering algorithm (`task\asynchronous_restore_task`):
+Numbering algorithm (`section_planner`):
 
 1. The restored item's own section gets the target section's number in
    `section.xml`, so core reuses (merges into) the target. `module.xml` numbers
@@ -201,11 +209,15 @@ Core only writes the copied section's title and description into a target
 whose fields are empty, so a merge silently kept the existing text. The import
 modal now offers "Also replace the title and description of X with those of the
 copied section" whenever the target has a title or description, and the web
-service accepts `replace_section_details`. The restore task implements it by
-blanking the target's title, description and description files right before
-the plan runs, so core fills them from the backup exactly as for a new section,
-files included. The option is not shown when inserting as a new section, where
-the copied values are used anyway.
+service accepts `replace_section_details`. `section_details_replacement`
+implements it by keeping the target's title, description and description files
+in a snapshot (file area `block_sharing_cart/section_snapshot`, item id = the
+section), then blanking them right before the plan runs so core fills them from
+the backup exactly as for a new section, files included. When the restore
+finishes the snapshot is discarded; when it fails the snapshot is put back, so a
+failed restore never leaves the section without its original text. The option
+is not shown when inserting as a new section, where the copied values are used
+anyway.
 
 ### Insert as a new section (front page)
 

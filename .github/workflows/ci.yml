@@ -1,0 +1,25 @@
+name: Moodle CI
+
+on:
+  pull_request:
+    types: [ opened, reopened, synchronize ]
+  push:
+    branches:
+      - main
+      - master
+      - MOODLE_*_STABLE
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: write
+  issues: write
+  statuses: write
+
+jobs:
+  ci:
+    uses: praxisdigital/moodle-test-action/.github/workflows/ci.yml@master
+    secrets: inherit

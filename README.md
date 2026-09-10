@@ -70,7 +70,7 @@ GPL v3
 Change Log
 ----------
 
-* 5.2, release 3 2026.09.09
+* 5.2, release 3 2026.09.10
     * Added support for copying sections with a nested structure (e.g. subsections) into the
       cart and restoring them with the structure preserved, via hooks a course format can
       implement. See docs/nested_sections_design.md.

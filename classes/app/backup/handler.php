@@ -71,7 +71,13 @@ class handler
         return $this->queue_async_backup($backup_controller, $root_item, $settings);
     }
 
-    public function backup_section(object $section, entity $root_item, array $settings = []): array
+    /**
+     * @param object $section course_sections record
+     * @param entity $root_item
+     * @param array $settings
+     * @param array|null $section_tree descendants as returned by resolve_section_tree(); resolved here when null
+     */
+    public function backup_section(object $section, entity $root_item, array $settings = [], ?array $section_tree = null): array
     {
         global $USER;
 
@@ -82,8 +88,8 @@ class handler
             MUST_EXIST
         )->course;
 
-        // Ask the course format for the descendant sections of the copied section (nested formats only).
-        $settings['section_tree'] = $this->resolve_section_tree((int)$course_id, (int)$section->id);
+        // The descendant sections of the copied section, as declared by the course format (nested formats only).
+        $settings['section_tree'] = $section_tree ?? $this->resolve_section_tree((int)$course_id, (int)$section->id);
 
         $backup_controller = $this->base_factory->backup()->backup_controller(
             \backup::TYPE_1COURSE,
@@ -142,6 +148,40 @@ class handler
                 'name' => $name,
             ];
         }, $tree);
+    }
+
+    /**
+     * Whether there is anything to copy: the section itself or one of its descendants holds a course module. A
+     * structural parent that only contains subsections is copyable through its descendants.
+     *
+     * @param object $section course_sections record with at least 'sequence'
+     * @param array $section_tree descendants as returned by resolve_section_tree()
+     */
+    public function section_has_content(object $section, array $section_tree): bool
+    {
+        if (trim((string)($section->sequence ?? '')) !== '') {
+            return true;
+        }
+
+        $section_ids = array_map(static fn(array|object $node): int => (int)((object)$node)->section_id, $section_tree);
+        if (empty($section_ids)) {
+            return false;
+        }
+
+        $descendants = $this->base_factory->moodle()->db()->get_records_list(
+            'course_sections',
+            'id',
+            $section_ids,
+            '',
+            'id, sequence'
+        );
+        foreach ($descendants as $descendant) {
+            if (trim((string)$descendant->sequence) !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function get_backup_course_info(\stored_file $file): array
