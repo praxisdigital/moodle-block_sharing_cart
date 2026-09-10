@@ -70,6 +70,17 @@ GPL v3
 Change Log
 ----------
 
+* 5.2, release 3 2026.09.10
+    * Added support for copying sections with a nested structure (e.g. subsections) into the
+      cart and restoring them with the structure preserved, via hooks a course format can
+      implement. See docs/nested_sections_design.md.
+    * Added an option to insert a copied section as a new section (e.g. at course top level)
+      instead of merging it into an existing one.
+    * Added an option to replace the target section's title and description with the copied
+      section's when merging.
+    * Fixed the block only refreshing the target section's state after a restore, which could
+      leave newly restored sections briefly unrendered until a page reload.
+    * Fixed restore_is_valid comparing against the wrong subsection type name.
 * 5.2, release 2 2026.07.24
     * Fixed sharing cart icon doesn't appear after course module items due to JS only scanning the first element of course content.
 * 5.2, release 1 2026.06.11

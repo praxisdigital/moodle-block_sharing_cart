@@ -23,6 +23,10 @@ $string['confirm_delete_items'] = 'Are you sure you want to delete these items? 
 
 $string['copy_item'] = 'Copy item';
 $string['into_section'] = 'into section';
+$string['as_new_section_in'] = 'as a new section in';
+$string['replace_section_details'] = 'Also replace the title and description of "{$a}" with those of the copied section';
+$string['replace_section_details_help_text'] = 'If left unticked, the existing title and description are kept. The copied activities and subsections are added either way.';
+$string['the_course'] = 'the course';
 $string['backup_a_section'] = 'Copy a section';
 $string['confirm_copy_item_form_text'] = 'Are you sure you want to copy this item? Below you can select what to include in the copy.';
 $string['confirm_copy_item'] = 'Are you sure you want to copy this item?';

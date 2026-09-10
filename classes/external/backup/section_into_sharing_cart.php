@@ -62,6 +62,14 @@ class section_into_sharing_cart extends external_api
             \context_course::instance($section->course)
         );
 
+        $backup_handler = $base_factory->backup()->handler();
+
+        // Nested formats may declare descendants; a section is empty only if none of them has content either.
+        $section_tree = $backup_handler->resolve_section_tree((int)$section->course, (int)$section->id);
+        if (!$backup_handler->section_has_content($section, $section_tree)) {
+            throw new \moodle_exception('no_course_modules_in_section_description', 'block_sharing_cart');
+        }
+
         $item = $base_factory->item()->repository()->insert_section(
             $section,
             $USER->id,
@@ -69,7 +77,7 @@ class section_into_sharing_cart extends external_api
             entity::STATUS_AWAITING_BACKUP
         );
 
-        $backup_task = $base_factory->backup()->handler()->backup_section($section, $item, $settings);
+        $backup_task = $backup_handler->backup_section($section, $item, $settings, $section_tree);
 
         $return = $item->to_array();
         $return['task_id'] = $backup_task["task"]->get_id();

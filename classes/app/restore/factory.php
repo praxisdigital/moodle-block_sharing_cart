@@ -44,4 +44,14 @@ class factory
     {
         return new handler($this->base_factory);
     }
+
+    public function section_planner(): section_planner
+    {
+        return new section_planner($this->base_factory);
+    }
+
+    public function section_details_replacement(): section_details_replacement
+    {
+        return new section_details_replacement($this->base_factory);
+    }
 }
