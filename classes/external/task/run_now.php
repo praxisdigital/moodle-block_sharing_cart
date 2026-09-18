@@ -34,6 +34,11 @@ class run_now extends external_api
             \context_user::instance($USER->id)
         );
 
+        require_capability(
+            'block/sharing_cart:manual_run_task',
+            \context_system::instance(),
+        );
+
         if (CLI_MAINTENANCE) {
             throw new \Exception(
                 get_string('sitemaintenance', 'admin')
