@@ -74,6 +74,7 @@ class asynchronous_restore_task_test extends \advanced_testcase
             ]
         );
         $ref = new \ReflectionProperty($task, 'output');
+        $ref->setAccessible(true);
         $ref->setValue($task, false);
         $task->execute();
 
