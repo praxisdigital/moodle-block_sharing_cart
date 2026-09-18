@@ -69,6 +69,11 @@ GPL v3
 
 Change Log
 ----------
+* 5.1 release 3 2026.09.17
+    * Fixed async restore failing with `error/missing_roles_xml_file` on multi-frontend
+      sites when web and cron do not share `backuptempdir` (worker re-extracts cart MBZ).
+    * Added light MBZ validation before queue, richer restore task logs, and incomplete
+      temp cleanup on failure. Documented multi-server behaviour in README.
 * 5.1 release 2 2026.07.24
     * Fixed sharing cart icon doesn't appear after course module items due to JS only scanning the first element of course content.
 * 5.1 release 1 2026.06.11
