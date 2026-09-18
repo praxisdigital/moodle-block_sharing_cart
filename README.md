@@ -33,6 +33,34 @@ Capabilities
 - block/sharing_cart:manual_run_task
     - Required to be able to manually run the backup/restore task from the block.
 
+Multi-server / multi-frontend
+-----------------------------
+
+Sharing Cart restore is asynchronous: the web request extracts the cart MBZ into
+`$CFG->backuptempdir`, then an adhoc task finishes the restore (often on another
+host).
+
+- **Product behaviour:** If the extracted backup tree is missing or incomplete on
+  the worker (typical when web front and cron worker do not share
+  `backuptempdir`), the restore task re-extracts the durable cart backup from
+  the file API into the controller temp directory before precheck.
+- **Optional ops hardening** (also helps core async course restore):
+
+```php
+// config.php — share backup temp across all fronts and cron workers
+$CFG->backuptempdir = '/shared/path/backuptemp';
+```
+
+The default `$CFG->tempdir/backup` is often local per front-end.
+
+### Troubleshooting `error/missing_roles_xml_file`
+
+| Cause | What to check |
+|-------|----------------|
+| Multi-front without shared temp (fixed by worker re-extract) | Task logs should show `reextract=yes` and hostname; upgrade plugin if still failing |
+| Corrupt or incomplete cart MBZ | Re-backup the item; queue-time validation rejects MBZs missing `moodle_backup.xml` |
+| Temp wiped between queue and cron | Same as multi-front; re-extract should recover automatically after this fix |
+
 Events
 ------
 
@@ -70,6 +98,11 @@ GPL v3
 Change Log
 ----------
 
+* 5.2, release 3 2026.09.18
+    * Fixed async restore failing with `error/missing_roles_xml_file` on multi-frontend
+      sites when web and cron do not share `backuptempdir` (worker re-extracts cart MBZ).
+    * Added light MBZ validation before queue, richer restore task logs, and incomplete
+      temp cleanup on failure. Documented multi-server behaviour in README.
 * 5.2, release 2 2026.07.24
     * Fixed sharing cart icon doesn't appear after course module items due to JS only scanning the first element of course content.
 * 5.2, release 1 2026.06.11

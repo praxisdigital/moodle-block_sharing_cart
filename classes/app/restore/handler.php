@@ -37,6 +37,8 @@ class handler
             throw new \Exception('Backup file not found for item (id: ' . $item->get_id() . ')');
         }
 
+        $this->base_factory->restore()->assert_backup_file_looks_valid($backup_file);
+
         if(!$this->restore_is_valid($item_id, $section_id)) return null;
 
         $restore_controller = $this->base_factory->restore()->restore_controller(
