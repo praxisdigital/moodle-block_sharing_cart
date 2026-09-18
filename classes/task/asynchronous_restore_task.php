@@ -52,15 +52,17 @@ class asynchronous_restore_task extends \core\task\adhoc_task
 
         /** @var \restore_controller $rc */
         $rc = \restore_controller::load_controller($restoreid);
-
-        if (!$rc->execute_precheck(true)) {
-            $results = $rc->get_precheck_results();
-            if (!empty($results['errors'])) {
-                throw new \Exception("Errors found during restore precheck:\n" . implode("\n", $results['errors']));
-            }
-        }
-
+        $tempdir_relative = $rc->get_tempdir();
         try {
+            $this->ensure_extracted_backup_tree($rc, $customdata);
+
+            if (!$rc->execute_precheck(true)) {
+                $results = $rc->get_precheck_results();
+                if (!empty($results['errors'])) {
+                    throw new \Exception("Errors found during restore precheck:\n" . implode("\n", $results['errors']));
+                }
+            }
+
             $rc->set_progress(new \core\progress\db_updater($restorerecord->id, 'backup_controllers', 'progress'));
 
             // Do some preflight checks on the restore.
@@ -111,11 +113,72 @@ class asynchronous_restore_task extends \core\task\adhoc_task
 
             mtrace('Exception thrown during restore execution, marking job as failed.');
             mtrace($e->getMessage());
+
+            $this->cleanup_incomplete_backup_tempdir($tempdir_relative);
         } finally {
             // Cleanup.
             // Always destroy the controller.
             $rc->destroy();
         }
+    }
+
+    private function ensure_extracted_backup_tree(\restore_controller $rc, object $customdata): void
+    {
+        $factory = base_factory::make();
+        $restore_factory = $factory->restore();
+        $tempdir = $rc->get_tempdir();
+        $fullpath = get_backup_temp_directory($tempdir);
+        $hostname = gethostname() ?: 'unknown-host';
+
+        if (empty($customdata->item)) {
+            throw new \Exception(
+                'Sharing cart restore custom data missing item; cannot ensure backup temp tree.'
+            );
+        }
+
+        $item = $factory->item()->entity((object)$customdata->item);
+        $backup_file = $factory->item()->repository()->get_stored_file_by_item($item);
+        if (!$backup_file) {
+            throw new \Exception(
+                'Sharing cart backup file not found for item (id: ' . $item->get_id()
+                . '); cannot re-extract on worker.'
+            );
+        }
+
+        $reextracted = $restore_factory->ensure_backup_extracted_to_controller_tempdir(
+            $backup_file,
+            $tempdir
+        );
+
+        mtrace(implode(' | ', [
+            'hostname=' . $hostname,
+            'backupid=' . $rc->get_restoreid(),
+            'itemid=' . $item->get_id(),
+            'fileid=' . $backup_file->get_id(),
+            'tempdir=' . $tempdir,
+            'temppath=' . ($fullpath !== false ? $fullpath : 'n/a'),
+            'reextract=' . ($reextracted ? 'yes' : 'no'),
+        ]));
+    }
+
+    private function cleanup_incomplete_backup_tempdir(string $backupdir): void
+    {
+        if ($backupdir === '') {
+            return;
+        }
+
+        $restore_factory = base_factory::make()->restore();
+        if ($restore_factory->is_backup_tempdir_complete($backupdir)) {
+            return;
+        }
+
+        $path = get_backup_temp_directory($backupdir);
+        if ($path === false || !is_dir($path)) {
+            return;
+        }
+
+        mtrace('Cleaning incomplete sharing cart backup temp directory: ' . $path);
+        fulldelete($path);
     }
 
     public function retry_until_success(): bool
