@@ -118,7 +118,7 @@ class asynchronous_restore_task_test extends \advanced_testcase
         self::assertInstanceOf(asynchronous_restore_task::class, $restore_task);
 
         $customdata = $restore_task->get_custom_data();
-        self::assertObjectNotHasProperty('backupid', $customdata);
+        self::assertFalse(property_exists($customdata, 'backupid'));
         self::assertSame((int)$target->id, (int)$customdata->course_id);
         self::assertNotEmpty($customdata->item);
 
