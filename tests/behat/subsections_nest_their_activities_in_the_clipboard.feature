@@ -1,4 +1,4 @@
-@blocks @blocks_sharing_cart
+@block @block_sharing_cart
 @javascript
 
 Feature: As an editing teacher that has successfully copied a section with a subsection containing an activity,
