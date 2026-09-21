@@ -1,9 +1,21 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace block_sharing_cart\external\backup;
 
-// @codeCoverageIgnoreStart
-defined('MOODLE_INTERNAL') || die();
 
 // @codeCoverageIgnoreEnd
 
@@ -15,29 +27,44 @@ use core_external\external_function_parameters;
 use core_external\external_single_structure;
 use core_external\external_value;
 
+/**
+ * course_module_into_sharing_cart external API.
+ *
+ * @package    block_sharing_cart
+ * @copyright  2024 Praxis Digital A/S
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 class course_module_into_sharing_cart extends external_api
 {
-    public static function execute_parameters(): external_function_parameters
-    {
+    /**
+     * execute_parameters.
+     */
+    public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'course_module_id' => new external_value(PARAM_INT, '', VALUE_REQUIRED),
             'settings' => new external_single_structure([
                 'users' => new external_value(PARAM_BOOL, 'Whether to include user data in the backup', VALUE_REQUIRED),
                 'anonymize' => new external_value(
-                    PARAM_BOOL, 'Whether to anonymize user data in the backup', VALUE_REQUIRED
+                    PARAM_BOOL,
+                    'Whether to anonymize user data in the backup',
+                    VALUE_REQUIRED
                 ),
-            ], 'The settings of the item')
+            ], 'The settings of the item'),
         ]);
     }
 
-    public static function execute(int $course_module_id, array $settings): object
-    {
+    /**
+     * execute.
+     * @param int $coursemoduleid
+     * @param array $settings
+     */
+    public static function execute(int $coursemoduleid, array $settings): object {
         global $USER;
 
-        $base_factory = factory::make();
+        $basefactory = factory::make();
 
         $params = self::validate_parameters(self::execute_parameters(), [
-            'course_module_id' => $course_module_id,
+            'course_module_id' => $coursemoduleid,
             'settings' => $settings,
         ]);
 
@@ -45,23 +72,25 @@ class course_module_into_sharing_cart extends external_api
             \context_module::instance($params['course_module_id'])
         );
 
-        $item = $base_factory->item()->repository()->insert_activity(
+        $item = $basefactory->item()->repository()->insert_activity(
             $params['course_module_id'],
             $USER->id,
             null,
             entity::STATUS_AWAITING_BACKUP
         );
 
-        $backup_task = $base_factory->backup()->handler()->backup_course_module($course_module_id, $item, $settings);
+        $backuptask = $basefactory->backup()->handler()->backup_course_module($coursemoduleid, $item, $settings);
 
         $return = $item->to_array();
-        $return['task_id'] = $backup_task->get_id();
+        $return['task_id'] = $backuptask->get_id();
 
         return (object)$return;
     }
 
-    public static function execute_returns(): external_description
-    {
+    /**
+     * execute_returns.
+     */
+    public static function execute_returns(): external_description {
         return new external_single_structure([
             'id' => new external_value(PARAM_INT, 'The id of the item in the sharing cart', VALUE_REQUIRED),
             'user_id' => new external_value(PARAM_INT, 'The id of the user who owns the item', VALUE_REQUIRED),

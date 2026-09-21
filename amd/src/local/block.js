@@ -103,7 +103,7 @@ export default class Block extends BaseComponent {
 
             const select = showCopySectionInBlockSegment.querySelector('select');
             const copySectionButton = showCopySectionInBlockSegment.querySelector('button');
-            copySectionButton.addEventListener('click', async () => {
+            copySectionButton.addEventListener('click', async() => {
                 await this.block.addSectionBackupToSharingCart(select.value);
             });
         }
@@ -242,13 +242,22 @@ export default class Block extends BaseComponent {
         if (this.showSharingCartBasket && this.canBackup) {
             let backupButton = await this.getBackupToSharingCartButton();
 
+            // Moodle 4.5+ puts data-for="section_title" on the heading; the
+            // inplaceeditable (when present) is nested inside it. Fall back to
+            // section container lookup so the basket still injects.
             const sectionTitle = document.querySelector(
+                '.course-content [data-for="section_title"][data-id="' + element.id + '"]'
+            ) || document.querySelector(
+                '.course-content [data-for="section"][data-id="' + element.id + '"] [data-for="section_title"]'
+            ) || document.querySelector(
                 '.course-content [data-for="section_title"] .inplaceeditable[data-itemid="' + element.id + '"]'
             );
             if (sectionTitle) {
-                const hasBackupButton = sectionTitle.parentElement.querySelector('.add_to_sharing_cart');
+                const insertAfter = sectionTitle.querySelector('.inplaceeditable') || sectionTitle;
+                const buttonParent = insertAfter.parentElement || sectionTitle.parentElement;
+                const hasBackupButton = buttonParent.querySelector('.add_to_sharing_cart');
                 if (!hasBackupButton) {
-                    sectionTitle.after(backupButton);
+                    insertAfter.after(backupButton);
 
                     backupButton.addEventListener(
                         'click',
@@ -260,7 +269,7 @@ export default class Block extends BaseComponent {
                         }
                     );
                 }
-                backupButton = sectionTitle.parentElement.querySelector('.add_to_sharing_cart');
+                backupButton = buttonParent.querySelector('.add_to_sharing_cart');
 
                 const disabled = element.cmlist.length === 0;
                 backupButton.classList.toggle('disabled', disabled);

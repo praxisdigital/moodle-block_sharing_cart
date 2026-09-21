@@ -1,48 +1,92 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
+/**
+ * restored_section.php
+ *
+ * @package    block_sharing_cart
+ * @copyright  2024 Praxis Digital A/S
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace block_sharing_cart\event;
 
-
-// @codeCoverageIgnoreStart
-defined('MOODLE_INTERNAL') || die();
-// @codeCoverageIgnoreEnd
-
+/**
+ * restored_section class.
+ *
+ * @package    block_sharing_cart
+ * @copyright  2024 Praxis Digital A/S
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 class restored_section extends restore
 {
-    protected function get_table(): ?string
-    {
+    /**
+     * get_table
+     *
+     * @return ?string
+     */
+    protected function get_table(): ?string {
         return 'course_sections';
     }
 
-    public function get_section_id(): int
-    {
+    /**
+     * get_section_id
+     *
+     * @return int
+     */
+    public function get_section_id(): int {
         return $this->other['sectionid'] ?? 0;
     }
 
-    public function get_description(): string
-    {
+    /**
+     * get_description
+     *
+     * @return string
+     */
+    public function get_description(): string {
         return "User with id {$this->relateduserid} has restored a section with id {$this->get_section_id()}"
             . " in course with id {$this->get_course_id()}"
             . " that takes {$this->get_duration()} seconds";
     }
 
+    /**
+     * create_by_section
+     *
+     * @param int $courseid
+     * @param int $sectionid
+     * @param int $userid
+     * @param int $starttime
+     * @param int $finishtime
+     * @return static
+     */
     public static function create_by_section(
-        int $course_id,
-        int $section_id,
-        int $user_id,
-        int $start_time = 0,
-        int $finish_time = 0
-    ): static
-    {
+        int $courseid,
+        int $sectionid,
+        int $userid,
+        int $starttime = 0,
+        int $finishtime = 0
+    ): static {
         return static::create([
-            'objectid' => $section_id,
-            'context' => \core\context\course::instance($course_id),
-            'relateduserid' => $user_id,
+            'objectid' => $sectionid,
+            'context' => \core\context\course::instance($courseid),
+            'relateduserid' => $userid,
             'other' => [
-                'courseid' => $course_id,
-                'sectionid' => $section_id,
-                'starttime' => $start_time,
-                'finishtime' => $finish_time,
+                'courseid' => $courseid,
+                'sectionid' => $sectionid,
+                'starttime' => $starttime,
+                'finishtime' => $finishtime,
             ],
         ]);
     }

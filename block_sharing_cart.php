@@ -1,36 +1,68 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
-// @codeCoverageIgnoreStart
-defined('MOODLE_INTERNAL') || die();
-
-// @codeCoverageIgnoreEnd
-
+/**
+ * Sharing Cart block class.
+ *
+ * @package    block_sharing_cart
+ * @copyright  2024 Praxis Digital A/S
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 class block_sharing_cart extends block_base
 {
-    public function init(): void
-    {
+    /**
+     * init
+     *
+     * @return void
+     */
+    public function init(): void {
         $this->title = get_string('pluginname', 'block_sharing_cart');
     }
 
-    public function applicable_formats(): array
-    {
+    /**
+     * applicable_formats
+     *
+     * @return array
+     */
+    public function applicable_formats(): array {
         return [
             'all' => false,
             'course' => true,
-            'site' => true
+            'site' => true,
         ];
     }
 
-    public function has_config(): bool
-    {
+    /**
+     * has_config
+     *
+     * @return bool
+     */
+    public function has_config(): bool {
         return true;
     }
 
-    public function get_content(): object|string
-    {
+    /**
+     * get_content
+     *
+     * @return object|string
+     */
+    public function get_content(): object|string {
         global $OUTPUT, $USER, $COURSE;
 
-        $base_factory = \block_sharing_cart\app\factory::make();
+        $basefactory = \block_sharing_cart\app\factory::make();
 
         if ($this->page->user_is_editing()) {
             $this->page->requires->css('/blocks/sharing_cart/style/style.css');
@@ -71,23 +103,25 @@ class block_sharing_cart extends block_base
             return $this->content = '';
         }
 
-        if (!has_capability(
+        if (
+            !has_capability(
                 'moodle/backup:backupactivity',
                 \context_course::instance($COURSE->id)
             ) &&
             !has_capability(
                 'moodle/restore:restoreactivity',
                 \context_course::instance($COURSE->id)
-        )) {
+            )
+        ) {
             return $this->content = (object)[
-                'text' => get_string('nopermissions', 'block_sharing_cart')
+                'text' => get_string('nopermissions', 'block_sharing_cart'),
             ];
         }
 
-        $template = new \block_sharing_cart\output\block\content($base_factory, $USER->id, $COURSE->id);
+        $template = new \block_sharing_cart\output\block\content($basefactory, $USER->id, $COURSE->id);
 
         return $this->content = (object)[
-            'text' => $OUTPUT->render($template)
+            'text' => $OUTPUT->render($template),
         ];
     }
 }

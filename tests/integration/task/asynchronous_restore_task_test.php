@@ -1,42 +1,82 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
+/**
+ * asynchronous_restore_task_test.php
+ *
+ * @package    block_sharing_cart
+ * @copyright  2024 Praxis Digital A/S
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace block_sharing_cart\integration\task;
-
-use block_sharing_cart\app\factory;
-use block_sharing_cart\app\item\entity;
-use block_sharing_cart\task\asynchronous_restore_task;
 
 // @codeCoverageIgnoreStart
 defined('MOODLE_INTERNAL') || die();
 // @codeCoverageIgnoreEnd
 
+use block_sharing_cart\app\factory;
+use block_sharing_cart\app\item\entity;
+use block_sharing_cart\task\asynchronous_restore_task;
+
 global $CFG;
 require_once($CFG->dirroot . '/backup/util/includes/backup_includes.php');
 require_once($CFG->dirroot . '/backup/util/includes/restore_includes.php');
 
-class asynchronous_restore_task_test extends \advanced_testcase
+/**
+ * asynchronous_restore_task_test class.
+ *
+ * @package    block_sharing_cart
+ * @copyright  2024 Praxis Digital A/S
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+final class asynchronous_restore_task_test extends \advanced_testcase
 {
+    /** @var factory $factory */
     private factory $factory;
 
-    protected function setUp(): void
-    {
+    /**
+     * setUp
+     *
+     * @return void
+     */
+    protected function setUp(): void {
+        parent::setUp();
         $this->resetAfterTest();
         $this->factory = factory::make();
     }
 
-    private function create_section(int $course_id, array $record = []): object
-    {
+    /**
+     * create_section
+     *
+     * @param int $courseid
+     * @param array $record
+     * @return object
+     */
+    private function create_section(int $courseid, array $record = []): object {
         $db = $this->factory->moodle()->db();
 
-        $record['course'] = $course_id;
+        $record['course'] = $courseid;
 
         if (!isset($record['section'])) {
-            $last_section_number = (int)$db->get_field(
+            $lastsectionnumber = (int)$db->get_field(
                 'course_sections',
                 'MAX(section)',
-                ['course' => $course_id]
+                ['course' => $courseid]
             );
-            $record['section'] = $last_section_number + 1;
+            $record['section'] = $lastsectionnumber + 1;
         }
 
         $section = self::getDataGenerator()->create_course_section($record);
@@ -48,8 +88,15 @@ class asynchronous_restore_task_test extends \advanced_testcase
         );
     }
 
-    private function backup_label_into_cart(object $course, object $section, object $user): entity
-    {
+    /**
+     * backup_label_into_cart
+     *
+     * @param object $course
+     * @param object $section
+     * @param object $user
+     * @return entity
+     */
+    private function backup_label_into_cart(object $course, object $section, object $user): entity {
         $generator = self::getDataGenerator();
         $label = $generator->create_module('label', [
             'course' => $course->id,
@@ -88,77 +135,85 @@ class asynchronous_restore_task_test extends \advanced_testcase
         return $item;
     }
 
-    public function test_queue_does_not_create_backup_controller_or_tempdir(): void
-    {
+    /**
+     * test_queue_does_not_create_backup_controller_or_tempdir
+     *
+     * @return void
+     * @covers \block_sharing_cart\app\factory
+     */
+    public function test_queue_does_not_create_backup_controller_or_tempdir(): void {
         global $USER, $DB;
 
         self::setAdminUser();
-        $user = $USER;
 
         $generator = self::getDataGenerator();
         $source = $generator->create_course();
         $target = $generator->create_course();
-        $source_section = $this->create_section($source->id, ['name' => 'Source']);
-        $target_section = $this->create_section($target->id, ['name' => 'Target']);
-        $generator->enrol_user($user->id, $source->id, 'editingteacher');
-        $generator->enrol_user($user->id, $target->id, 'editingteacher');
+        $sourcesection = $this->create_section($source->id, ['name' => 'Source']);
+        $targetsection = $this->create_section($target->id, ['name' => 'Target']);
+        $generator->enrol_user($USER->id, $source->id, 'editingteacher');
+        $generator->enrol_user($USER->id, $target->id, 'editingteacher');
 
-        $item = $this->backup_label_into_cart($source, $source_section, $user);
+        $item = $this->backup_label_into_cart($source, $sourcesection, $USER);
 
-        $controllers_before = $DB->count_records('backup_controllers');
+        $controllersbefore = $DB->count_records('backup_controllers');
 
-        $restore_task = $this->factory->restore()->handler()->restore_item_into_section(
+        $restoretask = $this->factory->restore()->handler()->restore_item_into_section(
             $item,
-            $target_section->id,
+            $targetsection->id,
             $item->get_id(),
             [
                 'course_modules_to_include' => [(int)$item->get_old_instance_id()],
             ]
         );
-        self::assertInstanceOf(asynchronous_restore_task::class, $restore_task);
+        self::assertInstanceOf(asynchronous_restore_task::class, $restoretask);
 
-        $customdata = $restore_task->get_custom_data();
+        $customdata = $restoretask->get_custom_data();
         self::assertFalse(property_exists($customdata, 'backupid'));
         self::assertSame((int)$target->id, (int)$customdata->course_id);
         self::assertNotEmpty($customdata->item);
 
-        self::assertSame($controllers_before, $DB->count_records('backup_controllers'));
+        self::assertSame($controllersbefore, $DB->count_records('backup_controllers'));
     }
 
-    public function test_restore_extracts_and_succeeds_on_task_execute(): void
-    {
+    /**
+     * test_restore_extracts_and_succeeds_on_task_execute
+     *
+     * @return void
+     * @covers \block_sharing_cart\app\factory
+     */
+    public function test_restore_extracts_and_succeeds_on_task_execute(): void {
         global $USER, $DB;
 
         self::setAdminUser();
-        $user = $USER;
 
         $generator = self::getDataGenerator();
         $source = $generator->create_course();
         $target = $generator->create_course();
-        $source_section = $this->create_section($source->id, ['name' => 'Source']);
-        $target_section = $this->create_section($target->id, ['name' => 'Target']);
-        $generator->enrol_user($user->id, $source->id, 'editingteacher');
-        $generator->enrol_user($user->id, $target->id, 'editingteacher');
+        $sourcesection = $this->create_section($source->id, ['name' => 'Source']);
+        $targetsection = $this->create_section($target->id, ['name' => 'Target']);
+        $generator->enrol_user($USER->id, $source->id, 'editingteacher');
+        $generator->enrol_user($USER->id, $target->id, 'editingteacher');
 
-        $item = $this->backup_label_into_cart($source, $source_section, $user);
+        $item = $this->backup_label_into_cart($source, $sourcesection, $USER);
 
-        $cms_before = $DB->count_records('course_modules', ['course' => $target->id]);
+        $cmsbefore = $DB->count_records('course_modules', ['course' => $target->id]);
 
-        $restore_task = $this->factory->restore()->handler()->restore_item_into_section(
+        $restoretask = $this->factory->restore()->handler()->restore_item_into_section(
             $item,
-            $target_section->id,
+            $targetsection->id,
             $item->get_id(),
             [
                 'course_modules_to_include' => [(int)$item->get_old_instance_id()],
             ]
         );
-        self::assertInstanceOf(asynchronous_restore_task::class, $restore_task);
+        self::assertInstanceOf(asynchronous_restore_task::class, $restoretask);
 
         ob_start();
-        $restore_task->execute();
+        $restoretask->execute();
         ob_get_clean();
 
-        $cms_after = $DB->count_records('course_modules', ['course' => $target->id]);
-        self::assertGreaterThan($cms_before, $cms_after);
+        $cmsafter = $DB->count_records('course_modules', ['course' => $target->id]);
+        self::assertGreaterThan($cmsbefore, $cmsafter);
     }
 }

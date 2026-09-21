@@ -1,11 +1,27 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
+/**
+ * provider.php
+ *
+ * @package    block_sharing_cart
+ * @copyright  2024 Praxis Digital A/S
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace block_sharing_cart\privacy;
-
-// @codeCoverageIgnoreStart
-defined('MOODLE_INTERNAL') || die();
-
-// @codeCoverageIgnoreEnd
 
 use core_privacy\local\metadata\collection;
 use core_privacy\local\request\approved_contextlist;
@@ -15,13 +31,24 @@ use core_privacy\local\request\transform;
 use core_privacy\local\request\userlist;
 use core_privacy\local\request\writer;
 
+/**
+ * provider class.
+ *
+ * @package    block_sharing_cart
+ * @copyright  2024 Praxis Digital A/S
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 class provider implements
     \core_privacy\local\metadata\provider,
-    \core_privacy\local\request\plugin\provider,
-    \core_privacy\local\request\core_userlist_provider
-{
-    public static function get_metadata(collection $collection): collection
-    {
+    \core_privacy\local\request\core_userlist_provider,
+    \core_privacy\local\request\plugin\provider {
+    /**
+     * get_metadata
+     *
+     * @param collection $collection
+     * @return collection
+     */
+    public static function get_metadata(collection $collection): collection {
         $collection->add_database_table('block_sharing_cart_items', [
             'user_id' => 'privacy:metadata:sharing_cart_items:user_id',
             'file_id' => 'privacy:metadata:sharing_cart_items:file_id',
@@ -39,6 +66,12 @@ class provider implements
         return $collection;
     }
 
+    /**
+     * get_contexts_for_userid
+     *
+     * @param int $userid
+     * @return contextlist
+     */
     public static function get_contexts_for_userid(int $userid): contextlist {
         $contextlist = new \core_privacy\local\request\contextlist();
         $sql = "SELECT id FROM {context} WHERE contextlevel = :context_level_user AND instanceid = :userid";
@@ -46,8 +79,13 @@ class provider implements
         return $contextlist;
     }
 
-    public static function export_user_data(approved_contextlist $contextlist): void
-    {
+    /**
+     * export_user_data
+     *
+     * @param approved_contextlist $contextlist
+     * @return void
+     */
+    public static function export_user_data(approved_contextlist $contextlist): void {
         global $DB;
 
         $user = $contextlist->get_user();
@@ -80,11 +118,15 @@ class provider implements
         }
 
         $recordset->close();
-
     }
 
-    public static function delete_data_for_all_users_in_context(\context $context): void
-    {
+    /**
+     * delete_data_for_all_users_in_context
+     *
+     * @param \context $context
+     * @return void
+     */
+    public static function delete_data_for_all_users_in_context(\context $context): void {
         global $DB;
 
         // Only delete data for a user context.
@@ -95,8 +137,13 @@ class provider implements
         $DB->delete_records('block_sharing_cart_items', ['user_id' => $context->instanceid]);
     }
 
-    public static function delete_data_for_user(approved_contextlist $contextlist): void
-    {
+    /**
+     * delete_data_for_user
+     *
+     * @param approved_contextlist $contextlist
+     * @return void
+     */
+    public static function delete_data_for_user(approved_contextlist $contextlist): void {
         global $DB;
 
         foreach ($contextlist as $context) {
@@ -112,8 +159,13 @@ class provider implements
         }
     }
 
-    public static function get_users_in_context(userlist $userlist): void
-    {
+    /**
+     * get_users_in_context
+     *
+     * @param userlist $userlist
+     * @return void
+     */
+    public static function get_users_in_context(userlist $userlist): void {
         global $DB;
 
         $context = $userlist->get_context();
@@ -128,8 +180,13 @@ class provider implements
         $userlist->add_user($context->instanceid);
     }
 
-    public static function delete_data_for_users(approved_userlist $userlist): void
-    {
+    /**
+     * delete_data_for_users
+     *
+     * @param approved_userlist $userlist
+     * @return void
+     */
+    public static function delete_data_for_users(approved_userlist $userlist): void {
         global $DB;
 
         $context = $userlist->get_context();
