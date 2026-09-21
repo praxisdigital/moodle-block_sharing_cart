@@ -104,7 +104,7 @@ class handler
         $asynctask->set_custom_data([
             'item' => $item->to_array(),
             'course_id' => $course_id,
-            'backup_settings' => $settings,
+            'backup_settings' => $settings
         ]);
         $asynctask->set_userid($user_id);
         \core\task\manager::queue_adhoc_task($asynctask);
