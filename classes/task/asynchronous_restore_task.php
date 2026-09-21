@@ -22,39 +22,56 @@ class asynchronous_restore_task extends \core\task\adhoc_task
      * @see self::before_restore_finished_hook
      * and
      * @see self::after_restore_finished_hook
+     *
+     * Controller and backup tempdir are created here (worker), not at queue time,
+     * so multi-frontend sites do not depend on a shared backuptempdir.
      */
     public function execute(): void
     {
-        $db = base_factory::make()->moodle()->db();
+        $factory = base_factory::make();
+        $db = $factory->moodle()->db();
         $started = time();
 
         $customdata = $this->get_custom_data();
-        $restoreid = $customdata->backupid;
-        $restorerecord = $db->get_record(
-            'backup_controllers',
-            ['backupid' => $restoreid],
-            'id, controller',
-            IGNORE_MISSING
-        );
-        // If the record doesn't exist, the backup controller failed to create. Unable to proceed.
-        if (empty($restorerecord)) {
-            mtrace('Unable to find restore controller, ending restore execution.');
+        $course_id = (int)($customdata->course_id ?? 0);
+        $user_id = (int)$this->get_userid();
+
+        if (empty($customdata->item) || $course_id <= 0 || $user_id <= 0) {
+            mtrace('Sharing cart restore task missing item, course_id, or userid; ending restore execution.');
             return;
         }
+
+        $item = $factory->item()->entity((object)$customdata->item);
+        $backup_file = $factory->item()->repository()->get_stored_file_by_item($item);
+        if (!$backup_file) {
+            mtrace(
+                'Sharing cart backup file not found for item (id: ' . $item->get_id()
+                . '); ending restore execution.'
+            );
+            return;
+        }
+
+        mtrace(implode(' | ', [
+            'hostname=' . (gethostname() ?: 'unknown-host'),
+            'itemid=' . $item->get_id(),
+            'fileid=' . $backup_file->get_id(),
+            'courseid=' . $course_id,
+            'userid=' . $user_id,
+        ]));
+
+        /** @var \restore_controller $rc */
+        $rc = $factory->restore()->restore_controller($backup_file, $course_id, $user_id);
+        $restoreid = $rc->get_restoreid();
 
         mtrace('Processing asynchronous restore for id: ' . $restoreid);
 
-        // Get the backup controller by backup id. If controller is invalid, this task can never complete.
-        if ($restorerecord->controller === '') {
-            mtrace('Bad restore controller status, invalid controller, ending restore execution.');
-            return;
-        }
-
-        /** @var \restore_controller $rc */
-        $rc = \restore_controller::load_controller($restoreid);
-        $tempdir_relative = $rc->get_tempdir();
         try {
-            $this->ensure_extracted_backup_tree($rc, $customdata);
+            $restorerecord = $db->get_record(
+                'backup_controllers',
+                ['backupid' => $restoreid],
+                'id, controller',
+                MUST_EXIST
+            );
 
             if (!$rc->execute_precheck(true)) {
                 $results = $rc->get_precheck_results();
@@ -113,72 +130,11 @@ class asynchronous_restore_task extends \core\task\adhoc_task
 
             mtrace('Exception thrown during restore execution, marking job as failed.');
             mtrace($e->getMessage());
-
-            $this->cleanup_incomplete_backup_tempdir($tempdir_relative);
         } finally {
             // Cleanup.
             // Always destroy the controller.
             $rc->destroy();
         }
-    }
-
-    private function ensure_extracted_backup_tree(\restore_controller $rc, object $customdata): void
-    {
-        $factory = base_factory::make();
-        $restore_factory = $factory->restore();
-        $tempdir = $rc->get_tempdir();
-        $fullpath = get_backup_temp_directory($tempdir);
-        $hostname = gethostname() ?: 'unknown-host';
-
-        if (empty($customdata->item)) {
-            throw new \Exception(
-                'Sharing cart restore custom data missing item; cannot ensure backup temp tree.'
-            );
-        }
-
-        $item = $factory->item()->entity((object)$customdata->item);
-        $backup_file = $factory->item()->repository()->get_stored_file_by_item($item);
-        if (!$backup_file) {
-            throw new \Exception(
-                'Sharing cart backup file not found for item (id: ' . $item->get_id()
-                . '); cannot re-extract on worker.'
-            );
-        }
-
-        $reextracted = $restore_factory->ensure_backup_extracted_to_controller_tempdir(
-            $backup_file,
-            $tempdir
-        );
-
-        mtrace(implode(' | ', [
-            'hostname=' . $hostname,
-            'backupid=' . $rc->get_restoreid(),
-            'itemid=' . $item->get_id(),
-            'fileid=' . $backup_file->get_id(),
-            'tempdir=' . $tempdir,
-            'temppath=' . ($fullpath !== false ? $fullpath : 'n/a'),
-            'reextract=' . ($reextracted ? 'yes' : 'no'),
-        ]));
-    }
-
-    private function cleanup_incomplete_backup_tempdir(string $backupdir): void
-    {
-        if ($backupdir === '') {
-            return;
-        }
-
-        $restore_factory = base_factory::make()->restore();
-        if ($restore_factory->is_backup_tempdir_complete($backupdir)) {
-            return;
-        }
-
-        $path = get_backup_temp_directory($backupdir);
-        if ($path === false || !is_dir($path)) {
-            return;
-        }
-
-        mtrace('Cleaning incomplete sharing cart backup temp directory: ' . $path);
-        fulldelete($path);
     }
 
     public function retry_until_success(): bool
@@ -285,8 +241,8 @@ class asynchronous_restore_task extends \core\task\adhoc_task
         }
     }
 
-    private function get_section_name($section_id) : ?string {
-
+    private function get_section_name($section_id): ?string
+    {
         $db = base_factory::make()->moodle()->db();
         $section_name = $db->get_field(
             'course_sections',
@@ -295,15 +251,15 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             strictness: IGNORE_MISSING
         );
 
-        if(!$section_name){
+        if (!$section_name) {
             return null;
         }
 
         return $section_name;
     }
 
-    private function update_section_name($section_id, $section_name) : bool {
-
+    private function update_section_name($section_id, $section_name): bool
+    {
         $db = base_factory::make()->moodle()->db();
 
         return $db->set_field(
@@ -312,7 +268,6 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             $section_name,
             ['id' => $section_id],
         );
-
     }
 
     private function only_include_specified_course_modules(
@@ -332,7 +287,6 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 $task->get_setting('included')->set_value($include_activity);
             }
         }
-
     }
 
     private function trigger_restored_event(
@@ -357,8 +311,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
         int $started,
         int $finished
     ): void {
-
-        if($task->get_moduleid() === 0){
+        if ($task->get_moduleid() === 0) {
             mtrace("Course module id was 0. Skipping event creation for this module.");
             return;
         }

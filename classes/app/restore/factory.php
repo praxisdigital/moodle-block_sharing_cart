@@ -42,45 +42,6 @@ class factory
         return $path;
     }
 
-    public function is_backup_tempdir_complete(string $backupdir): bool
-    {
-        $path = get_backup_temp_directory($backupdir);
-        if ($path === false || !is_dir($path)) {
-            return false;
-        }
-
-        return is_readable($path . '/moodle_backup.xml')
-            && is_readable($path . '/roles.xml');
-    }
-
-    public function ensure_backup_extracted_to_controller_tempdir(
-        \stored_file $backup_file,
-        string $backupdir
-    ): bool {
-        if ($this->is_backup_tempdir_complete($backupdir)) {
-            return false;
-        }
-
-        $path = get_backup_temp_directory($backupdir);
-        if ($path !== false && is_dir($path)) {
-            fulldelete($path);
-        }
-
-        $this->extract_backup_file_to_tempdir($backup_file, $backupdir);
-
-        if (!$this->is_backup_tempdir_complete($backupdir)) {
-            throw new \moodle_exception(
-                'error',
-                'error',
-                '',
-                null,
-                'Sharing cart backup temp directory incomplete after extract: ' . $backupdir
-            );
-        }
-
-        return true;
-    }
-
     public function assert_backup_file_looks_valid(\stored_file $backup_file): void
     {
         $fp = get_file_packer('application/vnd.moodle.backup');
