@@ -21,13 +21,70 @@ class factory
         $this->base_factory = $base_factory;
     }
 
-    public function restore_controller(\stored_file $backup_file, int $course_id, int $user_id): \restore_controller
-    {
-        $backupdir = \restore_controller::get_tempdir_name($course_id, $user_id);
+    public function extract_backup_file_to_tempdir(
+        \stored_file $backup_file,
+        string $backupdir
+    ): string {
         $path = make_backup_temp_directory($backupdir);
 
         $fp = get_file_packer('application/vnd.moodle.backup');
-        $fp->extract_to_pathname($backup_file, $path);
+        $result = $fp->extract_to_pathname($backup_file, $path);
+        if ($result === false) {
+            throw new \moodle_exception(
+                'error',
+                'error',
+                '',
+                null,
+                'Failed to extract sharing cart backup file to temp directory: ' . $path
+            );
+        }
+
+        return $path;
+    }
+
+    public function assert_backup_file_looks_valid(\stored_file $backup_file): void
+    {
+        $fp = get_file_packer('application/vnd.moodle.backup');
+        $files = $fp->list_files($backup_file);
+        if ($files === false || empty($files)) {
+            throw new \moodle_exception(
+                'error',
+                'error',
+                '',
+                null,
+                'Sharing cart backup file is not a readable MBZ (item file id: '
+                . $backup_file->get_id() . ')'
+            );
+        }
+
+        $has_moodle_backup_xml = false;
+        foreach ($files as $fileinfo) {
+            $name = is_object($fileinfo)
+                ? ($fileinfo->pathname ?? $fileinfo->name ?? '')
+                : (string)$fileinfo;
+            $name = ltrim(str_replace('\\', '/', $name), './');
+            if ($name === 'moodle_backup.xml' || str_ends_with($name, '/moodle_backup.xml')) {
+                $has_moodle_backup_xml = true;
+                break;
+            }
+        }
+
+        if (!$has_moodle_backup_xml) {
+            throw new \moodle_exception(
+                'error',
+                'error',
+                '',
+                null,
+                'Sharing cart backup file is missing moodle_backup.xml (item file id: '
+                . $backup_file->get_id() . ')'
+            );
+        }
+    }
+
+    public function restore_controller(\stored_file $backup_file, int $course_id, int $user_id): \restore_controller
+    {
+        $backupdir = \restore_controller::get_tempdir_name($course_id, $user_id);
+        $this->extract_backup_file_to_tempdir($backup_file, $backupdir);
 
         return new \restore_controller(
             $backupdir,
