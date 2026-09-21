@@ -74,6 +74,7 @@ class asynchronous_restore_task_test extends \advanced_testcase
             ]
         );
         $ref = new \ReflectionProperty($task, 'output');
+        $ref->setAccessible(true);
         $ref->setValue($task, false);
         $task->execute();
 
@@ -87,7 +88,44 @@ class asynchronous_restore_task_test extends \advanced_testcase
         return $item;
     }
 
-    public function test_restore_succeeds_when_backup_tempdir_deleted_before_task(): void
+    public function test_queue_does_not_create_backup_controller_or_tempdir(): void
+    {
+        global $USER, $DB;
+
+        self::setAdminUser();
+        $user = $USER;
+
+        $generator = self::getDataGenerator();
+        $source = $generator->create_course();
+        $target = $generator->create_course();
+        $source_section = $this->create_section($source->id, ['name' => 'Source']);
+        $target_section = $this->create_section($target->id, ['name' => 'Target']);
+        $generator->enrol_user($user->id, $source->id, 'editingteacher');
+        $generator->enrol_user($user->id, $target->id, 'editingteacher');
+
+        $item = $this->backup_label_into_cart($source, $source_section, $user);
+
+        $controllers_before = $DB->count_records('backup_controllers');
+
+        $restore_task = $this->factory->restore()->handler()->restore_item_into_section(
+            $item,
+            $target_section->id,
+            $item->get_id(),
+            [
+                'course_modules_to_include' => [(int)$item->get_old_instance_id()],
+            ]
+        );
+        self::assertInstanceOf(asynchronous_restore_task::class, $restore_task);
+
+        $customdata = $restore_task->get_custom_data();
+        self::assertObjectNotHasProperty('backupid', $customdata);
+        self::assertSame((int)$target->id, (int)$customdata->course_id);
+        self::assertNotEmpty($customdata->item);
+
+        self::assertSame($controllers_before, $DB->count_records('backup_controllers'));
+    }
+
+    public function test_restore_extracts_and_succeeds_on_task_execute(): void
     {
         global $USER, $DB;
 
@@ -116,60 +154,11 @@ class asynchronous_restore_task_test extends \advanced_testcase
         );
         self::assertInstanceOf(asynchronous_restore_task::class, $restore_task);
 
-        $customdata = $restore_task->get_custom_data();
-        $restoreid = $customdata->backupid;
-        $rc = \restore_controller::load_controller($restoreid);
-        $tempdir = $rc->get_tempdir();
-        $temppath = get_backup_temp_directory($tempdir);
-        self::assertNotFalse($temppath);
-        self::assertDirectoryExists($temppath);
-        self::assertFileExists($temppath . '/roles.xml');
-        $rc->destroy();
-
-        fulldelete($temppath);
-        self::assertDirectoryDoesNotExist($temppath);
-
         ob_start();
         $restore_task->execute();
-        $output = ob_get_clean();
-
-        self::assertStringContainsString('reextract=yes', $output);
+        ob_get_clean();
 
         $cms_after = $DB->count_records('course_modules', ['course' => $target->id]);
         self::assertGreaterThan($cms_before, $cms_after);
-    }
-
-    public function test_restore_does_not_reextract_when_tempdir_present(): void
-    {
-        global $USER;
-
-        self::setAdminUser();
-        $user = $USER;
-
-        $generator = self::getDataGenerator();
-        $source = $generator->create_course();
-        $target = $generator->create_course();
-        $source_section = $this->create_section($source->id, ['name' => 'Source']);
-        $target_section = $this->create_section($target->id, ['name' => 'Target']);
-        $generator->enrol_user($user->id, $source->id, 'editingteacher');
-        $generator->enrol_user($user->id, $target->id, 'editingteacher');
-
-        $item = $this->backup_label_into_cart($source, $source_section, $user);
-
-        $restore_task = $this->factory->restore()->handler()->restore_item_into_section(
-            $item,
-            $target_section->id,
-            $item->get_id(),
-            [
-                'course_modules_to_include' => [(int)$item->get_old_instance_id()],
-            ]
-        );
-        self::assertInstanceOf(asynchronous_restore_task::class, $restore_task);
-
-        ob_start();
-        $restore_task->execute();
-        $output = ob_get_clean();
-
-        self::assertStringContainsString('reextract=no', $output);
     }
 }
