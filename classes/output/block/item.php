@@ -16,34 +16,52 @@
 
 namespace block_sharing_cart\output\block;
 
-// @codeCoverageIgnoreEnd
-
 use block_sharing_cart\app\collection;
 use block_sharing_cart\app\factory;
-use block_sharing_cart\app\factory as base_factory;
+use block_sharing_cart\app\factory as basefactory;
 use block_sharing_cart\app\item\entity;
 
 /**
  * Class output\block\item for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-class item implements \renderable, \core\output\named_templatable {
-    private base_factory $basefactory;
+class item implements \core\output\named_templatable, \renderable {
+    /** @var basefactory $basefactory */
+    private basefactory $basefactory;
+    /** @var entity $item */
     private entity $item;
 
-    public function __construct(base_factory $basefactory, entity $item) {
+    /**
+     * __construct
+     *
+     * @param basefactory $basefactory
+     * @param entity $item
+     */
+    public function __construct(basefactory $basefactory, entity $item) {
         $this->basefactory = $basefactory;
         $this->item = $item;
     }
 
+    /**
+     * get_template_name
+     *
+     * @param \renderer_base $renderer
+     * @return string
+     */
     public function get_template_name(\renderer_base $renderer): string {
         return 'block_sharing_cart/block/item';
     }
 
+    /**
+     * export_item_for_template
+     *
+     * @param entity $item
+     * @param array $backuptasks
+     * @return object
+     */
     public static function export_item_for_template(entity $item, array $backuptasks): object {
         global $USER, $PAGE;
 
@@ -75,21 +93,28 @@ class item implements \renderable, \core\output\named_templatable {
 
         $itemcontext->show_run_now = $allowtorunnow && !$isrunning && !$isfailed && $haswaited5seconds;
         $itemcontext->task_id = $itemcontext->show_run_now ? $backuptask->id : null;
-        $itemcontext->has_file_id = $item->get_file_id() !== null || factory::make()->item()->repository(
-            )->get_parent_item_recursively_by_item($item)->get_file_id() !== null;
+        $itemcontext->has_file_id = $item->get_file_id() !== null
+            || factory::make()->item()->repository()->get_parent_item_recursively_by_item($item)->get_file_id() !== null;
         $itemcontext->status_finished = $item->get_status() === entity::STATUS_BACKEDUP;
         $itemcontext->status_awaiting = $item->get_status() === entity::STATUS_AWAITING_BACKUP;
         $itemcontext->status_failed = $item->get_status() === entity::STATUS_BACKUP_FAILED;
         $itemcontext->is_current_version = $item->get_version() === entity::CURRENT_BACKUP_VERSION;
 
         $itemcontext->module_is_disabled_on_site = $item->is_module() === true && $db->get_record('modules', [
-                'name' => str_replace('mod_', '', $item->get_type()),
-                'visible' => false
-            ]);
+            'name' => str_replace('mod_', '', $item->get_type()),
+            'visible' => false,
+        ]);
 
         return $itemcontext;
     }
 
+    /**
+     * get_item_children
+     *
+     * @param object $itemcontext
+     * @param collection $allitemcontexts
+     * @return collection
+     */
     public static function get_item_children(object $itemcontext, collection $allitemcontexts): collection {
         $children = $allitemcontexts->filter(static function (object $childitem) use ($itemcontext) {
             return $childitem->parent_item_id === $itemcontext->id;
@@ -101,6 +126,12 @@ class item implements \renderable, \core\output\named_templatable {
         return $children;
     }
 
+    /**
+     * get_mod_icon
+     *
+     * @param entity $item
+     * @return ?string
+     */
     public static function get_mod_icon(entity $item): ?string {
         global $OUTPUT;
 
@@ -111,6 +142,12 @@ class item implements \renderable, \core\output\named_templatable {
         return $OUTPUT->image_url('icon', $item->get_type());
     }
 
+    /**
+     * export_for_template
+     *
+     * @param \renderer_base $OUTPUT
+     * @return array
+     */
     public function export_for_template(\renderer_base $OUTPUT): array {
         global $USER, $DB;
 
@@ -136,9 +173,7 @@ class item implements \renderable, \core\output\named_templatable {
             }
         );
 
-        /**
-         * @var object $rootitemcontext
-         */
+        // Root item context for the template.
         $rootitemcontext = $allitemcontexts->filter(function (object $itemcontext) {
             return $itemcontext->id === $this->item->get_id();
         })->first();

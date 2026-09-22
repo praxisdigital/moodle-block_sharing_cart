@@ -16,27 +16,40 @@
 
 namespace block_sharing_cart\app\restore;
 
-// @codeCoverageIgnoreEnd
-
-use block_sharing_cart\app\factory as base_factory;
+use block_sharing_cart\app\factory as basefactory;
 use block_sharing_cart\app\item\entity;
 use block_sharing_cart\task\asynchronous_restore_task;
 
 /**
- * Class app\restore\handler for the Sharing Cart block.
+ * Restore handler for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+class handler
+{
+    /** @var basefactory $basefactory */
+    private basefactory $basefactory;
 
-class handler {
-    private base_factory $basefactory;
-
-    public function __construct(base_factory $basefactory) {
+    /**
+     * __construct
+     *
+     * @param basefactory $basefactory
+     */
+    public function __construct(basefactory $basefactory) {
         $this->basefactory = $basefactory;
     }
 
+    /**
+     * restore_item_into_section
+     *
+     * @param entity $item
+     * @param int $sectionid
+     * @param int $itemid
+     * @param array $settings
+     * @return asynchronous_restore_task|null
+     */
     public function restore_item_into_section(
         entity $item,
         int $sectionid,
@@ -67,6 +80,8 @@ class handler {
      * Restores are valid and to be queued only if they are valid according to the conditions in the function body.
      * The UI presents the user with the options of where to restore the item copied from the clipboard.
      * This function is the backend check of that logic.
+     * @param int $itemid
+     * @param int $targetsectionid
      */
     private function restore_is_valid(int $itemid, int $targetsectionid): bool {
         global $DB;
@@ -76,8 +91,8 @@ class handler {
         $sql = "SELECT
                 I1.type AS own_type
                 ,I2.type AS parent_type
-                FROM {block_sharing_cart_items} AS I1
-                LEFT JOIN {block_sharing_cart_items} AS I2 ON I1.parent_item_id = I2.id
+                FROM {block_sharing_cart_items} I1
+                LEFT JOIN {block_sharing_cart_items} I2 ON I1.parent_item_id = I2.id
                 WHERE I1.id = :itemid";
         $params = [
             'itemid' => $itemid,
@@ -110,6 +125,15 @@ class handler {
         return true;
     }
 
+    /**
+     * queue_async_restore
+     *
+     * @param entity $item
+     * @param int $courseid
+     * @param int $userid
+     * @param array $settings
+     * @return asynchronous_restore_task
+     */
     private function queue_async_restore(
         entity $item,
         int $courseid,
@@ -120,7 +144,7 @@ class handler {
         $asynctask->set_custom_data([
             'item' => $item->to_array(),
             'courseid' => $courseid,
-            'backup_settings' => $settings
+            'backup_settings' => $settings,
         ]);
         $asynctask->set_userid($userid);
         \core\task\manager::queue_adhoc_task($asynctask);

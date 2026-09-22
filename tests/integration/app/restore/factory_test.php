@@ -19,25 +19,36 @@ namespace block_sharing_cart\integration\app\restore;
 use block_sharing_cart\app\factory;
 
 /**
- * Unit/integration tests for the Sharing Cart block.
+ * factory tests class.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @covers    \block_sharing_cart\app\restore\factory
  */
-
-/**
- * @covers \block_sharing_cart\app\restore\factory
- */
-final class factory_test extends \advanced_testcase {
+final class factory_test extends \advanced_testcase
+{
+    /** @var factory $factory */
     private factory $factory;
 
+    /**
+     * setUp
+     *
+     * @return void
+     */
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();
         $this->factory = factory::make();
     }
 
+    /**
+     * create_mbz_stored_file
+     *
+     * @param array $files
+     * @param string $filename
+     * @return \stored_file
+     */
     private function create_mbz_stored_file(array $files, string $filename = 'backup.mbz'): \stored_file {
         global $USER;
 
@@ -71,6 +82,11 @@ final class factory_test extends \advanced_testcase {
         ], $archivepath);
     }
 
+    /**
+     * test_extract_backup_file_to_tempdir
+     *
+     * @return void
+     */
     public function test_extract_backup_file_to_tempdir(): void {
         $backupfile = $this->create_mbz_stored_file([
             'moodle_backup.xml' => '<?xml version="1.0"?><moodle_backup/>',
@@ -87,6 +103,11 @@ final class factory_test extends \advanced_testcase {
         fulldelete($path);
     }
 
+    /**
+     * test_assert_backup_file_looks_valid_accepts_mbz_with_moodle_backup_xml
+     *
+     * @return void
+     */
     public function test_assert_backup_file_looks_valid_accepts_mbz_with_moodle_backup_xml(): void {
         $backupfile = $this->create_mbz_stored_file([
             'moodle_backup.xml' => '<?xml version="1.0"?><moodle_backup/>',
@@ -97,6 +118,11 @@ final class factory_test extends \advanced_testcase {
         $this->addToAssertionCount(1);
     }
 
+    /**
+     * test_assert_backup_file_looks_valid_rejects_mbz_without_moodle_backup_xml
+     *
+     * @return void
+     */
     public function test_assert_backup_file_looks_valid_rejects_mbz_without_moodle_backup_xml(): void {
         $backupfile = $this->create_mbz_stored_file([
             'roles.xml' => '<?xml version="1.0"?><roles/>',

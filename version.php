@@ -14,19 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
-// @codeCoverageIgnoreStart
-defined('MOODLE_INTERNAL') || die();
-// @codeCoverageIgnoreEnd
-
-
 /**
  * Plugin version information.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-/** @var object $plugin */
+
+// @codeCoverageIgnoreStart
+defined('MOODLE_INTERNAL') || die();
+// @codeCoverageIgnoreEnd
+
 $plugin->component = 'block_sharing_cart';
 $plugin->version = 2026110602;
 $plugin->requires = 2026042000; // Moodle 5.2.0.

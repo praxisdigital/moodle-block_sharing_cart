@@ -20,18 +20,34 @@ namespace block_sharing_cart\event;
  * Class event\restored_course_module for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class restored_course_module extends restore {
+class restored_course_module extends restore
+{
+    /**
+     * get_table
+     *
+     * @return ?string
+     */
     protected function get_table(): ?string {
         return 'course_modules';
     }
 
+    /**
+     * get_course_module_id
+     *
+     * @return int
+     */
     public function get_course_module_id(): int {
         return $this->other['cmid'] ?? 0;
     }
 
+    /**
+     * get_description
+     *
+     * @return string
+     */
     public function get_description(): string {
         return "User with id {$this->relateduserid} has restored"
             . " a course module with id {$this->get_course_module_id()}"
@@ -39,6 +55,17 @@ class restored_course_module extends restore {
             . " that takes {$this->get_duration()} seconds";
     }
 
+    /**
+     * create_by_course_module
+     *
+     * @param int $courseid
+     * @param int $coursemoduleid
+     * @param string $type
+     * @param int $userid
+     * @param int $starttime
+     * @param int $finishtime
+     * @return static
+     */
     public static function create_by_course_module(
         int $courseid,
         int $coursemoduleid,
@@ -56,7 +83,7 @@ class restored_course_module extends restore {
                 'cmid' => $coursemoduleid,
                 'module' => $type,
                 'starttime' => $starttime,
-                'finishtime' => $finishtime
+                'finishtime' => $finishtime,
             ],
         ]);
     }

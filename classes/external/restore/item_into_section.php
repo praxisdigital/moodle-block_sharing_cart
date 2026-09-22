@@ -16,8 +16,6 @@
 
 namespace block_sharing_cart\external\restore;
 
-// @codeCoverageIgnoreEnd
-
 use block_sharing_cart\app\factory;
 use core_external\external_api;
 use core_external\external_description;
@@ -27,14 +25,17 @@ use core_external\external_multiple_structure;
 use core_external\external_value;
 
 /**
- * Class external\restore\item_into_section for the Sharing Cart block.
+ * item_into_section external API.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-class item_into_section extends external_api {
+class item_into_section extends external_api
+{
+    /**
+     * execute_parameters.
+     */
     public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'itemid' => new external_value(PARAM_INT, '', VALUE_REQUIRED),
@@ -45,6 +46,12 @@ class item_into_section extends external_api {
         ]);
     }
 
+    /**
+     * execute.
+     * @param int $itemid
+     * @param int $sectionid
+     * @param array $coursemodulestoinclude
+     */
     public static function execute(
         int $itemid,
         int $sectionid,
@@ -83,11 +90,19 @@ class item_into_section extends external_api {
             $settings['coursemodulestoinclude'] = $params['coursemodulestoinclude'] ?? [];
         }
 
-        $result = $basefactory->restore()->handler()->restore_item_into_section($item, $params['sectionid'], $params['itemid'], $settings);
+        $result = $basefactory->restore()->handler()->restore_item_into_section(
+            $item,
+            $params['sectionid'],
+            $params['itemid'],
+            $settings
+        );
 
         return $result !== null;
     }
 
+    /**
+     * execute_returns.
+     */
     public static function execute_returns(): external_description {
         return new external_value(PARAM_BOOL, '', VALUE_REQUIRED);
     }

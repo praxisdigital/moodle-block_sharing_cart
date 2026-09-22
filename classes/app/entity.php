@@ -16,56 +16,114 @@
 
 namespace block_sharing_cart\app;
 
-// @codeCoverageIgnoreEnd
-
 
 /**
- * Class app\entity for the Sharing Cart block.
+ * entity class
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-abstract class entity extends \stdClass implements \ArrayAccess, \JsonSerializable {
+abstract class entity extends \stdClass implements \ArrayAccess, \JsonSerializable
+{
+    /** @var array $record */
     protected array $record;
 
+    /**
+     * __construct
+     *
+     * @param array $record
+     */
     public function __construct(array $record = []) {
         $this->record = $record;
     }
 
+    /**
+     * get_id
+     *
+     * @return int
+     */
     public function get_id(): int {
         return $this->record['id'] ?? 0;
     }
 
+    /**
+     * set_id
+     *
+     * @param int $value
+     * @return self
+     */
     public function set_id(int $value): self {
         $this->record['id'] = $value;
         return $this;
     }
 
+    /**
+     * jsonSerialize
+     *
+     * @return array
+     */
     public function jsonSerialize(): array {
         return $this->to_array();
     }
 
+    /**
+     * Convert entity to array.
+     *
+     * @return array
+     */
     abstract public function to_array(): array;
 
+    /**
+     * __get
+     *
+     * @param mixed $name
+     * @return mixed
+     */
     public function __get($name): mixed {
         return $this->record[$name] ?? null;
     }
 
+    /**
+     * __set
+     *
+     * @param mixed $name
+     * @param mixed $value
+     * @return void
+     */
     public function __set($name, $value): void {
         $this->record[$name] = $value;
     }
 
+    /**
+     * __isset
+     *
+     * @param mixed $name
+     * @return bool
+     */
     public function __isset($name): bool {
         return isset($this->record[$name]);
     }
 
+    /**
+     * __unset
+     *
+     * @param mixed $name
+     * @return void
+     */
     public function __unset($name): void {
         if (isset($this->record[$name])) {
             $this->record[$name] = null;
         }
     }
 
+    /**
+     * offsetSet
+     *
+     * @param mixed $offset
+     * @param mixed $value
+     * @return void
+     */
     public function offsetSet(mixed $offset, mixed $value): void {
         if (is_null($offset)) {
             $this->record[] = $value;
@@ -74,14 +132,32 @@ abstract class entity extends \stdClass implements \ArrayAccess, \JsonSerializab
         }
     }
 
+    /**
+     * offsetExists
+     *
+     * @param mixed $offset
+     * @return bool
+     */
     public function offsetExists(mixed $offset): bool {
         return isset($this->record[$offset]);
     }
 
+    /**
+     * offsetUnset
+     *
+     * @param mixed $offset
+     * @return void
+     */
     public function offsetUnset(mixed $offset): void {
         unset($this->record[$offset]);
     }
 
+    /**
+     * offsetGet
+     *
+     * @param mixed $offset
+     * @return mixed
+     */
     public function offsetGet(mixed $offset): mixed {
         return $this->record[$offset] ?? null;
     }

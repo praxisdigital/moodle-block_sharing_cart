@@ -16,61 +16,109 @@
 
 namespace block_sharing_cart\app\moodle;
 
-use block_sharing_cart\app\factory as base_factory;
+use block_sharing_cart\app\factory as basefactory;
 
-/**
- * Class app\moodle\factory for the Sharing Cart block.
- *
- * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
- * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
+defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
 require_once($CFG->dirroot . '/user/profile/lib.php');
 
-class factory {
-    private base_factory $basefactory;
+/**
+ * Moodle factory for the Sharing Cart block.
+ *
+ * @package   block_sharing_cart
+ * @copyright moxis
+ * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+class factory
+{
+    /** @var basefactory $basefactory */
+    private basefactory $basefactory;
 
-    public function __construct(base_factory $basefactory) {
+    /**
+     * __construct
+     *
+     * @param basefactory $basefactory
+     */
+    public function __construct(basefactory $basefactory) {
         $this->basefactory = $basefactory;
     }
 
+    /**
+     * page
+     *
+     * @return \moodle_page
+     */
     public function page(): \moodle_page {
         global $PAGE;
         return $PAGE;
     }
 
+    /**
+     * db
+     *
+     * @return \moodle_database
+     */
     public function db(): \moodle_database {
         global $DB;
-        return $db;
+        return $DB;
     }
 
+    /**
+     * output
+     *
+     * @return mixed
+     */
     public function output(): mixed {
         global $OUTPUT;
         return $OUTPUT;
     }
 
+    /**
+     * cfg
+     *
+     * @return object
+     */
     public function cfg(): object {
         global $CFG;
         return $CFG;
     }
 
+    /**
+     * script
+     *
+     * @return string
+     */
     public function script(): string {
         global $SCRIPT;
-        return $script;
+        return $SCRIPT;
     }
 
+    /**
+     * session
+     *
+     * @return object
+     */
     public function session(): object {
         global $SESSION;
         return $SESSION;
     }
 
+    /**
+     * user
+     *
+     * @return object
+     */
     public function user(): object {
         global $USER;
         return $USER;
     }
 
+    /**
+     * course
+     *
+     * @return object
+     */
     public function course(): object {
         global $COURSE;
         return $COURSE;

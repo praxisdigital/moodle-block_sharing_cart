@@ -14,26 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
-// @codeCoverageIgnoreStart
-defined('MOODLE_INTERNAL') || die();
-// @codeCoverageIgnoreEnd
-
-
 /**
  * Admin settings for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-/**
- * @global admin_root $ADMIN
- * @global admin_settingpage $settings
- */
-if ($admin->fulltree) {
+
+// @codeCoverageIgnoreStart
+defined('MOODLE_INTERNAL') || die();
+// @codeCoverageIgnoreEnd
+
+if ($ADMIN->fulltree) {
     $settings->add(
         new admin_setting_configcheckbox(
-            'block_sharing_cart/show_sharing_cart_basket', get_string('settings:show_sharing_cart_basket', 'block_sharing_cart'), get_string('settings:show_sharing_cart_basket_desc', 'block_sharing_cart'), 1, )
+            'block_sharing_cart/show_sharing_cart_basket',
+            get_string('settings:show_sharing_cart_basket', 'block_sharing_cart'),
+            get_string('settings:show_sharing_cart_basket_desc', 'block_sharing_cart'),
+            1,
+        )
     );
 
     $settings->add(

@@ -17,20 +17,30 @@
 namespace block_sharing_cart\integration\event;
 
 /**
- * Unit/integration tests for the Sharing Cart block.
+ * Backup tests for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- *
- * @covers \block_sharing_cart\event\backup_course_module
  */
-final class backup_course_module_test extends \advanced_testcase {
+final class backup_course_module_test extends \advanced_testcase
+{
+    /**
+     * setUp
+     *
+     * @return void
+     */
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();
     }
 
+    /**
+     * get_triggered_event
+     *
+     * @param \core\event\base $event
+     * @return \block_sharing_cart\event\backup_course_module
+     */
     private function get_triggered_event(\core\event\base $event): \block_sharing_cart\event\backup_course_module {
         $eventredirect = $this->redirectEvents();
 
@@ -47,6 +57,12 @@ final class backup_course_module_test extends \advanced_testcase {
         return $actual;
     }
 
+    /**
+     * test_trigger_event
+     *
+     * @return void
+     * @covers \block_sharing_cart\app\factory
+     */
     public function test_trigger_event(): void {
         global $USER;
 

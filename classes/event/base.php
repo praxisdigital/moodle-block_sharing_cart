@@ -17,24 +17,36 @@
 namespace block_sharing_cart\event;
 
 /**
- * Class event\base for the Sharing Cart block.
+ * Base event class for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-/**
- * @method static static create(array $data = null)
- */
-abstract class base extends \core\event\base {
+abstract class base extends \core\event\base
+{
+    /** CRUD_CREATE constant. */
     public const CRUD_CREATE = 'c';
 
+    /**
+     * Get the CRUD value.
+     *
+     * @return string
+     */
     abstract protected function get_crud(): string;
 
+    /**
+     * get_table
+     *
+     * @return ?string
+     */
     protected function get_table(): ?string {
         return 'files';
     }
 
+    /**
+     * Initialize the event.
+     */
     protected function init() {
         $table = $this->get_table();
         if (!empty($table)) {

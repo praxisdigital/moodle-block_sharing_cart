@@ -16,29 +16,44 @@
 
 namespace block_sharing_cart\app\item;
 
-// @codeCoverageIgnoreEnd
-
-use block_sharing_cart\app\factory as base_factory;
+use block_sharing_cart\app\factory as basefactory;
 
 /**
- * Class app\item\factory for the Sharing Cart block.
+ * Item factory for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+class factory
+{
+    /** @var basefactory $basefactory */
+    private basefactory $basefactory;
 
-class factory {
-    private base_factory $basefactory;
-
-    public function __construct(base_factory $basefactory) {
+    /**
+     * __construct
+     *
+     * @param basefactory $basefactory
+     */
+    public function __construct(basefactory $basefactory) {
         $this->basefactory = $basefactory;
     }
 
+    /**
+     * repository
+     *
+     * @return repository
+     */
     public function repository(): repository {
         return new repository($this->basefactory);
     }
 
+    /**
+     * entity
+     *
+     * @param object $record
+     * @return entity
+     */
     public function entity(object $record): entity {
         return new entity((array)$record);
     }

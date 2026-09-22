@@ -16,8 +16,6 @@
 
 namespace block_sharing_cart\external\item;
 
-// @codeCoverageIgnoreEnd
-
 use block_sharing_cart\app\factory;
 use block_sharing_cart\app\item\entity;
 use core_external\external_api;
@@ -28,22 +26,29 @@ use core_external\external_multiple_structure;
 use core_external\external_value;
 
 /**
- * Class external\item\delete_items_from_sharing_cart for the Sharing Cart block.
+ * delete_items_from_sharing_cart external API.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-class delete_items_from_sharing_cart extends external_api {
+class delete_items_from_sharing_cart extends external_api
+{
+    /**
+     * execute_parameters.
+     */
     public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'itemids' => new external_multiple_structure(
                 new external_value(PARAM_INT, '', VALUE_REQUIRED),
-            )
+            ),
         ]);
     }
 
+    /**
+     * execute.
+     * @param array $itemids
+     */
     public static function execute(array $itemids): array {
         global $USER;
 
@@ -77,6 +82,9 @@ class delete_items_from_sharing_cart extends external_api {
         return $deleteditemids;
     }
 
+    /**
+     * execute_returns.
+     */
     public static function execute_returns(): external_description {
         return new external_multiple_structure(
             new external_value(PARAM_INT, 'Item id which was deleted', VALUE_REQUIRED)

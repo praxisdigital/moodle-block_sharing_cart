@@ -16,19 +16,28 @@
 
 namespace block_sharing_cart\admin_settings;
 
-// @codeCoverageIgnoreEnd
-
 
 /**
  * Class admin_settings\multi_checkbox_with_icon for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class multi_checkbox_with_icon extends \admin_setting_configmulticheckbox {
+    /** @var array $icons */
     protected array $icons;
 
+    /**
+     * __construct
+     *
+     * @param string $name
+     * @param string $visiblename
+     * @param string $description
+     * @param ?array $defaultsetting
+     * @param array $choices
+     * @param array $icons
+     */
     public function __construct(
         string $name,
         string $visiblename,
@@ -41,6 +50,13 @@ class multi_checkbox_with_icon extends \admin_setting_configmulticheckbox {
         parent::__construct($name, $visiblename, $description, $defaultsetting, $choices);
     }
 
+    /**
+     * output_html
+     *
+     * @param mixed $data
+     * @param mixed $query
+     * @return string
+     */
     public function output_html($data, $query = ''): string {
         if (empty($this->choices) || !$this->load_choices()) {
             return '';
@@ -65,9 +81,9 @@ class multi_checkbox_with_icon extends \admin_setting_configmulticheckbox {
             }
 
             $options[] = '<input type="checkbox" id="' . $this->get_id(
-                ) . '_' . $key . '" name="' . $this->get_full_name(
-                ) . '[' . $key . ']" value="1" ' . $checked . ' class="mr-1"/>' . '<label for="' . $this->get_id(
-                ) . '_' . $key . '">' . $this->icons[$key] . highlightfast($query, $description) . '</label>';
+            ) . '_' . $key . '" name="' . $this->get_full_name(
+            ) . '[' . $key . ']" value="1" ' . $checked . ' class="mr-1"/>' . '<label for="' . $this->get_id(
+            ) . '_' . $key . '">' . $this->icons[$key] . highlightfast($query, $description) . '</label>';
         }
 
         if (is_null($default)) {
@@ -82,7 +98,7 @@ class multi_checkbox_with_icon extends \admin_setting_configmulticheckbox {
 
         $return = '<div class="form-multicheckbox">';
         $return .= '<input type="hidden" name="' . $this->get_full_name(
-            ) . '[xxxxx]" value="1" />'; // something must be submitted even if nothing selected
+        ) . '[xxxxx]" value="1" />'; // Something must be submitted even if nothing selected.
         if ($options) {
             $return .= '<ul>';
             foreach ($options as $option) {

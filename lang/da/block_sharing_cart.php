@@ -18,13 +18,13 @@
  * Danish language strings for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-// Moodle strings.
 
 $string['anonymize_user_data'] = 'Vil du anonymisere brugerdata?';
-$string['atleast_one_course_module_must_be_included'] = 'Mindst et kursusmodul skal inkluderes, vælg venligst mindst et kursusmodul at inkludere.';
+$string['atleast_one_course_module_must_be_included'] = 'Mindst et kursusmodul skal inkluderes,' .
+    ' vælg venligst mindst et kursusmodul at inkludere.';
 $string['backup_a_section'] = 'Kopier en sektion';
 $string['backup_failed'] = 'Backuppen mislykkedes. Du kan slette elementet fra Delingskurven og prøve igen.';
 $string['backup_item'] = 'Kopiér element';
@@ -33,12 +33,14 @@ $string['backup_without_user_data'] = 'Kopiér uden brugerdata.';
 $string['bulk_delete'] = 'Slet flere';
 $string['cancel_bulk_delete'] = 'Annuller';
 $string['confirm_copy_item'] = 'Er du sikker på, at du vil kopiere denne backup?';
-$string['confirm_copy_item_form_text'] = 'Er du sikker på, at du vil kopiere denne backup? Nedenfor kan du vælge, hvad der skal inkluderes i kopien.';
+$string['confirm_copy_item_form_text'] = 'Er du sikker på, at du vil kopiere denne backup? Nedenfor kan du vælge,' .
+    ' hvad der skal inkluderes i kopien.';
 $string['confirm_delete_item'] = 'Er du sikker på, at du vil slette denne backup? Alle under-elementer vil også blive slettet.';
 $string['confirm_delete_items'] = 'Er du sikker på, at du vil slette disse backups? Alle under-elementer vil også blive slettet.';
 $string['copy'] = 'Kopiér';
 $string['copy_item'] = 'Kopier backup';
-$string['copy_quiz_warning'] = 'Advarsel! - Du er ved at kopiere en quiz til delingskurven. Dette kan tage et stykke tid, hvis der er mange spørgsmål i kurset.';
+$string['copy_quiz_warning'] = 'Advarsel! - Du er ved at kopiere en quiz til delingskurven. Dette kan tage et stykke tid,' .
+    ' hvis der er mange spørgsmål i kurset.';
 $string['copy_section'] = 'Kopiér sektion';
 $string['copy_this_course'] = 'Kopier dette kursus';
 $string['copy_user_data'] = 'Vil du inkludere brugerdata? (f.eks. ordbog/wiki/database indlæg)';
@@ -50,18 +52,23 @@ $string['deselect_all'] = 'Fravælg alle';
 $string['drop_here'] = 'Slip her...';
 $string['empty_section_restore'] = 'Noget gik galt i forsøget på at kopiere det valgte fra sharing cart. Det valgte emne er tomt.';
 $string['has_items'] = 'Klik på <i class="fa fa-clone"></i> ikonet for at kopiere elementer fra Delingskurven til kurset.';
-$string['import_subsection_into_default_named_section_warning'] = 'Du er ved at kopiere en delsektion ind til en sektion uden et navn. Dette vil overskrive navnet på sektionen.';
+$string['import_subsection_into_default_named_section_warning'] = 'Du er ved at kopiere en delsektion ind til en sektion' .
+    ' uden et navn. Dette vil overskrive navnet på sektionen.';
 $string['into_section'] = 'ind i sektion';
 $string['into_sharing_cart'] = 'ind i delingskurv';
 $string['items'] = 'Backups';
-$string['legacy_section_info'] = 'Dette er en gammel sektion. Delingskurven kan ikke kopiere denne sektion, men de enkelte aktiviteter er stadig tilgængelige.';
+$string['legacy_section_info'] = 'Dette er en gammel sektion. Delingskurven kan ikke kopiere denne sektion,' .
+    ' men de enkelte aktiviteter er stadig tilgængelige.';
 $string['maybe_the_queue_is_stuck'] = 'Hvis du vil køre kopieringen nu, skal du klikke på knappen ovenfor.';
 $string['module_is_disabled_on_site'] = 'Dette modul er blevet deaktiveret på siden, og du vil ikke kunne kopiere det.';
 $string['no_course_modules_in_section'] = 'Ingen kursusmoduler i denne sektion';
-$string['no_course_modules_in_section_description'] = 'Denne sektion indeholder ikke nogen kursusmoduler, og du kan derfor ikke kopiere den.';
-$string['no_items'] = 'Ingen backups.<br><br>Træk og slip aktiviteter eller sektioner ind i delingskurven eller klik på <i class="fa fa-shopping-basket"></i> ikonet, for at tilføje elementer til Delingskurven.';
+$string['no_course_modules_in_section_description'] = 'Denne sektion indeholder ikke nogen kursusmoduler,' .
+    ' og du kan derfor ikke kopiere den.';
+$string['no_items'] = 'Ingen backups.<br><br>Træk og slip aktiviteter eller sektioner ind i delingskurven eller klik på' .
+    ' <i class="fa fa-shopping-basket"></i> ikonet, for at tilføje elementer til Delingskurven.';
 $string['no_restores'] = '<div class="no-restores font-italic text-muted">Ingen kopieringer i kø.</div>';
-$string['nopermissions'] = 'Du har ikke tilladelse til at lave backup eller gendanne elementer i dette kursus. Kontakt venligst din administrator, hvis du mener, dette er en fejl.';
+$string['nopermissions'] = 'Du har ikke tilladelse til at lave backup eller gendanne elementer i dette kursus.' .
+    ' Kontakt venligst din administrator, hvis du mener, dette er en fejl.';
 $string['old_version_module_info'] = 'Dette element blev backup\'et med en tidligere version.';
 $string['old_version_section_info'] = 'Denne sektion blev backup\'et med en tidligere version.';
 $string['original_course'] = 'Originalt kursus:';
@@ -84,12 +91,18 @@ $string['restores'] = 'Kopieringer i kø';
 $string['run_now'] = 'Kør nu';
 $string['select_all'] = 'Vælg alle';
 $string['settings:show_copies_queued_segment_when_empty'] = 'Vis "Kopieringer i kø" segment, når det er tomt.';
-$string['settings:show_copies_queued_segment_when_empty_desc'] = 'Vis "Kopieringer i kø" segmentet i delingskurven, selv når der ikke er nogen kopieringer i kø.';
+$string['settings:show_copies_queued_segment_when_empty_desc'] = 'Vis "Kopieringer i kø" segmentet i delingskurven, ' .
+    ' selv når der ikke er nogen kopieringer i kø.';
 $string['settings:show_copy_section_in_block'] = 'Vis "Kopiér sektion" knap i blokken';
-$string['settings:show_copy_section_in_block_desc'] = 'Vis "Kopiér sektion" knap i Delingskurv blokken. Hvis du skjuler knappen, kan brugerne stadig kopiere sektioner ved at trække og slippe dem ind i Delingskurven.';
+$string['settings:show_copy_section_in_block_desc'] = 'Vis "Kopiér sektion" knap i Delingskurv blokken. Hvis du skjuler knappen,' .
+    ' kan brugerne stadig kopiere sektioner ved at trække og slippe dem ind i Delingskurven.';
 $string['settings:show_sharing_cart_basket'] = 'Vis delingskurv kurv';
-$string['settings:show_sharing_cart_basket_desc'] = 'Vis delingskurv kurven på kursussiden, når du er i redigerings tilstand. Dette giver brugerne mulighed for at klikke og kopiere aktiviteter og sektioner ind i delingskurven. Hvis du skjuler kurven, kan brugerne stadig trække og slippe aktiviteter og sektioner ind i delingskurven.';
+$string['settings:show_sharing_cart_basket_desc'] = 'Vis delingskurv kurven på kursussiden, når du er i redigerings tilstand. ' .
+    ' Dette giver brugerne mulighed for at klikke og kopiere aktiviteter og sektioner ind i delingskurven.' .
+    ' Hvis du skjuler kurven, kan brugerne stadig trække og slippe aktiviteter og sektioner ind i delingskurven.';
 $string['sharing_cart:addinstance'] = 'Tilføj en ny Delingskurv blok';
 $string['sharing_cart:manual_run_task'] = 'Kør kopiering opgaver manuelt';
-$string['you_do_not_have_permission_to_configure_restores'] = 'Du har ikke tilladelse til at konfigurere gendannelser. Kontakt venligst din administrator, hvis du mener, dette er en fejl.';
-$string['you_may_need_to_reload_the_course_warning'] = 'Element(er) indsat. Du skal muligvis genindlæse kursussiden for at se ændringerne afspejlet korrekt.';
+$string['you_do_not_have_permission_to_configure_restores'] = 'Du har ikke tilladelse til at konfigurere gendannelser.' .
+    ' Kontakt venligst din administrator, hvis du mener, dette er en fejl.';
+$string['you_may_need_to_reload_the_course_warning'] = 'Element(er) indsat. Du skal muligvis genindlæse kursussiden' .
+    ' for at se ændringerne afspejlet korrekt.';

@@ -18,10 +18,10 @@
  * CLI script to delete all Sharing Cart items.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-const CLI_SCRIPT = true;
+define('CLI_SCRIPT', true);
 
 require(__DIR__ . '/../../../config.php');
 
@@ -88,7 +88,8 @@ foreach ($records as $record) {
         $basefactory->item()->repository()->delete_by_id($record->id);
     } catch (\Exception $e) {
         cli_writeln(
-            "Failed to delete item with id {$record->id} from sharing cart. Error: {$e->getMessage()} Trace: {$e->getTraceAsString()}"
+            "Failed to delete item with id {$record->id} from sharing cart." .
+            " Error: {$e->getMessage()} Trace: {$e->getTraceAsString()}"
         );
         $faileddeletions++;
     }

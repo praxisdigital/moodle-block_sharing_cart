@@ -17,23 +17,42 @@
 namespace block_sharing_cart\event;
 
 /**
- * Class event\backup_course_module for the Sharing Cart block.
+ * backup_course_module class.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class backup_course_module extends backup {
+class backup_course_module extends backup
+{
+    /**
+     * get_course_module_id
+     *
+     * @return int
+     */
     public function get_course_module_id(): int {
         return $this->other['cmid'] ?? 0;
     }
 
+    /**
+     * get_description
+     *
+     * @return string
+     */
     public function get_description(): string {
         return "User with id {$this->relateduserid} has backed up"
             . " a course module with id {$this->get_course_module_id()}"
             . " in the course with id {$this->get_course_id()}.";
     }
 
+    /**
+     * create_by_course_module
+     *
+     * @param int $courseid
+     * @param int $coursemoduleid
+     * @param int $userid
+     * @return static
+     */
     public static function create_by_course_module(
         int $courseid,
         int $coursemoduleid,

@@ -16,25 +16,37 @@
 
 namespace block_sharing_cart\app\backup;
 
-// @codeCoverageIgnoreEnd
-
-use block_sharing_cart\app\factory as base_factory;
+use block_sharing_cart\app\factory as basefactory;
 
 /**
- * Class app\backup\factory for the Sharing Cart block.
+ * Backup factory for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+class factory
+{
+    /** @var basefactory $basefactory */
+    private basefactory $basefactory;
 
-class factory {
-    private base_factory $basefactory;
-
-    public function __construct(base_factory $basefactory) {
+    /**
+     * __construct
+     *
+     * @param basefactory $basefactory
+     */
+    public function __construct(basefactory $basefactory) {
         $this->basefactory = $basefactory;
     }
 
+    /**
+     * backup_controller
+     *
+     * @param string $type
+     * @param int $instanceid
+     * @param int $userid
+     * @return \backup_controller
+     */
     public function backup_controller(string $type, int $instanceid, int $userid): \backup_controller {
         return new \backup_controller(
             $type,
@@ -47,14 +59,29 @@ class factory {
         );
     }
 
+    /**
+     * handler
+     *
+     * @return handler
+     */
     public function handler(): handler {
         return new handler($this->basefactory);
     }
 
+    /**
+     * settings_helper
+     *
+     * @return backup_settings_helper
+     */
     public function settings_helper(): backup_settings_helper {
         return new backup_settings_helper($this->basefactory);
     }
 
+    /**
+     * settings_repository
+     *
+     * @return backup_settings_queries
+     */
     public function settings_repository(): backup_settings_queries {
         return new backup_settings_queries($this->basefactory);
     }

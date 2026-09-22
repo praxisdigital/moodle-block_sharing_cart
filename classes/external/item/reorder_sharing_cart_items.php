@@ -16,8 +16,6 @@
 
 namespace block_sharing_cart\external\item;
 
-// @codeCoverageIgnoreEnd
-
 use block_sharing_cart\app\factory;
 use core_external\external_api;
 use core_external\external_description;
@@ -26,22 +24,31 @@ use core_external\external_multiple_structure;
 use core_external\external_value;
 
 /**
- * Class external\item\reorder_sharing_cart_items for the Sharing Cart block.
+ * reorder_sharing_cart_items external API.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-class reorder_sharing_cart_items extends external_api {
+class reorder_sharing_cart_items extends external_api
+{
+    /**
+     * execute_parameters.
+     */
     public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'itemids' => new external_multiple_structure(
-                new external_value(PARAM_INT, 'Item ID', VALUE_REQUIRED), 'Item IDs', VALUE_REQUIRED,
-            )
+                new external_value(PARAM_INT, 'Item ID', VALUE_REQUIRED),
+                'Item IDs',
+                VALUE_REQUIRED,
+            ),
         ]);
     }
 
+    /**
+     * execute.
+     * @param array $itemids
+     */
     public static function execute(array $itemids): bool {
         global $USER;
 
@@ -55,9 +62,7 @@ class reorder_sharing_cart_items extends external_api {
             \context_user::instance($USER->id)
         );
 
-        /**
-         * @var \block_sharing_cart\app\item\entity[] $items
-         */
+        // Sharing cart items for the current user.
         $items = $basefactory->item()->repository()->get_by_user_id($USER->id);
         foreach ($items as $item) {
             if ($item->get_parent_item_id()) {
@@ -71,6 +76,9 @@ class reorder_sharing_cart_items extends external_api {
         return true;
     }
 
+    /**
+     * execute_returns.
+     */
     public static function execute_returns(): external_description {
         return new external_value(PARAM_BOOL, 'Whether the item was deleted', VALUE_REQUIRED);
     }

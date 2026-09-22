@@ -17,31 +17,40 @@
 use block_sharing_cart\app\item\entity;
 
 /**
- * Unit/integration tests for the Sharing Cart block.
+ * Sharing Cart generator.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-class block_sharing_cart_generator extends testing_data_generator {
+class block_sharing_cart_generator extends testing_data_generator
+{
+    /** @var array $createditemsidshistory */
     private array $createditemsidshistory = [];
 
-    public function create_sharing_cart_item(array $sharingcartitem):void {
+    /**
+     * create_sharing_cart_item
+     *
+     * @param array $sharingcartitem
+     * @return void
+     */
+    public function create_sharing_cart_item(array $sharingcartitem): void {
         global $DB;
 
         $time = time();
         $item = [
             'user_id' => $sharingcartitem['user_id'],
             'file_id' => null,
-            'parent_item_id' => empty($sharingcartitem['parent_item_name']) ? null : $this->createditemsidshistory[$sharingcartitem['parent_item_name']],
+            'parent_item_id' => empty($sharingcartitem['parent_item_name'])
+                ? null
+                : $this->createditemsidshistory[$sharingcartitem['parent_item_name']],
             'old_instance_id' => 1,
             'type' => $sharingcartitem['type'],
             'name' => $sharingcartitem['name'],
             'status' => 1,
             'version' => 3,
             'timecreated' => $time,
-            'timemodified' => $time
+            'timemodified' => $time,
         ];
 
         $this->createditemsidshistory[$sharingcartitem['name']] = $DB->insert_record('block_sharing_cart_items', $item, true);

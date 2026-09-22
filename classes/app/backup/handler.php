@@ -16,46 +16,64 @@
 
 namespace block_sharing_cart\app\backup;
 
-// @codeCoverageIgnoreEnd
-
-use block_sharing_cart\app\factory as base_factory;
+use block_sharing_cart\app\factory as basefactory;
 use block_sharing_cart\app\item\entity;
 use block_sharing_cart\event\backup_course_module;
 use block_sharing_cart\event\backup_section;
 use block_sharing_cart\task\asynchronous_backup_task;
+
+defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
 require_once($CFG->dirroot . '/backup/util/includes/backup_includes.php');
 require_once($CFG->dirroot . '/backup/util/includes/restore_includes.php');
 
 /**
- * Class app\backup\handler for the Sharing Cart block.
+ * Backup handler for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+class handler
+{
+    /** @var basefactory $basefactory */
+    private basefactory $basefactory;
 
-class handler {
-    private base_factory $basefactory;
-
-    public function __construct(base_factory $basefactory) {
+    /**
+     * __construct
+     *
+     * @param basefactory $basefactory
+     */
+    public function __construct(basefactory $basefactory) {
         $this->basefactory = $basefactory;
     }
 
+    /**
+     * get_backup_info
+     *
+     * @param \stored_file $file
+     * @return object
+     */
     private function get_backup_info(\stored_file $file): object {
-        /**
-         * @var \file_storage $fs
-         */
+        // File storage instance.
         $fs = get_file_storage();
         $filepath = $fs->get_file_system()->get_local_path_from_storedfile($file, true);
 
-        /** @var object $info */
+        // Backup information from the MBZ file.
         $info = \backup_general_helper::get_backup_information_from_mbz($filepath);
 
         return $info;
     }
 
+    /**
+     * backup_course_module
+     *
+     * @param int $coursemoduleid
+     * @param entity $rootitem
+     * @param array $settings
+     * @return asynchronous_backup_task
+     */
     public function backup_course_module(
         int $coursemoduleid,
         entity $rootitem,
@@ -65,7 +83,7 @@ class handler {
 
         $record = $this->basefactory->moodle()->db()->get_record(
             'course_modules',
-            ['id' =>  $coursemoduleid],
+            ['id' => $coursemoduleid],
             'id, course',
             MUST_EXIST
         );
@@ -85,12 +103,20 @@ class handler {
         return $this->queue_async_backup($backupcontroller, $rootitem, $settings);
     }
 
+    /**
+     * backup_section
+     *
+     * @param object $section
+     * @param entity $rootitem
+     * @param array $settings
+     * @return array
+     */
     public function backup_section(object $section, entity $rootitem, array $settings = []): array {
         global $USER;
 
         $courseid = $this->basefactory->moodle()->db()->get_record(
             'course_sections',
-            ['id' =>  $section->id],
+            ['id' => $section->id],
             'course',
             MUST_EXIST
         )->course;
@@ -112,15 +138,27 @@ class handler {
         return ["task" => $task, "controller" => $backupcontroller];
     }
 
+    /**
+     * get_backup_course_info
+     *
+     * @param \stored_file $file
+     * @return array
+     */
     public function get_backup_course_info(\stored_file $file): array {
         $info = $this->get_backup_info($file);
 
         return [
             'id' => $info->original_course_id,
-            'fullname' => $info->original_course_fullname
+            'fullname' => $info->original_course_fullname,
         ];
     }
 
+    /**
+     * get_backup_item_tree
+     *
+     * @param \stored_file $file
+     * @return array
+     */
     public function get_backup_item_tree(\stored_file $file): array {
         $info = $this->get_backup_info($file);
 
@@ -134,14 +172,14 @@ class handler {
                     'sectionid' => $section->sectionid,
                     'title' => $section->title,
                     'modulename' => $section->modname,
-                    'subsection_activities' => []
+                    'subsection_activities' => [],
                     ];
             } else {
                 $sections[$section->sectionid] = (object)[
                     'sectionid' => $section->sectionid,
                     'title' => $section->title,
                     'modulename' => $section->modname,
-                    'activities' => []
+                    'activities' => [],
                 ];
             }
         }
@@ -155,11 +193,15 @@ class handler {
             if (empty($subsections)) {
                 // If no sections and no subsections are supplied, it's a single activity. Make artificial activities array.
                 $sections["lone_activity"] = (object) ['activities' => []];
-            } else $sections = $subsections;
+            } else {
+                $sections = $subsections;
+            }
         }
 
         foreach ($info->activities as $activity) {
-            if (isset($activity->modulename) && $activity->modulename === 'subsection' ) continue;
+            if (isset($activity->modulename) && $activity->modulename === 'subsection') {
+                continue;
+            }
 
             // Activities that live in the section.
             if (isset($sections[$activity->sectionid])) {
@@ -168,7 +210,7 @@ class handler {
                     'sectionid' => $activity->sectionid,
                     'modulename' => $activity->modulename,
                     'title' => $activity->title,
-                    'activities' => []
+                    'activities' => [],
                 ];
                 continue;
             }
@@ -185,6 +227,14 @@ class handler {
         return $sections;
     }
 
+    /**
+     * queue_async_backup
+     *
+     * @param \backup_controller $backupcontroller
+     * @param entity $rootitem
+     * @param array $settings
+     * @return asynchronous_backup_task
+     */
     private function queue_async_backup(
         \backup_controller $backupcontroller,
         entity $rootitem,
@@ -194,7 +244,7 @@ class handler {
         $asynctask->set_custom_data([
             'backupid' => $backupcontroller->get_backupid(),
             'item' => $rootitem->to_array(),
-            'backup_settings' => $settings
+            'backup_settings' => $settings,
         ]);
         $asynctask->set_userid($backupcontroller->get_userid());
         $taskid = \core\task\manager::queue_adhoc_task($asynctask);

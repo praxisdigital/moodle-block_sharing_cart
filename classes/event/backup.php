@@ -16,23 +16,38 @@
 
 namespace block_sharing_cart\event;
 
-
 /**
- * Class event\backup for the Sharing Cart block.
+ * backup class
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-abstract class backup extends base {
+abstract class backup extends base
+{
+    /**
+     * get_crud
+     *
+     * @return string
+     */
     protected function get_crud(): string {
         return self::CRUD_CREATE;
     }
 
+    /**
+     * get_table
+     *
+     * @return ?string
+     */
     protected function get_table(): ?string {
         return null;
     }
 
+    /**
+     * get_course_id
+     *
+     * @return int
+     */
     public function get_course_id(): int {
         return $this->other['courseid'] ?? 0;
     }

@@ -16,8 +16,6 @@
 
 namespace block_sharing_cart\integration;
 
-// @codeCoverageIgnoreEnd
-
 use advanced_testcase;
 use block_sharing_cart\app\factory;
 
@@ -25,17 +23,27 @@ use block_sharing_cart\app\factory;
  * Unit/integration tests for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- *
- * @covers \block_sharing_cart\event\user_deleted
  */
-final class observers_test extends advanced_testcase {
+final class observers_test extends advanced_testcase
+{
+    /**
+     * setUp
+     *
+     * @return void
+     */
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();
     }
 
+    /**
+     * test_deleted_user_expect_sharing_cart_record_to_be_remove
+     *
+     * @return void
+     * @covers \block_sharing_cart\app\factory
+     */
     public function test_deleted_user_expect_sharing_cart_record_to_be_remove(): void {
         $USER = self::getDataGenerator()->create_user();
         $this->create_sharing_cart_item($USER->id);
@@ -51,12 +59,24 @@ final class observers_test extends advanced_testcase {
         );
     }
 
+    /**
+     * has_sharing_cart_item
+     *
+     * @param int $userid
+     * @return bool
+     */
     private function has_sharing_cart_item(int $userid): bool {
         $basefactory = factory::make();
 
         return $basefactory->item()->repository()->get_by_user_id($userid)->not_empty();
     }
 
+    /**
+     * create_sharing_cart_item
+     *
+     * @param int $userid
+     * @return object
+     */
     private function create_sharing_cart_item(int $userid): object {
         $basefactory = factory::make();
 

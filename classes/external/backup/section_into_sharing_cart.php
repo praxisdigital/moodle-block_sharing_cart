@@ -16,8 +16,6 @@
 
 namespace block_sharing_cart\external\backup;
 
-// @codeCoverageIgnoreEnd
-
 use block_sharing_cart\app\factory;
 use block_sharing_cart\app\item\entity;
 use core_external\external_api;
@@ -27,26 +25,36 @@ use core_external\external_single_structure;
 use core_external\external_value;
 
 /**
- * Class external\backup\section_into_sharing_cart for the Sharing Cart block.
+ * section_into_sharing_cart external API.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-class section_into_sharing_cart extends external_api {
+class section_into_sharing_cart extends external_api
+{
+    /**
+     * execute_parameters.
+     */
     public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'sectionid' => new external_value(PARAM_INT, '', VALUE_REQUIRED),
             'settings' => new external_single_structure([
                 'users' => new external_value(PARAM_BOOL, 'Whether to include user data in the backup', VALUE_REQUIRED),
                 'anonymize' => new external_value(
-                    PARAM_BOOL, 'Whether to anonymize user data in the backup', VALUE_REQUIRED
+                    PARAM_BOOL,
+                    'Whether to anonymize user data in the backup',
+                    VALUE_REQUIRED
                 ),
-            ], 'The settings of the item')
+            ], 'The settings of the item'),
         ]);
     }
 
+    /**
+     * execute.
+     * @param int $sectionid
+     * @param array $settings
+     */
     public static function execute(int $sectionid, array $settings): object {
         global $USER, $DB;
 
@@ -58,7 +66,7 @@ class section_into_sharing_cart extends external_api {
         ]);
 
         $sectionfields = 'id, section, sequence, course, itemid';
-        // "itemid" is not supported until moodle 4.5+
+        // The itemid field is not supported until Moodle 4.5+.
         if (get_config('core', 'version') < 2024100700) {
             $sectionfields = 'id, section, sequence, course';
         }
@@ -93,6 +101,9 @@ class section_into_sharing_cart extends external_api {
         return (object)$return;
     }
 
+    /**
+     * execute_returns.
+     */
     public static function execute_returns(): external_description {
         return new external_single_structure([
             'id' => new external_value(PARAM_INT, 'The id of the item in the sharing cart', VALUE_REQUIRED),

@@ -17,26 +17,45 @@
 namespace block_sharing_cart\app\backup;
 
 use block_sharing_cart\app\item\entity;
-use block_sharing_cart\app\factory as base_factory;
+use block_sharing_cart\app\factory as basefactory;
 
 /**
- * Class app\backup\backup_settings_helper for the Sharing Cart block.
+ * Backup settings helper for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
 class backup_settings_helper {
-    private base_factory $basefactory;
+    /** @var basefactory $basefactory */
+    private basefactory $basefactory;
+    /** @var backup_settings_queries $backupsettingsrepository */
     private backup_settings_queries $backupsettingsrepository;
 
-    public function __construct(base_factory $basefactory) {
+    /**
+     * __construct
+     *
+     * @param basefactory $basefactory
+     */
+    public function __construct(basefactory $basefactory) {
         $this->basefactory = $basefactory;
         $this->backupsettingsrepository = $basefactory->backup()->settings_repository();
     }
 
-    public function construct_backup_plan_settings(object $customdata, \core\context $backupcontrollercontext, false|entity $itementity) : array{
+    /**
+     * Construct backup plan settings.
+     *
+     * @param object $customdata
+     * @param \core\context $backupcontrollercontext
+     * @param false|entity $itementity
+     * @return array
+     */
+    public function construct_backup_plan_settings(
+        object $customdata,
+        \core\context $backupcontrollercontext,
+        false|entity $itementity
+    ): array {
+
         if (!$itementity) {
             throw new \Exception("Item entity not specified. Could not construct backup plan settings.");
         }
@@ -55,7 +74,7 @@ class backup_settings_helper {
             'users' => false,
             'anonymize' => false,
             'badges' => false,
-            'filename' => 'sharing_cart_backup-' . $itementity->get_id() . '.mbz'
+            'filename' => 'sharing_cart_backup-' . $itementity->get_id() . '.mbz',
         ];
 
         $backupsettings = (object)$customdata->backupsettings;
@@ -79,7 +98,12 @@ class backup_settings_helper {
         $coursesections = $this->backupsettingsrepository->get_course_sections_by_section_id($sectionid);
 
         // Add module settings.
-        $backupplansettings += $this->get_course_module_settings($coursemodules, $itementity, $sectionid, $backupplansettings['users']);
+        $backupplansettings += $this->get_course_module_settings(
+            $coursemodules,
+            $itementity,
+            $sectionid,
+            $backupplansettings['users']
+        );
 
         // Add section settings.
         $backupplansettings += $this->get_section_settings($coursesections, $sectionid, $backupplansettings['users']);
@@ -87,7 +111,14 @@ class backup_settings_helper {
         return $backupplansettings;
     }
 
-    public function apply_backup_plan_settings(array $backupplansettings, \backup_plan $backupplan) : void{
+    /**
+     * apply_backup_plan_settings
+     *
+     * @param array $backupplansettings
+     * @param \backup_plan $backupplan
+     * @return void
+     */
+    public function apply_backup_plan_settings(array $backupplansettings, \backup_plan $backupplan): void {
         foreach ($backupplansettings as $name => $value) {
             if ($backupplan->setting_exists($name)) {
                 $setting = $backupplan->get_setting($name);
@@ -101,6 +132,12 @@ class backup_settings_helper {
         }
     }
 
+    /**
+     * get_section_id
+     *
+     * @param entity $itementity
+     * @return string
+     */
     private function get_section_id(entity $itementity): string {
         if ($itementity->get_type() === $itementity::TYPE_SECTION || $itementity->get_type() === $itementity::TYPE_MOD_SUBSECTION) {
             return $itementity->old_instance_id;
@@ -114,20 +151,37 @@ class backup_settings_helper {
         )->section;
     }
 
+    /**
+     * get_section_settings
+     *
+     * @param array $sections
+     * @param int $sectionid
+     * @param bool $includeusers
+     * @return array
+     */
     private function get_section_settings(array $sections, int $sectionid, bool $includeusers): array {
         $settings = [];
 
         foreach ($sections as $section) {
-            $settings["section_".$section->id."_userinfo"] = false;
-            $settings["section_".$section->id."_included"] = false;
+            $settings["section_" . $section->id . "_userinfo"] = false;
+            $settings["section_" . $section->id . "_included"] = false;
         }
 
-        $settings["section_".$sectionid."_userinfo"] = $includeusers;
-        $settings["section_".$sectionid."_included"] = true;
+        $settings["section_" . $sectionid . "_userinfo"] = $includeusers;
+        $settings["section_" . $sectionid . "_included"] = true;
 
         return $settings;
     }
 
+    /**
+     * get_course_module_settings
+     *
+     * @param array $coursemodules
+     * @param entity $itementity
+     * @param int $sectionid
+     * @param bool $includeusers
+     * @return array
+     */
     private function get_course_module_settings(
         array $coursemodules,
         entity $itementity,
@@ -154,9 +208,13 @@ class backup_settings_helper {
         if (!empty($immediatechildmodules)) {
             $childmoduleids = [];
             foreach ($immediatechildmodules as $immediatechildmodule) {
-                if (empty($immediatechildmodule->section_id)) continue;
+                if (empty($immediatechildmodule->section_id)) {
+                    continue;
+                }
 
+                // phpcs:disable moodle.Files.LineLength.TooLong
                 // Include the section (The corresponding section of the module, must be included.) (Activities don't have corresponding sections).
+                // phpcs:enable moodle.Files.LineLength.TooLong
                 $settings = array_merge(
                     $settings,
                     $this->set_setting(
@@ -176,13 +234,16 @@ class backup_settings_helper {
                 }
             }
 
-            $subsectionchildmodules = array_filter($coursemodules, function($coursemodule) use($childmoduleids) {
+            $subsectionchildmodules = array_filter($coursemodules, function ($coursemodule) use ($childmoduleids) {
                 return in_array($coursemodule->id, $childmoduleids);
             });
 
             // Include all subsection's nested child modules.
             foreach ($subsectionchildmodules as $subsectionchildmodule) {
-                $settings = array_merge($settings, $this->set_setting($subsectionchildmodule->name, $subsectionchildmodule->id, true, $includeusers));
+                $settings = array_merge(
+                    $settings,
+                    $this->set_setting($subsectionchildmodule->name, $subsectionchildmodule->id, true, $includeusers)
+                );
             }
         }
 
@@ -207,10 +268,19 @@ class backup_settings_helper {
         return $settings;
     }
 
-    private function set_setting(string $settingname, string $settingid, bool $settingvalue, bool $includeusers) : array{
+    /**
+     * set_setting
+     *
+     * @param string $settingname
+     * @param string $settingid
+     * @param bool $settingvalue
+     * @param bool $includeusers
+     * @return array
+     */
+    private function set_setting(string $settingname, string $settingid, bool $settingvalue, bool $includeusers): array {
         return [
-            $settingname."_".$settingid."_"."userinfo" => $includeusers,
-            $settingname."_".$settingid."_"."included" => $settingvalue
+            $settingname . "_" . $settingid . "_" . "userinfo" => $includeusers,
+            $settingname . "_" . $settingid . "_" . "included" => $settingvalue,
         ];
     }
 }

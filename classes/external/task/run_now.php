@@ -16,28 +16,33 @@
 
 namespace block_sharing_cart\external\task;
 
-// @codeCoverageIgnoreEnd
-
 use core_external\external_api;
 use core_external\external_description;
 use core_external\external_function_parameters;
 use core_external\external_value;
 
 /**
- * Class external\task\run_now for the Sharing Cart block.
+ * run_now external API.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-class run_now extends external_api {
+class run_now extends external_api
+{
+    /**
+     * execute_parameters.
+     */
     public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'taskid' => new external_value(PARAM_INT, '', VALUE_REQUIRED),
         ]);
     }
 
+    /**
+     * execute.
+     * @param int $taskid
+     */
     public static function execute(
         int $taskid,
     ): bool {
@@ -76,7 +81,7 @@ class run_now extends external_api {
                 'component' => 'block_sharing_cart',
                 'faildelay' => 0,
                 'timestarted' => null,
-                'userid' => $USER->id
+                'userid' => $USER->id,
             ]
         );
 
@@ -91,6 +96,9 @@ class run_now extends external_api {
         return true;
     }
 
+    /**
+     * execute_returns.
+     */
     public static function execute_returns(): external_description {
         return new external_value(PARAM_BOOL, '', VALUE_REQUIRED);
     }

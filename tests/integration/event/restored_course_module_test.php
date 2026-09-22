@@ -21,22 +21,31 @@ use block_sharing_cart\event\restored_course_module;
 use core\event\base;
 
 /**
- * Unit/integration tests for the Sharing Cart block.
+ * Restore tests for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @covers    \block_sharing_cart\event\restored_course_module
  */
-
-/**
- * @covers \block_sharing_cart\event\restored_course_module
- */
-final class restored_course_module_test extends advanced_testcase {
+final class restored_course_module_test extends advanced_testcase
+{
+    /**
+     * setUp
+     *
+     * @return void
+     */
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();
     }
 
+    /**
+     * get_triggered_event
+     *
+     * @param base $event
+     * @return restored_course_module
+     */
     private function get_triggered_event(base $event): restored_course_module {
         $eventredirect = $this->redirectEvents();
 

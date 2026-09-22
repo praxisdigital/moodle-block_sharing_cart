@@ -16,34 +16,52 @@
 
 namespace block_sharing_cart\output\block;
 
-// @codeCoverageIgnoreEnd
-
-use block_sharing_cart\app\factory as base_factory;
+use block_sharing_cart\app\factory as basefactory;
 use block_sharing_cart\app\item\entity;
 
 /**
  * Class output\block\content for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-class content implements \renderable, \core\output\named_templatable {
-    private base_factory $basefactory;
+class content implements \core\output\named_templatable, \renderable {
+    /** @var basefactory $basefactory */
+    private basefactory $basefactory;
+    /** @var int $userid */
     private int $userid;
+    /** @var int $courseid */
     private int $courseid;
 
-    public function __construct(base_factory $basefactory, int $userid, int $courseid) {
+    /**
+     * __construct
+     *
+     * @param basefactory $basefactory
+     * @param int $userid
+     * @param int $courseid
+     */
+    public function __construct(basefactory $basefactory, int $userid, int $courseid) {
         $this->basefactory = $basefactory;
         $this->userid = $userid;
         $this->courseid = $courseid;
     }
 
+    /**
+     * get_template_name
+     *
+     * @param \renderer_base $renderer
+     * @return string
+     */
     public function get_template_name(\renderer_base $renderer): string {
         return 'block_sharing_cart/block/content';
     }
 
+    /**
+     * export_items_for_template
+     *
+     * @return array
+     */
     private function export_items_for_template(): array {
         global $USER, $DB;
 
@@ -78,6 +96,12 @@ class content implements \renderable, \core\output\named_templatable {
         return $rootitemcontexts->to_array(true);
     }
 
+    /**
+     * export_for_template
+     *
+     * @param \renderer_base $OUTPUT
+     * @return array
+     */
     public function export_for_template(\renderer_base $OUTPUT): array {
         $coursecontext = \core\context\course::instance($this->courseid);
 

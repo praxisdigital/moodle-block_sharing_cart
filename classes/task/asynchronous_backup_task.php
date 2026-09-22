@@ -16,10 +16,12 @@
 
 namespace block_sharing_cart\task;
 
+// @codeCoverageIgnoreStart
+defined('MOODLE_INTERNAL') || die();
 // @codeCoverageIgnoreEnd
 
 use async_helper;
-use block_sharing_cart\app\factory as base_factory;
+use block_sharing_cart\app\factory as basefactory;
 use block_sharing_cart\app\item\entity;
 
 global $CFG;
@@ -27,30 +29,53 @@ require_once($CFG->dirroot . '/backup/util/includes/backup_includes.php');
 require_once($CFG->dirroot . '/backup/moodle2/backup_plan_builder.class.php');
 
 /**
- * Class task\asynchronous_backup_task for the Sharing Cart block.
+ * asynchronous_backup_task task.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
 class asynchronous_backup_task extends \core\task\adhoc_task {
-    protected bool $OUTPUT = true;
-    protected ?base_factory $basefactory = null;
+    /** @var bool $output Whether to output progress. */
+    protected bool $output = true;
+    /** @var ?basefactory $basefactory */
+    protected ?basefactory $basefactory = null;
+    /** @var ?\backup_controller $controller */
     private ?\backup_controller $controller = null;
 
-    protected function factory(): base_factory {
-        return $this->basefactory ??= base_factory::make();
+    /**
+     * factory
+     *
+     * @return basefactory
+     */
+    protected function factory(): basefactory {
+        return $this->basefactory ??= basefactory::make();
     }
 
+    /**
+     * db
+     *
+     * @return \moodle_database
+     */
     protected function db(): \moodle_database {
         return $this->factory()->moodle()->db();
     }
 
+    /**
+     * get_backup_id
+     *
+     * @return string
+     */
     protected function get_backup_id(): string {
         return $this->get_custom_data()->backupid ?? '';
     }
 
+    /**
+     * output
+     *
+     * @param string $message
+     * @return void
+     */
     protected function output(string $message): void {
         if (!$this->output) {
             return;
@@ -58,6 +83,11 @@ class asynchronous_backup_task extends \core\task\adhoc_task {
         mtrace($message);
     }
 
+    /**
+     * get_backup_controller
+     *
+     * @return ?\backup_controller
+     */
     public function get_backup_controller(): ?\backup_controller {
         try {
             if ($this->controller === null) {
@@ -122,8 +152,8 @@ class asynchronous_backup_task extends \core\task\adhoc_task {
             $status = $bc->get_status();
             $execution = $bc->get_execution();
 
-            // Check that the backup is in the correct status and
-            // that is set for asynchronous execution.
+            // Check that the backup is in the correct status and.
+            // That is set for asynchronous execution.
             if ($status == \backup::STATUS_AWAITING && $execution == \backup::EXECUTION_DELAYED) {
                 $this->before_backup_started_hook($bc);
 
@@ -164,10 +194,21 @@ class asynchronous_backup_task extends \core\task\adhoc_task {
         }
     }
 
+    /**
+     * retry_until_success
+     *
+     * @return bool
+     */
     public function retry_until_success(): bool {
         return false;
     }
 
+    /**
+     * before_backup_started_hook
+     *
+     * @param \backup_controller $backupcontroller
+     * @return void
+     */
     protected function before_backup_started_hook(\backup_controller $backupcontroller): void {
         try {
             $this->output('Executing before_backup_started_hook...');
@@ -192,12 +233,16 @@ class asynchronous_backup_task extends \core\task\adhoc_task {
 
             $backupcontrollercontext = $this->get_backup_controller_context($backupcontroller);
 
-            // Construct backup plan settings
-            $backupplansettings = $this->factory()->backup()->settings_helper()->construct_backup_plan_settings($customdata, $backupcontrollercontext, $itementity);
+            // Construct backup plan settings.
+            $backupplansettings = $this->factory()->backup()->settings_helper()->construct_backup_plan_settings(
+                $customdata,
+                $backupcontrollercontext,
+                $itementity
+            );
 
             $backupplan = $backupcontroller->get_plan();
 
-            // Apply the backup plan settings to the backup plan
+            // Apply the backup plan settings to the backup plan.
             $this->factory()->backup()->settings_helper()->apply_backup_plan_settings($backupplansettings, $backupplan);
 
             $this->toggle_question_bank_setting($backupplan, $itementity);
@@ -211,6 +256,12 @@ class asynchronous_backup_task extends \core\task\adhoc_task {
         }
     }
 
+    /**
+     * after_backup_finished_hook
+     *
+     * @param \backup_controller $backupcontroller
+     * @return void
+     */
     protected function after_backup_finished_hook(\backup_controller $backupcontroller): void {
         try {
             $this->output('Executing after_backup_finished_hook...');
@@ -231,12 +282,10 @@ class asynchronous_backup_task extends \core\task\adhoc_task {
             $this->output("Fetching backup results...");
             $backupresults = $backupcontroller->get_results();
 
-            /**
-             * @var ?\stored_file $file
-             */
+            // Type annotation.
             $file = $backupresults['backup_destination'] ?? null;
             if (!$file) {
-                $this->output("Backup results: " . print_r($backupresults, true));
+                $this->output('Backup results keys: ' . implode(', ', array_keys((array)$backupresults)));
                 throw new \Exception("No backup file found in results");
             }
 
@@ -259,6 +308,12 @@ class asynchronous_backup_task extends \core\task\adhoc_task {
         }
     }
 
+    /**
+     * get_backup_controller_context
+     *
+     * @param \backup_controller $backupcontroller
+     * @return \core\context
+     */
     private function get_backup_controller_context(\backup_controller $backupcontroller): \core\context {
         switch ($backupcontroller->get_type()) {
             case \backup::TYPE_1COURSE:
@@ -275,10 +330,15 @@ class asynchronous_backup_task extends \core\task\adhoc_task {
         }
     }
 
+    /**
+     * copy_backup_file_to_sharing_cart_filearea
+     *
+     * @param \stored_file $file
+     * @param entity $rootitem
+     * @return \stored_file
+     */
     private function copy_backup_file_to_sharing_cart_filearea(\stored_file $file, entity $rootitem): \stored_file {
-        /**
-         * @var \file_storage $fs
-         */
+        // File storage instance.
         $fs = get_file_storage();
 
         return $fs->create_file_from_storedfile([
@@ -291,6 +351,12 @@ class asynchronous_backup_task extends \core\task\adhoc_task {
         ], $file);
     }
 
+    /**
+     * filter_away_disabled_course_modules
+     *
+     * @param \backup_controller $backupcontroller
+     * @return void
+     */
     private function filter_away_disabled_course_modules(
         \backup_controller $backupcontroller
     ): void {
@@ -305,7 +371,7 @@ class asynchronous_backup_task extends \core\task\adhoc_task {
 
                 $includeactivity = $db->get_record('modules', [
                         'name' => $modulename,
-                        'visible' => true
+                        'visible' => true,
                     ]) !== false;
 
                 if ($includeactivity === false) {
@@ -316,6 +382,11 @@ class asynchronous_backup_task extends \core\task\adhoc_task {
         }
     }
 
+    /**
+     * fail_task
+     *
+     * @return void
+     */
     private function fail_task(): void {
         $db = $this->db();
 
@@ -338,6 +409,13 @@ class asynchronous_backup_task extends \core\task\adhoc_task {
         $this->output("Async backup failed, item status has been set to failed, aborting...");
     }
 
+    /**
+     * get_course_modules_settings_by_item
+     *
+     * @param int $courseid
+     * @param entity $item
+     * @return array
+     */
     private function get_course_modules_settings_by_item(
         int $courseid,
         entity $item
@@ -375,6 +453,13 @@ class asynchronous_backup_task extends \core\task\adhoc_task {
         }
     }
 
+    /**
+     * toggle_question_bank_setting
+     *
+     * @param \backup_plan $plan
+     * @param entity $item
+     * @return void
+     */
     private function toggle_question_bank_setting(
         \backup_plan $plan,
         entity $item
@@ -418,6 +503,11 @@ class asynchronous_backup_task extends \core\task\adhoc_task {
         $questionbanksetting->set_status($status);
     }
 
+    /**
+     * get_name
+     *
+     * @return string
+     */
     public function get_name(): string {
         return parent::get_name() . ' (block_sharing_cart)';
     }

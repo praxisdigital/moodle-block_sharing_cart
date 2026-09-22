@@ -20,27 +20,40 @@ use core\context\course;
 use core\context\system;
 
 /**
- * Unit/integration tests for the Sharing Cart block.
+ * capabilities tests for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @covers    \block_sharing_cart\external\task\run_now
  */
-
-/**
- * @covers \block_sharing_cart\external\task\run_now
- */
-final class manual_run_task_test extends \advanced_testcase {
+final class manual_run_task_test extends \advanced_testcase
+{
+    /**
+     * setUp
+     *
+     * @return void
+     */
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();
     }
 
+    /**
+     * db
+     *
+     * @return \moodle_database
+     */
     private function db(): \moodle_database {
         global $DB;
-        return $db;
+        return $DB;
     }
 
+    /**
+     * test_user_expected_not_allowed
+     *
+     * @return void
+     */
     public function test_user_expected_not_allowed(): void {
         $generator = $this->getDataGenerator();
         $USER = $generator->create_user();
@@ -56,6 +69,11 @@ final class manual_run_task_test extends \advanced_testcase {
         );
     }
 
+    /**
+     * test_user_with_manager_role_expected_not_allowed
+     *
+     * @return void
+     */
     public function test_user_with_manager_role_expected_not_allowed(): void {
         $generator = $this->getDataGenerator();
         $USER = $generator->create_user();
@@ -69,6 +87,11 @@ final class manual_run_task_test extends \advanced_testcase {
         );
     }
 
+    /**
+     * test_user_enrolled_in_course_with_capable_role_expected_allowed
+     *
+     * @return void
+     */
     public function test_user_enrolled_in_course_with_capable_role_expected_allowed(): void {
         $generator = $this->getDataGenerator();
         $USER = $generator->create_user();
@@ -96,6 +119,11 @@ final class manual_run_task_test extends \advanced_testcase {
         );
     }
 
+    /**
+     * test_user_assign_to_capable_role_expected_allowed
+     *
+     * @return void
+     */
     public function test_user_assign_to_capable_role_expected_allowed(): void {
         $generator = $this->getDataGenerator();
         $USER = $generator->create_user();
@@ -123,6 +151,11 @@ final class manual_run_task_test extends \advanced_testcase {
         );
     }
 
+    /**
+     * test_user_with_site_admin_expected_allowed
+     *
+     * @return void
+     */
     public function test_user_with_site_admin_expected_allowed(): void {
         global $USER;
 

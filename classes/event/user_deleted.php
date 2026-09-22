@@ -16,19 +16,23 @@
 
 namespace block_sharing_cart\event;
 
-// @codeCoverageIgnoreEnd
-
 use block_sharing_cart\app\factory;
 
 /**
- * Class event\user_deleted for the Sharing Cart block.
+ * Observer for core user_deleted events.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-class user_deleted {
+class user_deleted
+{
+    /**
+     * execute
+     *
+     * @param \core\event\user_deleted $event
+     * @return void
+     */
     public static function execute(\core\event\user_deleted $event): void {
         $userid = $event->objectid;
 

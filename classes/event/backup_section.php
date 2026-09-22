@@ -17,22 +17,41 @@
 namespace block_sharing_cart\event;
 
 /**
- * Class event\backup_section for the Sharing Cart block.
+ * backup_section class.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class backup_section extends backup {
+class backup_section extends backup
+{
+    /**
+     * get_section_id
+     *
+     * @return int
+     */
     public function get_section_id(): int {
         return $this->other['sectionid'] ?? 0;
     }
 
+    /**
+     * get_description
+     *
+     * @return string
+     */
     public function get_description(): string {
         return "User with id {$this->relateduserid} has backed up a section with id {$this->get_section_id()}"
             . " in course with id {$this->get_course_id()}";
     }
 
+    /**
+     * create_by_section
+     *
+     * @param int $courseid
+     * @param int $sectionid
+     * @param int $userid
+     * @return static
+     */
     public static function create_by_section(
         int $courseid,
         int $sectionid,

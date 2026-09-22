@@ -14,16 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
-// @codeCoverageIgnoreStart
-defined('MOODLE_INTERNAL') || die();
-// @codeCoverageIgnoreEnd
-
-
 /**
- * Upgrade steps for the Sharing Cart block.
+ * Upgrade script for the Sharing Cart block.
  *
+ * @param int $oldversion
+ * @return bool
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {
@@ -58,6 +55,8 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {
 
         $field = new xmldb_field('sort', XMLDB_TYPE_INTEGER, 10, true, XMLDB_NOTNULL, null, null);
         $dbman->rename_field($table, $field, 'weight');
+
+        upgrade_block_savepoint(true, 2011111100, 'sharing_cart');
     }
 
     if ($oldversion < 2011111101) {
@@ -65,6 +64,8 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {
 
         $field = new xmldb_field('user', XMLDB_TYPE_INTEGER, 10, true, XMLDB_NOTNULL, null, null);
         $dbman->rename_field($table, $field, 'userid');
+
+        upgrade_block_savepoint(true, 2011111101, 'sharing_cart');
     }
 
     if ($oldversion < 2012050800) {
@@ -73,6 +74,8 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {
 
         $table = new xmldb_table('sharing_cart_plugins');
         $dbman->rename_table($table, 'block_sharing_cart_plugins');
+
+        upgrade_block_savepoint(true, 2012050800, 'sharing_cart');
     }
 
     if ($oldversion < 2016032900) {
@@ -122,7 +125,7 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {
         upgrade_block_savepoint(true, 2017121200, 'sharing_cart');
     }
 
-    // Fix default value incompatible with moodle database manager
+    // Fix default value incompatible with moodle database manager.
     if ($oldversion < 2020073001) {
         $table = new xmldb_table('block_sharing_cart_sections');
 
@@ -130,7 +133,14 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {
             $fieldname = new xmldb_field('name', XMLDB_TYPE_CHAR, 255);
             $fieldsummary = new xmldb_field('summary', XMLDB_TYPE_TEXT, null, null, null, null, null, 'name');
             $fieldsummaryformat = new xmldb_field(
-                'summaryformat', XMLDB_TYPE_INTEGER, 2, null, XMLDB_NOTNULL, false, 0, 'summary'
+                'summaryformat',
+                XMLDB_TYPE_INTEGER,
+                2,
+                null,
+                XMLDB_NOTNULL,
+                false,
+                0,
+                'summary'
             );
 
             if ($dbman->field_exists($table, $fieldname)) {
@@ -152,7 +162,14 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {
 
         if ($dbman->table_exists($table)) {
             $fieldavailability = new xmldb_field(
-                'availability', XMLDB_TYPE_TEXT, null, null, false, false, null, 'summaryformat'
+                'availability',
+                XMLDB_TYPE_TEXT,
+                null,
+                null,
+                false,
+                false,
+                null,
+                'summaryformat'
             );
             if (!$dbman->field_exists($table, $fieldavailability)) {
                 $dbman->add_field($table, $fieldavailability);
@@ -193,7 +210,13 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {
         // Begin upgrade block_sharing_cart table.
         $table = new xmldb_table('block_sharing_cart');
         $field = new xmldb_field(
-            'fileid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, 0
+            'fileid',
+            XMLDB_TYPE_INTEGER,
+            '10',
+            null,
+            XMLDB_NOTNULL,
+            null,
+            0
         );
 
         // Add file id field to sharing cart table - for accelerating backup file selection.
@@ -201,7 +224,7 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {
             $dbman->add_field($table, $field);
         }
 
-        // Add indexes to sharing cart table
+        // Add indexes to sharing cart table.
         $index = new xmldb_index('weight', XMLDB_INDEX_NOTUNIQUE, ['weight']);
         if (!$dbman->index_exists($table, $index)) {
             $dbman->add_index($table, $index);
@@ -226,7 +249,7 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {
         // This is for accelerating backup file selection and to eliminate uncertainty of the selection.
         $storage = get_file_storage();
         $sharingcartrecords = $DB->get_recordset('block_sharing_cart', [
-            'fileid' => 0
+            'fileid' => 0,
         ], '', 'id, userid, filename');
         $userbackupfiles = [];
         $deletedsharingcartfiles = [];
@@ -273,9 +296,7 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {
     }
 
     if ($oldversion < 2024072901) {
-        /**
-         * Create block_sharing_cart_items table.
-         */
+        // Create block_sharing_cart_items table.
         $xmldbtable = new xmldb_table('block_sharing_cart_items');
 
         $xmldbtable->add_field('id', XMLDB_TYPE_INTEGER, '10', true, true, true);
@@ -301,24 +322,22 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {
             $dbman->create_table($xmldbtable);
         }
 
-        /**
-         * Migrate data from block_sharing_cart_sections & block_sharing_cart to block_sharing_cart_items.
-         */
+        // Migrate data from block_sharing_cart_sections and block_sharing_cart to block_sharing_cart_items.
 
-        /**
-         * @var \file_storage $fs
-         */
+        // Type annotation.
         $fs = get_file_storage();
 
-        if ($dbman->table_exists(new \xmldb_table('block_sharing_cart_sections')) && $dbman->table_exists(
+        if (
+            $dbman->table_exists(new \xmldb_table('block_sharing_cart_sections')) && $dbman->table_exists(
                 new \xmldb_table('block_sharing_cart')
-            )) {
+            )
+        ) {
             $oldsectionrecords = $DB->get_recordset('block_sharing_cart_sections');
             foreach ($oldsectionrecords as $oldsectionrecord) {
                 $time = time();
 
                 $oldactivityrecords = $DB->get_recordset('block_sharing_cart', [
-                    'section' => $oldsectionrecord->id
+                    'section' => $oldsectionrecord->id,
                 ]);
 
                 $oldactivityrecordsbyuserid = [];
@@ -390,27 +409,27 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {
                                 $newactivityrecord->status = \block_sharing_cart\app\item\entity::STATUS_BACKEDUP;
 
                                 $DB->update_record('block_sharing_cart_items', $newactivityrecord);
-                            } catch (\Exception) {
+                            } catch (\Exception $e) {
                                 if (isset($newactivityrecord->id)) {
                                     $DB->update_record(
                                         'block_sharing_cart_items',
                                         (object)[
                                             'id' => $newactivityrecord->id,
-                                            'status' => \block_sharing_cart\app\item\entity::STATUS_BACKUP_FAILED
+                                            'status' => \block_sharing_cart\app\item\entity::STATUS_BACKUP_FAILED,
                                         ]
                                     );
                                 }
                             }
                         }
-                    } catch (\Exception) {
-                        // Ignore failures for this optional step.
+                    } catch (\Exception $e) {
+                        unset($e); // Ignore exception.
                     }
                 }
             }
             $oldsectionrecords->close();
 
             $oldactivityrecords = $DB->get_recordset('block_sharing_cart', [
-                'section' => 0
+                'section' => 0,
             ]);
             foreach ($oldactivityrecords as $oldactivityrecord) {
                 try {
@@ -464,7 +483,7 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {
                             'block_sharing_cart_items',
                             (object)[
                                 'id' => $newactivityrecord->id,
-                                'status' => \block_sharing_cart\app\item\entity::STATUS_BACKUP_FAILED
+                                'status' => \block_sharing_cart\app\item\entity::STATUS_BACKUP_FAILED,
                             ]
                         );
                     }
@@ -492,7 +511,10 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {
             $dbman->add_field(
                 $xmldbtable,
                 new xmldb_field(
-                    'sortorder', XMLDB_TYPE_INTEGER, '10', notnull: false
+                    'sortorder',
+                    XMLDB_TYPE_INTEGER,
+                    '10',
+                    notnull: false
                 )
             );
         }
@@ -507,20 +529,21 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {
             $dbman->add_field(
                 $xmldbtable,
                 new xmldb_field(
-                    'original_course_fullname', XMLDB_TYPE_CHAR, 255, notnull: false
+                    'original_course_fullname',
+                    XMLDB_TYPE_CHAR,
+                    255,
+                    notnull: false
                 )
             );
         }
 
         $itemrecordset = $DB->get_recordset('block_sharing_cart_items', [
             'status' => \block_sharing_cart\app\item\entity::STATUS_BACKEDUP,
-            'parent_item_id' => null
+            'parent_item_id' => null,
         ]);
         foreach ($itemrecordset as $item) {
             try {
-                /**
-                 * @var \file_storage $fs
-                 */
+                // Type annotation.
                 $fs = get_file_storage();
                 $file = $fs->get_file_by_id($item->file_id);
                 if (!$file) {
@@ -534,8 +557,8 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {
                     'block_sharing_cart_items',
                     $item
                 );
-            } catch (\Exception) {
-                // Ignore failures for this optional step.
+            } catch (\Exception $e) {
+                unset($e); // Ignore exception.
             }
         }
         $itemrecordset->close();
@@ -590,8 +613,14 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {
                 $dbman->add_field(
                     $xmldbtable,
                     new xmldb_field(
-                        'version', XMLDB_TYPE_INTEGER, '10', true, XMLDB_NOTNULL,
-                        null, 0, 'original_course_fullname'
+                        'version',
+                        XMLDB_TYPE_INTEGER,
+                        '10',
+                        true,
+                        XMLDB_NOTNULL,
+                        null,
+                        0,
+                        'original_course_fullname'
                     )
                 );
             }
@@ -608,17 +637,23 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {
                     'block_sharing_cart_items',
                     (object)[
                         'id' => $itemrecord->id,
-                        'version' => $version
+                        'version' => $version,
                     ]
                 );
             }
 
-            // Removes the default of field version of table block_sharing_cart_items
+            // Removes the default of field version of table block_sharing_cart_items.
             $dbman->change_field_default(
                 $xmldbtable,
                 new xmldb_field(
-                    'version', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL,
-                    null, null, 'original_course_fullname'
+                    'version',
+                    XMLDB_TYPE_INTEGER,
+                    '10',
+                    null,
+                    XMLDB_NOTNULL,
+                    null,
+                    null,
+                    'original_course_fullname'
                 )
             );
 

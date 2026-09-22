@@ -15,19 +15,25 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Unit/integration tests for the Sharing Cart block.
+ * behat generator for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class behat_block_sharing_cart_generator extends behat_generator_base {
+class behat_block_sharing_cart_generator extends behat_generator_base
+{
+    /**
+     * get_creatable_entities
+     *
+     * @return array
+     */
     protected function get_creatable_entities(): array {
         return [
             'sharing_cart_items' => [
                 'singular' => 'sharing_cart_item',
                 'datagenerator' => 'sharing_cart_item',
-                'required' => ['user_id', 'parent_item_name', 'type', 'name']
+                'required' => ['user_id', 'parent_item_name', 'type', 'name'],
             ],
         ];
     }

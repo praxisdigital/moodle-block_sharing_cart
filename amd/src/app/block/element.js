@@ -2,7 +2,7 @@ import Sortable from '../../lib/sortablejs';
 import ModalSaveCancel from 'core/modal_save_cancel';
 import ModalDeleteCancel from 'core/modal_delete_cancel';
 import ModalEvents from 'core/modal_events';
-import {get_string, get_strings} from "core/str";
+import {get_string as getString, get_strings as getStrings} from 'core/str';
 import Ajax from "core/ajax";
 import Notification from "core/notification";
 
@@ -187,7 +187,7 @@ export default class BlockElement {
             e.preventDefault();
             e.stopPropagation();
         });
-        dropZone.addEventListener('drop', async (e) => {
+        dropZone.addEventListener('drop', async(e) => {
             if (!this.#draggedSectionId && !this.#draggedCourseModuleId) {
                 return;
             }
@@ -211,13 +211,13 @@ export default class BlockElement {
         const selectAllContainer = this.#element.querySelector('#select_all_container');
         const selectAllCheckbox = this.#element.querySelector('#select_all_box');
 
-        selectAllCheckbox.addEventListener('click', async () => {
+        selectAllCheckbox.addEventListener('click', async() => {
             const itemCheckboxes = this.getItemCheckboxes();
             const allSelected = Array.from(itemCheckboxes).every(checkbox => checkbox.checked);
             itemCheckboxes.forEach(checkbox => {
                 checkbox.checked = !allSelected;
             });
-            itemCheckboxes.forEach(checkbox => checkbox.addEventListener('change', async () => {
+            itemCheckboxes.forEach(checkbox => checkbox.addEventListener('change', async() => {
                 this.updateSelectAllState();
             }));
 
@@ -258,7 +258,7 @@ export default class BlockElement {
             this.updateSelectAllState();
         });
 
-        bulkDeleteButton.addEventListener('click', async () => {
+        bulkDeleteButton.addEventListener('click', async() => {
             if (bulkDeleteButton.disabled) {
                 return;
             }
@@ -325,11 +325,12 @@ export default class BlockElement {
         const someSelected = Array.from(itemCheckboxes).some(checkbox => checkbox.checked);
 
         const strPromise = allSelected ?
-            get_string('deselect_all', 'block_sharing_cart') :
-            get_string('select_all', 'block_sharing_cart');
+            getString('deselect_all', 'block_sharing_cart') :
+            getString('select_all', 'block_sharing_cart');
         strPromise.then((str) => {
             selectAllLabel.textContent = str;
-        });
+            return str;
+        }).catch(Notification.exception);
 
         selectAllCheckbox.checked = allSelected;
         selectAllCheckbox.indeterminate = !allSelected && someSelected;
@@ -427,7 +428,7 @@ export default class BlockElement {
             args: {
                 itemid: item.getItemId(),
             },
-            done: async (deleted) => {
+            done: async(deleted) => {
                 if (deleted) {
                     await this.removeItemElement(item);
                     this.updateSelectAllState();
@@ -452,7 +453,7 @@ export default class BlockElement {
             args: {
                 itemids: itemIds,
             },
-            done: async (deletedItemIds) => {
+            done: async(deletedItemIds) => {
                 const items = this.#items.filter((i) => itemIds.includes(i.getItemId()));
                 for (const item of items) {
                     const deleted = deletedItemIds.includes(item.getItemId());
@@ -518,7 +519,7 @@ export default class BlockElement {
      */
     async createBackupItemToSharingCartModal(backupType, itemId, itemName, onSave) {
 
-        const strings = await get_strings([
+        const strings = await getStrings([
             {
                 key: 'backup_item',
                 component: 'block_sharing_cart',
@@ -540,8 +541,11 @@ export default class BlockElement {
         const {html, js} = await this.#baseFactory.moodle().template().renderTemplate(
             'block_sharing_cart/modal/backup_to_sharing_cart_modal_body',
             {
+                // eslint-disable-next-line camelcase
                 has_quiz: this.#hasQuiz(backupType, itemId),
+                // eslint-disable-next-line camelcase
                 show_user_data_backup: this.#canBackupUserdata,
+                // eslint-disable-next-line camelcase
                 show_anonymize_user_data: this.#canBackupUserdata && this.#canAnonymizeUserdata,
             }
         );
@@ -580,7 +584,7 @@ export default class BlockElement {
         const cms = this.#course.getSectionCourseModules(sectionId);
 
         if (cms.length === 0) {
-            const strings = await get_strings([
+            const strings = await getStrings([
                 {
                     key: 'no_course_modules_in_section',
                     component: 'block_sharing_cart',
@@ -603,7 +607,7 @@ export default class BlockElement {
                     sectionid: sectionId,
                     settings: settings
                 },
-                done: async (data) => {
+                done: async(data) => {
                     await this.renderItem(data);
                 },
                 fail: (data) => {
@@ -632,7 +636,7 @@ export default class BlockElement {
                     coursemoduleid: courseModuleId,
                     settings: settings
                 },
-                done: async (data) => {
+                done: async(data) => {
                     await this.renderItem(data);
                 },
                 fail: (data) => {
@@ -691,16 +695,26 @@ export default class BlockElement {
                 name: item.name,
                 type: item.type,
                 status: 0,
+                // eslint-disable-next-line camelcase
                 old_instance_id: item.old_instance_id,
+                // eslint-disable-next-line camelcase
                 status_awaiting: true,
+                // eslint-disable-next-line camelcase
                 show_run_now: false,
+                // eslint-disable-next-line camelcase
                 can_copy_to_course: item.can_copy_to_course ?? false,
                 taskid: item.taskid ?? null,
+                // eslint-disable-next-line camelcase
                 status_finished: false,
+                // eslint-disable-next-line camelcase
                 status_failed: false,
+                // eslint-disable-next-line camelcase
                 is_module: item.type !== 'section' && item.type !== 'mod_subsection',
-                is_subsection:item.type === 'mod_subsection',
+                // eslint-disable-next-line camelcase
+                is_subsection: item.type === 'mod_subsection',
+                // eslint-disable-next-line camelcase
                 is_section: item.type === 'section',
+                // eslint-disable-next-line camelcase
                 is_root: true,
             }
         );
@@ -723,9 +737,9 @@ export default class BlockElement {
         });
 
         if (item.isSection() && courseModuleIds.length === 0) {
-            modal.querySelectorAll('.form-check-input').forEach(async (item) => {
+            modal.querySelectorAll('.form-check-input').forEach(async(item) => {
                 item.setCustomValidity(
-                    await get_string('atleast_one_course_module_must_be_included', 'block_sharing_cart')
+                    await getString('atleast_one_course_module_must_be_included', 'block_sharing_cart')
                 );
                 item.reportValidity();
             });
@@ -743,7 +757,7 @@ export default class BlockElement {
                 sectionid: sectionId,
                 coursemodulestoinclude: courseModuleIds,
             },
-            done: async (success) => {
+            done: async(success) => {
                 if (success) {
                     await this.#queue.loadQueue(true);
                 }
@@ -752,6 +766,7 @@ export default class BlockElement {
                 Notification.exception(data);
             }
         }]);
+        return true;
     }
 
     /**
@@ -763,7 +778,7 @@ export default class BlockElement {
         e.preventDefault();
         e.stopPropagation();
 
-        const strings = await get_strings([
+        const strings = await getStrings([
             {
                 key: 'copy_item',
                 component: 'block_sharing_cart',
@@ -817,7 +832,7 @@ export default class BlockElement {
      * @param {Array<Number>} itemIds
      */
     async confirmDeleteItems(itemIds) {
-        const strings = await get_strings([
+        const strings = await getStrings([
             {
                 key: 'delete_items',
                 component: 'block_sharing_cart',
@@ -840,7 +855,7 @@ export default class BlockElement {
             title: strings[0],
             body: strings[1],
             buttons: {
-                delete: strings[2],
+                "delete": strings[2],
                 cancel: strings[3],
             },
             removeOnClose: true,

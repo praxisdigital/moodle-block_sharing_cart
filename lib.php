@@ -14,6 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
+/**
+ * Callbacks and fragment outputs for block_sharing_cart.
+ *
+ * @package    block_sharing_cart
+ * @copyright  moxis
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
+
+/**
+ * Hook called after a file is deleted.
+ *
+ * @param object $file
+ */
 function block_sharing_cart_after_file_deleted(object $file): void {
     $basefactory = \block_sharing_cart\app\factory::make();
 
@@ -22,6 +36,12 @@ function block_sharing_cart_after_file_deleted(object $file): void {
     }
 }
 
+/**
+ * block_sharing_cart_output_fragment_item
+ *
+ * @param mixed $args
+ * @package block_sharing_cart
+ */
 function block_sharing_cart_output_fragment_item($args) {
     global $OUTPUT, $USER;
 
@@ -42,6 +62,12 @@ function block_sharing_cart_output_fragment_item($args) {
     return fix_utf8($OUTPUT->render($template));
 }
 
+/**
+ * block_sharing_cart_output_fragment_item_restore_form
+ *
+ * @param mixed $args
+ * @package block_sharing_cart
+ */
 function block_sharing_cart_output_fragment_item_restore_form($args) {
     global $OUTPUT, $USER;
 
@@ -72,6 +98,12 @@ function block_sharing_cart_output_fragment_item_restore_form($args) {
     return fix_utf8($OUTPUT->render($template));
 }
 
+/**
+ * block_sharing_cart_output_fragment_item_queue
+ *
+ * @param mixed $args
+ * @package block_sharing_cart
+ */
 function block_sharing_cart_output_fragment_item_queue($args) {
     global $OUTPUT;
 

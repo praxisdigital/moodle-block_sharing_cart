@@ -16,30 +16,47 @@
 
 namespace block_sharing_cart\output\block\queue;
 
-use block_sharing_cart\app\factory as base_factory;
+use block_sharing_cart\app\factory as basefactory;
 use core\context\system;
 
 /**
  * Class output\block\queue\items for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+class items implements \core\output\named_templatable, \renderable {
+    /** @var basefactory $basefactory */
+    private basefactory $basefactory;
 
-class items implements \renderable, \core\output\named_templatable {
-    private base_factory $basefactory;
-
+    /**
+     * Constructor.
+     *
+     * @param basefactory $basefactory
+     */
     public function __construct(
-        base_factory $basefactory
+        basefactory $basefactory
     ) {
         $this->basefactory = $basefactory;
     }
 
+    /**
+     * get_template_name
+     *
+     * @param \renderer_base $renderer
+     * @return string
+     */
     public function get_template_name(\renderer_base $renderer): string {
         return 'block_sharing_cart/block/queue/items';
     }
 
+    /**
+     * export_for_template
+     *
+     * @param \renderer_base $OUTPUT
+     * @return array
+     */
     public function export_for_template(\renderer_base $OUTPUT): array {
         global $USER, $DB, $OUTPUT, $COURSE;
 
@@ -47,7 +64,7 @@ class items implements \renderable, \core\output\named_templatable {
 
         $records = $DB->get_records('task_adhoc', [
             'userid' => $USER->id,
-            'classname' => "\\block_sharing_cart\\task\\asynchronous_restore_task"
+            'classname' => "\\block_sharing_cart\\task\\asynchronous_restore_task",
         ]);
         foreach ($records as $record) {
             $customdata = json_decode($record->customdata);
@@ -82,10 +99,15 @@ class items implements \renderable, \core\output\named_templatable {
         }
 
         return [
-            'queue_items' => array_values($queueitems)
+            'queue_items' => array_values($queueitems),
         ];
     }
 
+    /**
+     * allow_to_run_now
+     *
+     * @return bool
+     */
     private function allow_to_run_now(): bool {
         global $USER;
 

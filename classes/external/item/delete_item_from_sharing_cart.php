@@ -16,8 +16,6 @@
 
 namespace block_sharing_cart\external\item;
 
-// @codeCoverageIgnoreEnd
-
 use block_sharing_cart\app\factory;
 use block_sharing_cart\app\item\entity;
 use core_external\external_api;
@@ -27,20 +25,27 @@ use core_external\external_single_structure;
 use core_external\external_value;
 
 /**
- * Class external\item\delete_item_from_sharing_cart for the Sharing Cart block.
+ * delete_item_from_sharing_cart external API.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-class delete_item_from_sharing_cart extends external_api {
+class delete_item_from_sharing_cart extends external_api
+{
+    /**
+     * execute_parameters.
+     */
     public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'itemid' => new external_value(PARAM_INT, '', VALUE_REQUIRED),
         ]);
     }
 
+    /**
+     * execute.
+     * @param int $itemid
+     */
     public static function execute(int $itemid): bool {
         global $USER;
 
@@ -66,6 +71,9 @@ class delete_item_from_sharing_cart extends external_api {
         return $basefactory->item()->repository()->delete_by_id($item->get_id());
     }
 
+    /**
+     * execute_returns.
+     */
     public static function execute_returns(): external_description {
         return new external_value(PARAM_BOOL, 'Whether the item was deleted', VALUE_REQUIRED);
     }

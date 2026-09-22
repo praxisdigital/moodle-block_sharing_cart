@@ -16,8 +16,6 @@
 
 namespace block_sharing_cart\privacy;
 
-// @codeCoverageIgnoreEnd
-
 use core_privacy\local\metadata\collection;
 use core_privacy\local\request\approved_contextlist;
 use core_privacy\local\request\approved_userlist;
@@ -27,17 +25,22 @@ use core_privacy\local\request\userlist;
 use core_privacy\local\request\writer;
 
 /**
- * Class privacy\provider for the Sharing Cart block.
+ * provider
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
 class provider implements
     \core_privacy\local\metadata\provider,
-    \core_privacy\local\request\plugin\provider,
-    \core_privacy\local\request\core_userlist_provider {
+    \core_privacy\local\request\core_userlist_provider,
+    \core_privacy\local\request\plugin\provider {
+    /**
+     * get_metadata
+     *
+     * @param collection $collection
+     * @return collection
+     */
     public static function get_metadata(collection $collection): collection {
         $collection->add_database_table('block_sharing_cart_items', [
             'user_id' => 'privacy:metadata:sharing_cart_items:user_id',
@@ -56,6 +59,12 @@ class provider implements
         return $collection;
     }
 
+    /**
+     * get_contexts_for_userid
+     *
+     * @param int $userid
+     * @return contextlist
+     */
     public static function get_contexts_for_userid(int $userid): contextlist {
         $contextlist = new \core_privacy\local\request\contextlist();
         $sql = "SELECT id FROM {context} WHERE contextlevel = :context_level_user AND instanceid = :userid";
@@ -63,6 +72,12 @@ class provider implements
         return $contextlist;
     }
 
+    /**
+     * export_user_data
+     *
+     * @param approved_contextlist $contextlist
+     * @return void
+     */
     public static function export_user_data(approved_contextlist $contextlist): void {
         global $DB;
 
@@ -98,6 +113,12 @@ class provider implements
         $recordset->close();
     }
 
+    /**
+     * delete_data_for_all_users_in_context
+     *
+     * @param \context $context
+     * @return void
+     */
     public static function delete_data_for_all_users_in_context(\context $context): void {
         global $DB;
 
@@ -109,6 +130,12 @@ class provider implements
         $DB->delete_records('block_sharing_cart_items', ['user_id' => $context->instanceid]);
     }
 
+    /**
+     * delete_data_for_user
+     *
+     * @param approved_contextlist $contextlist
+     * @return void
+     */
     public static function delete_data_for_user(approved_contextlist $contextlist): void {
         global $DB;
 
@@ -125,6 +152,12 @@ class provider implements
         }
     }
 
+    /**
+     * get_users_in_context
+     *
+     * @param userlist $userlist
+     * @return void
+     */
     public static function get_users_in_context(userlist $userlist): void {
         global $DB;
 
@@ -140,6 +173,12 @@ class provider implements
         $userlist->add_user($context->instanceid);
     }
 
+    /**
+     * delete_data_for_users
+     *
+     * @param approved_userlist $userlist
+     * @return void
+     */
     public static function delete_data_for_users(approved_userlist $userlist): void {
         global $DB;
 

@@ -16,23 +16,23 @@
 
 namespace block_sharing_cart\task;
 
-// @codeCoverageIgnoreEnd
-
 use async_helper;
-use block_sharing_cart\app\factory as base_factory;
+use block_sharing_cart\app\factory as basefactory;
+
+defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
 require_once($CFG->dirroot . '/backup/util/includes/restore_includes.php');
 
 /**
- * Class task\asynchronous_restore_task for the Sharing Cart block.
+ * asynchronous_restore_task task.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-class asynchronous_restore_task extends \core\task\adhoc_task {
+class asynchronous_restore_task extends \core\task\adhoc_task
+{
     /**
      * Should always resemble
      * @see \core\task\asynchronous_restore_task::execute
@@ -45,7 +45,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task {
      * so multi-frontend sites do not depend on a shared backuptempdir.
      */
     public function execute(): void {
-        $factory = base_factory::make();
+        $factory = basefactory::make();
         $db = $factory->moodle()->db();
         $started = time();
 
@@ -73,10 +73,10 @@ class asynchronous_restore_task extends \core\task\adhoc_task {
             'itemid=' . $item->get_id(),
             'fileid=' . $backupfile->get_id(),
             'courseid=' . $courseid,
-            'userid=' . $userid
+            'userid=' . $userid,
         ]));
 
-        /** @var \restore_controller $rc */
+        // Restore controller for this backup file.
         $rc = $factory->restore()->restore_controller($backupfile, $courseid, $userid);
         $restoreid = $rc->get_restoreid();
 
@@ -103,8 +103,8 @@ class asynchronous_restore_task extends \core\task\adhoc_task {
             $status = $rc->get_status();
             $execution = $rc->get_execution();
 
-            // Check that the restore is in the correct status and
-            // that is set for asynchronous execution.
+            // Check that the restore is in the correct status and.
+            // That is set for asynchronous execution.
             if ($status == \backup::STATUS_AWAITING && $execution == \backup::EXECUTION_DELAYED) {
                 $this->before_restore_finished_hook($rc);
 
@@ -153,10 +153,21 @@ class asynchronous_restore_task extends \core\task\adhoc_task {
         }
     }
 
+    /**
+     * retry_until_success
+     *
+     * @return bool
+     */
     public function retry_until_success(): bool {
         return false;
     }
 
+    /**
+     * after_restore_finished_hook
+     *
+     * @param \restore_controller $restorecontroller
+     * @return void
+     */
     private function after_restore_finished_hook(\restore_controller $restorecontroller): void {
         try {
             mtrace('Executing after_restore_finished_hook...');
@@ -171,6 +182,12 @@ class asynchronous_restore_task extends \core\task\adhoc_task {
         }
     }
 
+    /**
+     * before_restore_finished_hook
+     *
+     * @param \restore_controller $restorecontroller
+     * @return void
+     */
     private function before_restore_finished_hook(\restore_controller $restorecontroller): void {
         try {
             mtrace('Executing before_restore_finished_hook...');
@@ -211,8 +228,15 @@ class asynchronous_restore_task extends \core\task\adhoc_task {
         }
     }
 
+    /**
+     * update_section_number
+     *
+     * @param \restore_controller $restorecontroller
+     * @param int $sectionid
+     * @return void
+     */
     private function update_section_number(\restore_controller $restorecontroller, int $sectionid): void {
-        $db = base_factory::make()->moodle()->db();
+        $db = basefactory::make()->moodle()->db();
 
         $newsectionnumber = $db->get_field(
             'course_sections',
@@ -221,13 +245,9 @@ class asynchronous_restore_task extends \core\task\adhoc_task {
             strictness: MUST_EXIST
         );
 
-        /**
-         * Dirty hack which updates the section number in the section.xml & module.xml files.
-         * This is necessary because the section number is hardcoded in the section.xml & module.xml files and cannot be changed
-         * through the restore_controller API or any other way. ;(
-         */
+        // Dirty hack: updates section numbers hardcoded in section.xml and module.xml.
         foreach ($restorecontroller->get_plan()->get_tasks() as $task) {
-            // Make sure we import into the correct section
+            // Make sure we import into the correct section.
             if ($task instanceof \restore_activity_task) {
                 $modulexmlpath = "{$task->get_taskbasepath()}/module.xml";
 
@@ -239,7 +259,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task {
                 $modulexml->asXML($modulexmlpath);
             }
 
-            // Overwrite empty/missing section settings in the target section
+            // Overwrite empty/missing section settings in the target section.
             if ($task instanceof \restore_section_task) {
                 $sectionxmlpath = "{$task->get_taskbasepath()}/section.xml";
 
@@ -253,8 +273,14 @@ class asynchronous_restore_task extends \core\task\adhoc_task {
         }
     }
 
+    /**
+     * get_section_name
+     *
+     * @param mixed $sectionid
+     * @return ?string
+     */
     private function get_section_name($sectionid): ?string {
-        $db = base_factory::make()->moodle()->db();
+        $db = basefactory::make()->moodle()->db();
         $sectionname = $db->get_field(
             'course_sections',
             'name',
@@ -269,8 +295,15 @@ class asynchronous_restore_task extends \core\task\adhoc_task {
         return $sectionname;
     }
 
+    /**
+     * update_section_name
+     *
+     * @param mixed $sectionid
+     * @param mixed $sectionname
+     * @return bool
+     */
     private function update_section_name($sectionid, $sectionname): bool {
-        $db = base_factory::make()->moodle()->db();
+        $db = basefactory::make()->moodle()->db();
 
         return $db->set_field(
             'course_sections',
@@ -280,6 +313,13 @@ class asynchronous_restore_task extends \core\task\adhoc_task {
         );
     }
 
+    /**
+     * only_include_specified_course_modules
+     *
+     * @param \restore_controller $restorecontroller
+     * @param array $coursemodulestoinclude
+     * @return void
+     */
     private function only_include_specified_course_modules(
         \restore_controller $restorecontroller,
         array $coursemodulestoinclude
@@ -299,6 +339,14 @@ class asynchronous_restore_task extends \core\task\adhoc_task {
         }
     }
 
+    /**
+     * trigger_restored_event
+     *
+     * @param \restore_controller $controller
+     * @param int $started
+     * @param int $finished
+     * @return void
+     */
     private function trigger_restored_event(
         \restore_controller $controller,
         int $started,
@@ -316,6 +364,14 @@ class asynchronous_restore_task extends \core\task\adhoc_task {
         }
     }
 
+    /**
+     * trigger_restore_course_module_event
+     *
+     * @param \restore_activity_task $task
+     * @param int $started
+     * @param int $finished
+     * @return void
+     */
     private function trigger_restore_course_module_event(
         \restore_activity_task $task,
         int $started,
@@ -337,6 +393,14 @@ class asynchronous_restore_task extends \core\task\adhoc_task {
         $event->trigger();
     }
 
+    /**
+     * trigger_restore_section_event
+     *
+     * @param \restore_section_task $task
+     * @param int $started
+     * @param int $finished
+     * @return void
+     */
     private function trigger_restore_section_event(
         \restore_section_task $task,
         int $started,
@@ -352,6 +416,11 @@ class asynchronous_restore_task extends \core\task\adhoc_task {
         $event->trigger();
     }
 
+    /**
+     * get_name
+     *
+     * @return string
+     */
     public function get_name(): string {
         return parent::get_name() . ' (block_sharing_cart)';
     }

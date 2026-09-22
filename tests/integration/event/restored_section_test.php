@@ -25,19 +25,28 @@ use Exception;
  * Unit/integration tests for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @covers    \block_sharing_cart\event\restored_section
  */
-
-/**
- * @covers \block_sharing_cart\event\restored_section
- */
-final class restored_section_test extends advanced_testcase {
+final class restored_section_test extends advanced_testcase
+{
+    /**
+     * setUp
+     *
+     * @return void
+     */
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();
     }
 
+    /**
+     * get_triggered_event
+     *
+     * @param base $event
+     * @return restored_section
+     */
     private function get_triggered_event(base $event): restored_section {
         $eventredirect = $this->redirectEvents();
 

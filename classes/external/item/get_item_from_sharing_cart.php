@@ -16,8 +16,6 @@
 
 namespace block_sharing_cart\external\item;
 
-// @codeCoverageIgnoreEnd
-
 use block_sharing_cart\app\factory;
 use block_sharing_cart\app\item\entity;
 use core_external\external_api;
@@ -27,14 +25,17 @@ use core_external\external_single_structure;
 use core_external\external_value;
 
 /**
- * Class external\item\get_item_from_sharing_cart for the Sharing Cart block.
+ * get_item_from_sharing_cart external API.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-class get_item_from_sharing_cart extends external_api {
+class get_item_from_sharing_cart extends external_api
+{
+    /**
+     * execute_parameters.
+     */
     public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'itemid' => new external_value(PARAM_INT, '', VALUE_REQUIRED),
@@ -42,6 +43,13 @@ class get_item_from_sharing_cart extends external_api {
         ]);
     }
 
+    /**
+     * Format the response for a sharing cart item.
+     *
+     * @param entity $item
+     * @param int $courseid
+     * @return object
+     */
     private static function format_response(entity $item, int $courseid): object {
         global $USER, $DB;
 
@@ -72,11 +80,20 @@ class get_item_from_sharing_cart extends external_api {
 
         $allowtorunnow = has_capability('block/sharing_cart:manual_run_task', \core\context\system::instance(), $USER);
         $response->show_run_now = $allowtorunnow && !$isrunning && !$isfailed && $haswaited5seconds;
-        $response->can_copy_to_course = has_capability('moodle/restore:restoreactivity', \core\context\course::instance($courseid), $USER);
+        $response->can_copy_to_course = has_capability(
+            'moodle/restore:restoreactivity',
+            \core\context\course::instance($courseid),
+            $USER
+        );
 
         return $response;
     }
 
+    /**
+     * execute.
+     * @param int $itemid
+     * @param int $courseid
+     */
     public static function execute(int $itemid, int $courseid): ?object {
         global $USER;
 
@@ -100,6 +117,9 @@ class get_item_from_sharing_cart extends external_api {
         return self::format_response($item, $courseid);
     }
 
+    /**
+     * execute_returns.
+     */
     public static function execute_returns(): external_description {
         return new external_single_structure([
             'id' => new external_value(PARAM_INT, 'The id of the item in the sharing cart', VALUE_REQUIRED),

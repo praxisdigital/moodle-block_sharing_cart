@@ -16,37 +16,66 @@
 
 namespace block_sharing_cart\app;
 
-// @codeCoverageIgnoreEnd
-
-
 /**
- * Class app\factory for the Sharing Cart block.
+ * factory class
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class factory {
+class factory
+{
+    /**
+     * make
+     *
+     * @return self
+     */
     public static function make(): self {
         return new self();
     }
 
+    /**
+     * collection
+     *
+     * @param array $records
+     * @return collection
+     */
     public function collection(array $records = []): collection {
         return new collection($records);
     }
 
+    /**
+     * backup
+     *
+     * @return backup\factory
+     */
     public function backup(): backup\factory {
         return new backup\factory($this);
     }
 
+    /**
+     * restore
+     *
+     * @return restore\factory
+     */
     public function restore(): restore\factory {
         return new restore\factory($this);
     }
 
+    /**
+     * item
+     *
+     * @return item\factory
+     */
     public function item(): item\factory {
         return new item\factory($this);
     }
 
+    /**
+     * moodle
+     *
+     * @return moodle\factory
+     */
     public function moodle(): moodle\factory {
         return new moodle\factory($this);
     }

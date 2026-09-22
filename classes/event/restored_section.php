@@ -16,29 +16,54 @@
 
 namespace block_sharing_cart\event;
 
-
 /**
  * Class event\restored_section for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class restored_section extends restore {
+class restored_section extends restore
+{
+    /**
+     * get_table
+     *
+     * @return ?string
+     */
     protected function get_table(): ?string {
         return 'course_sections';
     }
 
+    /**
+     * get_section_id
+     *
+     * @return int
+     */
     public function get_section_id(): int {
         return $this->other['sectionid'] ?? 0;
     }
 
+    /**
+     * get_description
+     *
+     * @return string
+     */
     public function get_description(): string {
         return "User with id {$this->relateduserid} has restored a section with id {$this->get_section_id()}"
             . " in course with id {$this->get_course_id()}"
             . " that takes {$this->get_duration()} seconds";
     }
 
+    /**
+     * create_by_section
+     *
+     * @param int $courseid
+     * @param int $sectionid
+     * @param int $userid
+     * @param int $starttime
+     * @param int $finishtime
+     * @return static
+     */
     public static function create_by_section(
         int $courseid,
         int $sectionid,

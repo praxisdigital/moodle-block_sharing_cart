@@ -16,19 +16,25 @@
 
 namespace block_sharing_cart\admin_settings;
 
-// @codeCoverageIgnoreEnd
-
 use block_sharing_cart\app\factory as base_factory;
 
 /**
- * Class admin_settings\multi_checkbox_mod_types for the Sharing Cart block.
+ * Multi-checkbox admin setting for module types.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-class multi_checkbox_mod_types extends multi_checkbox_with_icon {
+class multi_checkbox_mod_types extends multi_checkbox_with_icon
+{
+    /**
+     * __construct
+     *
+     * @param string $name
+     * @param string $visiblename
+     * @param string $description
+     * @param ?array $defaultsetting
+     */
     public function __construct(string $name, string $visiblename, string $description, ?array $defaultsetting = null) {
         $basefactory = base_factory::make();
         $db = $basefactory->moodle()->db();

@@ -20,30 +20,43 @@ use block_sharing_cart\app\factory;
 use block_sharing_cart\app\item\entity;
 use block_sharing_cart\task\asynchronous_restore_task;
 
-/**
- * Unit/integration tests for the Sharing Cart block.
- *
- * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
- * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
+defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
 require_once($CFG->dirroot . '/backup/util/includes/backup_includes.php');
 require_once($CFG->dirroot . '/backup/util/includes/restore_includes.php');
 
 /**
- * @covers \block_sharing_cart\task\asynchronous_restore_task
+ * Async restore tests for the Sharing Cart block.
+ *
+ * @package   block_sharing_cart
+ * @copyright moxis
+ * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @covers    \block_sharing_cart\task\asynchronous_restore_task
  */
-final class asynchronous_restore_task_test extends \advanced_testcase {
+final class asynchronous_restore_task_test extends \advanced_testcase
+{
+    /** @var factory $factory */
     private factory $factory;
 
+    /**
+     * setUp
+     *
+     * @return void
+     */
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();
         $this->factory = factory::make();
     }
 
+    /**
+     * create_section
+     *
+     * @param int $courseid
+     * @param array $record
+     * @return object
+     */
     private function create_section(int $courseid, array $record = []): object {
         $db = $this->factory->moodle()->db();
 
@@ -67,7 +80,15 @@ final class asynchronous_restore_task_test extends \advanced_testcase {
         );
     }
 
-    private function backup_label_into_cart(object $course, object $section, object $USER): entity {
+    /**
+     * backup_label_into_cart
+     *
+     * @param object $course
+     * @param object $section
+     * @param object $user
+     * @return entity
+     */
+    private function backup_label_into_cart(object $course, object $section, object $user): entity {
         $generator = self::getDataGenerator();
         $label = $generator->create_module('label', [
             'course' => $course->id,
@@ -78,7 +99,7 @@ final class asynchronous_restore_task_test extends \advanced_testcase {
 
         $item = $this->factory->item()->repository()->insert_activity(
             $label->cmid,
-            $USER->id,
+            $user->id,
             null,
             entity::STATUS_AWAITING_BACKUP
         );
@@ -106,11 +127,15 @@ final class asynchronous_restore_task_test extends \advanced_testcase {
         return $item;
     }
 
+    /**
+     * test_queue_does_not_create_backup_controller_or_tempdir
+     *
+     * @return void
+     */
     public function test_queue_does_not_create_backup_controller_or_tempdir(): void {
         global $USER, $DB;
 
         self::setAdminUser();
-        $USER = $USER;
 
         $generator = self::getDataGenerator();
         $source = $generator->create_course();
@@ -142,11 +167,15 @@ final class asynchronous_restore_task_test extends \advanced_testcase {
         self::assertSame($controllersbefore, $DB->count_records('backup_controllers'));
     }
 
+    /**
+     * test_restore_extracts_and_succeeds_on_task_execute
+     *
+     * @return void
+     */
     public function test_restore_extracts_and_succeeds_on_task_execute(): void {
         global $USER, $DB;
 
         self::setAdminUser();
-        $USER = $USER;
 
         $generator = self::getDataGenerator();
         $source = $generator->create_course();

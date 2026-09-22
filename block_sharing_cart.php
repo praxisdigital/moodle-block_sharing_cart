@@ -14,33 +14,50 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
-// @codeCoverageIgnoreEnd
-
-
 /**
  * Sharing Cart block class.
  *
- * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
- * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @package    block_sharing_cart
+ * @copyright  moxis
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class block_sharing_cart extends block_base {
+    /**
+     * init
+     *
+     * @return void
+     */
     public function init(): void {
         $this->title = get_string('pluginname', 'block_sharing_cart');
     }
 
+    /**
+     * applicable_formats
+     *
+     * @return array
+     */
     public function applicable_formats(): array {
         return [
             'all' => false,
             'course' => true,
-            'site' => true
+            'site' => true,
         ];
     }
 
+    /**
+     * has_config
+     *
+     * @return bool
+     */
     public function has_config(): bool {
         return true;
     }
 
+    /**
+     * get_content
+     *
+     * @return object|string
+     */
     public function get_content(): object|string {
         global $OUTPUT, $USER, $COURSE;
 
@@ -85,23 +102,25 @@ class block_sharing_cart extends block_base {
             return $this->content = '';
         }
 
-        if (!has_capability(
+        if (
+            !has_capability(
                 'moodle/backup:backupactivity',
                 \context_course::instance($COURSE->id)
             ) &&
             !has_capability(
                 'moodle/restore:restoreactivity',
                 \context_course::instance($COURSE->id)
-        )) {
+            )
+        ) {
             return $this->content = (object)[
-                'text' => get_string('nopermissions', 'block_sharing_cart')
+                'text' => get_string('nopermissions', 'block_sharing_cart'),
             ];
         }
 
         $template = new \block_sharing_cart\output\block\content($basefactory, $USER->id, $COURSE->id);
 
         return $this->content = (object)[
-            'text' => $OUTPUT->render($template)
+            'text' => $OUTPUT->render($template),
         ];
     }
 }

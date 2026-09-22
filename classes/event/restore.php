@@ -16,35 +16,65 @@
 
 namespace block_sharing_cart\event;
 
-
 /**
  * Class event\restore for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-abstract class restore extends base {
+abstract class restore extends base
+{
+    /**
+     * get_table
+     *
+     * @return ?string
+     */
     protected function get_table(): ?string {
         return null;
     }
 
+    /**
+     * get_crud
+     *
+     * @return string
+     */
     protected function get_crud(): string {
         return self::CRUD_CREATE;
     }
 
+    /**
+     * get_course_id
+     *
+     * @return int
+     */
     public function get_course_id(): int {
         return $this->other['courseid'] ?? 0;
     }
 
+    /**
+     * get_start_time
+     *
+     * @return int
+     */
     public function get_start_time(): int {
         return $this->other['starttime'] ?? 0;
     }
 
+    /**
+     * get_finish_time
+     *
+     * @return int
+     */
     public function get_finish_time(): int {
         return $this->other['finishtime'] ?? 0;
     }
 
+    /**
+     * get_duration
+     *
+     * @return int
+     */
     public function get_duration(): int {
         return $this->get_finish_time() - $this->get_start_time();
     }

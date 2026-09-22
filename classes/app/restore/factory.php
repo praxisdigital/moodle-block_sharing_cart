@@ -16,28 +16,41 @@
 
 namespace block_sharing_cart\app\restore;
 
-// @codeCoverageIgnoreEnd
+use block_sharing_cart\app\factory as basefactory;
 
-use block_sharing_cart\app\factory as base_factory;
+defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
 require_once($CFG->dirroot . '/backup/util/includes/restore_includes.php');
 
 /**
- * Class app\restore\factory for the Sharing Cart block.
+ * Restore factory for the Sharing Cart block.
  *
  * @package   block_sharing_cart
- * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+class factory
+{
+    /** @var basefactory $basefactory */
+    private basefactory $basefactory;
 
-class factory {
-    private base_factory $basefactory;
-
-    public function __construct(base_factory $basefactory) {
+    /**
+     * __construct
+     *
+     * @param basefactory $basefactory
+     */
+    public function __construct(basefactory $basefactory) {
         $this->basefactory = $basefactory;
     }
 
+    /**
+     * extract_backup_file_to_tempdir
+     *
+     * @param \stored_file $backupfile
+     * @param string $backupdir
+     * @return string
+     */
     public function extract_backup_file_to_tempdir(
         \stored_file $backupfile,
         string $backupdir
@@ -59,6 +72,12 @@ class factory {
         return $path;
     }
 
+    /**
+     * assert_backup_file_looks_valid
+     *
+     * @param \stored_file $backupfile
+     * @return void
+     */
     public function assert_backup_file_looks_valid(\stored_file $backupfile): void {
         $fp = get_file_packer('application/vnd.moodle.backup');
         $files = $fp->list_files($backupfile);
@@ -97,6 +116,14 @@ class factory {
         }
     }
 
+    /**
+     * restore_controller
+     *
+     * @param \stored_file $backupfile
+     * @param int $courseid
+     * @param int $userid
+     * @return \restore_controller
+     */
     public function restore_controller(\stored_file $backupfile, int $courseid, int $userid): \restore_controller {
         $backupdir = \restore_controller::get_tempdir_name($courseid, $userid);
         $this->extract_backup_file_to_tempdir($backupfile, $backupdir);
@@ -112,6 +139,11 @@ class factory {
         );
     }
 
+    /**
+     * handler
+     *
+     * @return handler
+     */
     public function handler(): handler {
         return new handler($this->basefactory);
     }
