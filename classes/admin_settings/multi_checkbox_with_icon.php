@@ -68,7 +68,7 @@ class multi_checkbox_with_icon extends \admin_setting_configmulticheckbox
         if (empty($this->choices) || !$this->load_choices()) {
             return '';
         }
-        $default = $this->get_default_setting();
+        $default = $this->get_defaultsetting();
         if (is_null($default)) {
             $default = [];
         }
