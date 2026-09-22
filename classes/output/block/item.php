@@ -18,7 +18,7 @@
  * item.php
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace block_sharing_cart\output\block;
@@ -32,7 +32,7 @@ use block_sharing_cart\app\item\entity;
  * item class.
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class item implements \core\output\named_templatable, \renderable {

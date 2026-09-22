@@ -18,7 +18,7 @@
  * lib.php
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 use block_sharing_cart\app\item\entity;
@@ -28,7 +28,7 @@ use block_sharing_cart\app\item\entity;
  * block_sharing_cart_generator class.
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class block_sharing_cart_generator extends testing_data_generator

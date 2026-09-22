@@ -20,7 +20,7 @@
  * @param int $oldversion
  * @return bool
  * @package block_sharing_cart
- * @copyright 2024 Praxis Digital A/S
+ * @copyright moxis
  * @license https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {

@@ -28,7 +28,7 @@ use core_external\external_value;
  * run_now external API.
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class run_now extends external_api

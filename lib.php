@@ -18,7 +18,7 @@
  * Callbacks and fragment outputs for block_sharing_cart.
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 

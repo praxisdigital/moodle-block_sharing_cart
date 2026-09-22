@@ -31,7 +31,7 @@ use core_external\external_value;
  * item_into_section external API.
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class item_into_section extends external_api

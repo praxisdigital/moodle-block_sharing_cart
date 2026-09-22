@@ -18,7 +18,7 @@
  * handler.php
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace block_sharing_cart\app\restore;
@@ -31,7 +31,7 @@ use block_sharing_cart\task\asynchronous_restore_task;
  * handler class.
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class handler

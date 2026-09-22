@@ -18,7 +18,7 @@
  * factory.php
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace block_sharing_cart\app\restore;
@@ -34,7 +34,7 @@ require_once($CFG->dirroot . '/backup/util/includes/restore_includes.php');
  * factory class.
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class factory

@@ -18,7 +18,7 @@
  * behat_block_sharing_cart_generator.php
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class behat_block_sharing_cart_generator extends behat_generator_base

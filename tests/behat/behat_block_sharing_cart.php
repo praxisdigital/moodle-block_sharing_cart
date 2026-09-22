@@ -18,7 +18,7 @@
  * behat_block_sharing_cart.php
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 defined('MOODLE_INTERNAL') || die();
@@ -29,7 +29,7 @@ require_once(__DIR__ . '/../../../../lib/behat/behat_base.php');
  * behat_block_sharing_cart class.
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class behat_block_sharing_cart extends behat_base

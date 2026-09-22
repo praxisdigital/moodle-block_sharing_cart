@@ -18,7 +18,7 @@
  * multi_checkbox_mod_types.php
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace block_sharing_cart\admin_settings;
@@ -29,7 +29,7 @@ use block_sharing_cart\app\factory as basefactory;
  * multi_checkbox_mod_types class.
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class multi_checkbox_mod_types extends multi_checkbox_with_icon

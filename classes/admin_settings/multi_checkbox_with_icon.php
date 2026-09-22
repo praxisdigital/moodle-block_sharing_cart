@@ -18,7 +18,7 @@
  * multi_checkbox_with_icon.php
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace block_sharing_cart\admin_settings;
@@ -27,7 +27,7 @@ namespace block_sharing_cart\admin_settings;
  * multi_checkbox_with_icon class.
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class multi_checkbox_with_icon extends \admin_setting_configmulticheckbox

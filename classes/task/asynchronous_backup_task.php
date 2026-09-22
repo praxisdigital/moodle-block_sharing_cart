@@ -18,7 +18,7 @@
  * asynchronous_backup_task.php
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace block_sharing_cart\task;
@@ -37,7 +37,7 @@ require_once($CFG->dirroot . '/backup/moodle2/backup_plan_builder.class.php');
  * asynchronous_backup_task class.
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class asynchronous_backup_task extends \core\task\adhoc_task

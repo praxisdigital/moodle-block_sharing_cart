@@ -18,7 +18,7 @@
  * backup_course_module_test.php
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace block_sharing_cart\integration\event;
@@ -27,7 +27,7 @@ namespace block_sharing_cart\integration\event;
  * backup_course_module_test class.
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class backup_course_module_test extends \advanced_testcase

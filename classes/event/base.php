@@ -18,7 +18,7 @@
  * base.php
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace block_sharing_cart\event;
@@ -27,8 +27,11 @@ namespace block_sharing_cart\event;
  * Base event for sharing cart.
  *
  * @package block_sharing_cart
- * @copyright 2024 Praxis Digital A/S
+ * @copyright moxis
  * @license https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+/**
+ * @method static static create(array $data = null)
  */
 abstract class base extends \core\event\base
 {

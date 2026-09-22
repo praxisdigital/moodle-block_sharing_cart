@@ -19,7 +19,7 @@
  * backup_settings_helper_test.php
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 namespace block_sharing_cart\integration\app\backup;
@@ -33,7 +33,7 @@ use section_info;
  * backup_settings_helper_test class.
  *
  * @package    block_sharing_cart
- * @copyright  2024 Praxis Digital A/S
+ * @copyright  moxis
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @coversDefaultClass \block_sharing_cart\app\backup\backup_settings_helper
  */
