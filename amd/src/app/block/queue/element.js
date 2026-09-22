@@ -189,7 +189,7 @@ export default class QueueElement {
                     Ajax.call([{
                         methodname: 'block_sharing_cart_run_task_now',
                         args: {
-                            task_id: taskId
+                            taskid: taskId
                         }
                     }]);
 

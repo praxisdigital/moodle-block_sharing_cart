@@ -1,4 +1,18 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace block_sharing_cart\integration\task;
 
@@ -6,33 +20,38 @@ use block_sharing_cart\app\factory;
 use block_sharing_cart\app\item\entity;
 use block_sharing_cart\task\asynchronous_backup_task;
 
-// @codeCoverageIgnoreStart
-defined('MOODLE_INTERNAL') || die();
-// @codeCoverageIgnoreEnd
+/**
+ * Unit/integration tests for the Sharing Cart block.
+ *
+ * @package   block_sharing_cart
+ * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 
-class asynchronous_backup_task_test extends \advanced_testcase
-{
+/**
+ * @covers \block_sharing_cart\task\asynchronous_backup_task
+ */
+final class asynchronous_backup_task_test extends \advanced_testcase {
     private factory $factory;
 
-    protected function setUp(): void
-    {
+    protected function setUp(): void {
+        parent::setUp();
         $this->resetAfterTest();
         $this->factory = factory::make();
     }
 
-    private function create_section(int $course_id, array $record = []): object
-    {
+    private function create_section(int $courseid, array $record = []): object {
         $db = $this->factory->moodle()->db();
 
-        $record['course'] = $course_id;
+        $record['course'] = $courseid;
 
         if (!isset($record['section'])) {
-            $last_section_number = (int)$db->get_field(
+            $lastsectionnumber = (int)$db->get_field(
                 'course_sections',
                 'MAX(section)',
-                ['course' => $course_id]
+                ['course' => $courseid]
             );
-            $record['section'] = $last_section_number + 1;
+            $record['section'] = $lastsectionnumber + 1;
         }
 
         $section = self::getDataGenerator()->create_course_section($record);
@@ -44,55 +63,45 @@ class asynchronous_backup_task_test extends \advanced_testcase
         );
     }
 
-    private function create_task(asynchronous_backup_task $task): asynchronous_backup_task
-    {
+    private function create_task(asynchronous_backup_task $task): asynchronous_backup_task {
         return new class($task) extends asynchronous_backup_task {
             private asynchronous_backup_task $task;
 
-            public function __construct(asynchronous_backup_task $task)
-            {
+            public function __construct(asynchronous_backup_task $task) {
                 $this->task = $task;
                 $this->task->output = false;
             }
 
-            protected function factory(): factory
-            {
+            protected function factory(): factory {
                 return $this->task->factory();
             }
 
-            protected function db(): \moodle_database
-            {
+            protected function db(): \moodle_database {
                 return $this->task->db();
             }
 
-            protected function get_backup_id(): string
-            {
+            protected function get_backup_id(): string {
                 return $this->task->get_backup_id();
             }
 
-            public function get_backup_controller(): ?\backup_controller
-            {
+            public function get_backup_controller(): ?\backup_controller {
                 return $this->task->get_backup_controller();
             }
 
-            public function execute(): void
-            {
+            public function execute(): void {
                 $this->task->execute();
             }
 
-            public function retry_until_success(): bool
-            {
+            public function retry_until_success(): bool {
                 return $this->task->retry_until_success();
             }
 
-            protected function before_backup_started_hook(\backup_controller $backup_controller): void
-            {
-                $this->task->before_backup_started_hook($backup_controller);
+            protected function before_backup_started_hook(\backup_controller $backupcontroller): void {
+                $this->task->before_backup_started_hook($backupcontroller);
             }
 
-            protected function after_backup_finished_hook(\backup_controller $backup_controller): void
-            {
-                $this->task->after_backup_finished_hook($backup_controller);
+            protected function after_backup_finished_hook(\backup_controller $backupcontroller): void {
+                $this->task->after_backup_finished_hook($backupcontroller);
             }
 
             /**
@@ -100,20 +109,18 @@ class asynchronous_backup_task_test extends \advanced_testcase
              * @param mixed ...$args
              * @return mixed
              */
-            public function call(string $method, mixed ...$args): mixed
-            {
+            public function call(string $method, mixed ...$args): mixed {
                 return $this->task->{$method}(...$args);
             }
         };
     }
 
-    public function test_backup_section_with_quiz_expected_questionbank_setting_value_returns_true(): void
-    {
+    public function test_backup_section_with_quiz_expected_questionbank_setting_value_returns_true(): void {
         global $USER;
         self::setAdminUser();
 
         $generator = self::getDataGenerator();
-        $user = $USER;
+        $USER = $USER;
         $course = $generator->create_course();
         $section = $this->create_section($course->id, [
             'name' => 'Test Section 1',
@@ -128,11 +135,11 @@ class asynchronous_backup_task_test extends \advanced_testcase
             'section' => $section->section,
             'name' => 'Test Label 1',
         ]);
-        $generator->enrol_user($user->id, $course->id, 'editingteacher');
+        $generator->enrol_user($USER->id, $course->id, 'editingteacher');
 
         $item = $this->factory->item()->repository()->insert_section(
             $section,
-            $user->id,
+            $USER->id,
             null,
             entity::STATUS_AWAITING_BACKUP
         );
@@ -167,13 +174,12 @@ class asynchronous_backup_task_test extends \advanced_testcase
         );
     }
 
-    public function test_backup_section_with_no_quiz_expected_questionbank_setting_value_returns_false(): void
-    {
+    public function test_backup_section_with_no_quiz_expected_questionbank_setting_value_returns_false(): void {
         global $USER;
         self::setAdminUser();
 
         $generator = self::getDataGenerator();
-        $user = $USER;
+        $USER = $USER;
         $course = $generator->create_course();
         $section = $this->create_section($course->id, [
             'name' => 'Test Section 1',
@@ -188,11 +194,11 @@ class asynchronous_backup_task_test extends \advanced_testcase
         );
 
         // Enroll the user as an editing teacher in the course
-        $generator->enrol_user($user->id, $course->id, 'editingteacher');
+        $generator->enrol_user($USER->id, $course->id, 'editingteacher');
 
         $item = $this->factory->item()->repository()->insert_section(
             $section,
-            $user->id,
+            $USER->id,
             null,
             entity::STATUS_AWAITING_BACKUP
         );
@@ -226,13 +232,12 @@ class asynchronous_backup_task_test extends \advanced_testcase
         );
     }
 
-    public function test_backup_quiz_activity_expected_questionbank_setting_value_returns_true(): void
-    {
+    public function test_backup_quiz_activity_expected_questionbank_setting_value_returns_true(): void {
         global $USER;
         self::setAdminUser();
 
         $generator = self::getDataGenerator();
-        $user = $USER;
+        $USER = $USER;
         $course = $generator->create_course();
         $section = $this->create_section($course->id, [
             'name' => 'Test Section 1',
@@ -247,11 +252,11 @@ class asynchronous_backup_task_test extends \advanced_testcase
         );
 
         // Enroll the user as an editing teacher in the course
-        $generator->enrol_user($user->id, $course->id, 'editingteacher');
+        $generator->enrol_user($USER->id, $course->id, 'editingteacher');
 
         $item = $this->factory->item()->repository()->insert_activity(
             $activity->cmid,
-            $user->id,
+            $USER->id,
             null,
             entity::STATUS_AWAITING_BACKUP
         );
@@ -285,13 +290,12 @@ class asynchronous_backup_task_test extends \advanced_testcase
         );
     }
 
-    public function test_backup_label_activity_expected_questionbank_setting_value_returns_false(): void
-    {
+    public function test_backup_label_activity_expected_questionbank_setting_value_returns_false(): void {
         global $USER;
         self::setAdminUser();
 
         $generator = self::getDataGenerator();
-        $user = $USER;
+        $USER = $USER;
         $course = $generator->create_course();
         $section = $this->create_section($course->id, [
             'name' => 'Test Section 1',
@@ -306,11 +310,11 @@ class asynchronous_backup_task_test extends \advanced_testcase
         );
 
         // Enroll the user as an editing teacher in the course
-        $generator->enrol_user($user->id, $course->id, 'editingteacher');
+        $generator->enrol_user($USER->id, $course->id, 'editingteacher');
 
         $item = $this->factory->item()->repository()->insert_activity(
             $activity->cmid,
-            $user->id,
+            $USER->id,
             null,
             entity::STATUS_AWAITING_BACKUP
         );

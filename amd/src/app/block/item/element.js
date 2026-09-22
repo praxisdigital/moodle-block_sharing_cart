@@ -62,8 +62,8 @@ export default class ItemElement {
         Ajax.call([{
             methodname: 'block_sharing_cart_get_item_from_sharing_cart',
             args: {
-                item_id: this.getItemId(),
-                course_id: M.cfg.courseId
+                itemid: this.getItemId(),
+                courseid: M.cfg.courseId
             },
             done: async (item) => {
                 const actionsContainer = this.#element.querySelector(':scope > .item-body .sharing_cart_item_actions');
@@ -139,7 +139,7 @@ export default class ItemElement {
         Ajax.call([{
             methodname: 'block_sharing_cart_run_task_now',
             args: {
-                task_id: currentTarget?.dataset?.taskId ?? null,
+                taskid: currentTarget?.dataset?.taskId ?? null,
             },
             done: async () => {
                 currentTarget.remove();

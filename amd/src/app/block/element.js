@@ -154,7 +154,7 @@ export default class BlockElement {
                 Ajax.call([{
                     methodname: 'block_sharing_cart_reorder_sharing_cart_items',
                     args: {
-                        item_ids: this.#sortable.toArray().filter((id) => !isNaN(id)),
+                        itemids: this.#sortable.toArray().filter((id) => !isNaN(id)),
                     },
                     fail: (data) => {
                         Notification.exception(data);
@@ -425,7 +425,7 @@ export default class BlockElement {
         Ajax.call([{
             methodname: 'block_sharing_cart_delete_item_from_sharing_cart',
             args: {
-                item_id: item.getItemId(),
+                itemid: item.getItemId(),
             },
             done: async (deleted) => {
                 if (deleted) {
@@ -450,7 +450,7 @@ export default class BlockElement {
         Ajax.call([{
             methodname: 'block_sharing_cart_delete_items_from_sharing_cart',
             args: {
-                item_ids: itemIds,
+                itemids: itemIds,
             },
             done: async (deletedItemIds) => {
                 const items = this.#items.filter((i) => itemIds.includes(i.getItemId()));
@@ -600,7 +600,7 @@ export default class BlockElement {
             Ajax.call([{
                 methodname: 'block_sharing_cart_backup_section_into_sharing_cart',
                 args: {
-                    section_id: sectionId,
+                    sectionid: sectionId,
                     settings: settings
                 },
                 done: async (data) => {
@@ -629,7 +629,7 @@ export default class BlockElement {
             Ajax.call([{
                 methodname: 'block_sharing_cart_backup_course_module_into_sharing_cart',
                 args: {
-                    course_module_id: courseModuleId,
+                    coursemoduleid: courseModuleId,
                     settings: settings
                 },
                 done: async (data) => {
@@ -664,7 +664,7 @@ export default class BlockElement {
                 'item',
                 M.cfg.courseContextId,
                 {
-                    item_id: item.id,
+                    itemid: item.id,
                 }
             );
 
@@ -695,7 +695,7 @@ export default class BlockElement {
                 status_awaiting: true,
                 show_run_now: false,
                 can_copy_to_course: item.can_copy_to_course ?? false,
-                task_id: item.task_id ?? null,
+                taskid: item.taskid ?? null,
                 status_finished: false,
                 status_failed: false,
                 is_module: item.type !== 'section' && item.type !== 'mod_subsection',
@@ -739,9 +739,9 @@ export default class BlockElement {
         Ajax.call([{
             methodname: 'block_sharing_cart_restore_item_from_sharing_cart_into_section',
             args: {
-                item_id: item.getItemId(),
-                section_id: sectionId,
-                course_modules_to_include: courseModuleIds,
+                itemid: item.getItemId(),
+                sectionid: sectionId,
+                coursemodulestoinclude: courseModuleIds,
             },
             done: async (success) => {
                 if (success) {
@@ -791,8 +791,8 @@ export default class BlockElement {
             'item_restore_form',
             pageContextId,
             {
-                item_id: item.getItemId(),
-                clipboard_target_id:sectionId
+                itemid: item.getItemId(),
+                clipboardtargetid: sectionId
             }
         );
 

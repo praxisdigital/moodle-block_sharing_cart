@@ -1,4 +1,18 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace block_sharing_cart\integration\event;
 
@@ -7,26 +21,31 @@ use block_sharing_cart\event\restored_section;
 use core\event\base;
 use Exception;
 
-// @codeCoverageIgnoreStart
-defined('MOODLE_INTERNAL') || die();
-// @codeCoverageIgnoreEnd
+/**
+ * Unit/integration tests for the Sharing Cart block.
+ *
+ * @package   block_sharing_cart
+ * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 
-class restored_section_test extends advanced_testcase
-{
-    protected function setUp(): void
-    {
+/**
+ * @covers \block_sharing_cart\event\restored_section
+ */
+final class restored_section_test extends advanced_testcase {
+    protected function setUp(): void {
+        parent::setUp();
         $this->resetAfterTest();
     }
 
-    private function get_triggered_event(base $event): restored_section
-    {
-        $event_redirect = $this->redirectEvents();
+    private function get_triggered_event(base $event): restored_section {
+        $eventredirect = $this->redirectEvents();
 
         $event->trigger();
 
-        $event_redirect->close();
+        $eventredirect->close();
 
-        $events = $event_redirect->get_events();
+        $events = $eventredirect->get_events();
 
         $actual = $events[array_key_first($events)];
         if (!$actual instanceof restored_section) {
@@ -41,8 +60,7 @@ class restored_section_test extends advanced_testcase
      * @return void
      * @throws Exception
      */
-    public function test_trigger_event(): void
-    {
+    public function test_trigger_event(): void {
         global $DB;
         self::setAdminUser();
 
@@ -51,21 +69,21 @@ class restored_section_test extends advanced_testcase
         $generator = self::getDataGenerator();
         $course = $generator->create_course();
 
-        $section_number = $DB->count_records_select('course_sections', "course = ?", [$course->id]);
+        $sectionnumber = $DB->count_records_select('course_sections', "course = ?", [$course->id]);
         $section = $generator->create_course_section([
             'course' => $course->id,
-            'section' => $section_number + 1,
+            'section' => $sectionnumber + 1,
         ]);
 
-        $start_time = time();
-        $finish_time = time() + 10;
+        $starttime = time();
+        $finishtime = time() + 10;
 
         $event = restored_section::create_by_section(
             $course->id,
             $section->id,
             $USER->id,
-            $start_time,
-            $finish_time
+            $starttime,
+            $finishtime
         );
 
         $actual = $this->get_triggered_event($event);

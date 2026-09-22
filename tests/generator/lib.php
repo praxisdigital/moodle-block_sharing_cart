@@ -1,32 +1,49 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 use block_sharing_cart\app\item\entity;
 
-defined('MOODLE_INTERNAL') || die();
+/**
+ * Unit/integration tests for the Sharing Cart block.
+ *
+ * @package   block_sharing_cart
+ * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 
-class block_sharing_cart_generator extends testing_data_generator
-{
+class block_sharing_cart_generator extends testing_data_generator {
+    private array $createditemsidshistory = [];
 
-    private array $created_items_ids_history = [];
-
-    public function create_sharing_cart_item(array $sharing_cart_item):void {
+    public function create_sharing_cart_item(array $sharingcartitem):void {
         global $DB;
 
         $time = time();
         $item = [
-            'user_id' => $sharing_cart_item['user_id'],
+            'user_id' => $sharingcartitem['user_id'],
             'file_id' => null,
-            'parent_item_id' => empty($sharing_cart_item['parent_item_name']) ? null : $this->created_items_ids_history[$sharing_cart_item['parent_item_name']],
+            'parent_item_id' => empty($sharingcartitem['parent_item_name']) ? null : $this->createditemsidshistory[$sharingcartitem['parent_item_name']],
             'old_instance_id' => 1,
-            'type' => $sharing_cart_item['type'],
-            'name' => $sharing_cart_item['name'],
+            'type' => $sharingcartitem['type'],
+            'name' => $sharingcartitem['name'],
             'status' => 1,
             'version' => 3,
             'timecreated' => $time,
             'timemodified' => $time
         ];
 
-        $this->created_items_ids_history[$sharing_cart_item['name']] = $DB->insert_record('block_sharing_cart_items', $item,true);
-
+        $this->createditemsidshistory[$sharingcartitem['name']] = $DB->insert_record('block_sharing_cart_items', $item, true);
     }
 }

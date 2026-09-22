@@ -1,82 +1,95 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace block_sharing_cart\output\block;
-
-// @codeCoverageIgnoreStart
-defined('MOODLE_INTERNAL') || die();
 
 // @codeCoverageIgnoreEnd
 
 use block_sharing_cart\app\factory as base_factory;
 use block_sharing_cart\app\item\entity;
 
-class content implements \renderable, \core\output\named_templatable
-{
-    private base_factory $base_factory;
-    private int $user_id;
-    private int $course_id;
+/**
+ * Class output\block\content for the Sharing Cart block.
+ *
+ * @package   block_sharing_cart
+ * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 
-    public function __construct(base_factory $base_factory, int $user_id, int $course_id)
-    {
-        $this->base_factory = $base_factory;
-        $this->user_id = $user_id;
-        $this->course_id = $course_id;
+class content implements \renderable, \core\output\named_templatable {
+    private base_factory $basefactory;
+    private int $userid;
+    private int $courseid;
+
+    public function __construct(base_factory $basefactory, int $userid, int $courseid) {
+        $this->basefactory = $basefactory;
+        $this->userid = $userid;
+        $this->courseid = $courseid;
     }
 
-    public function get_template_name(\renderer_base $renderer): string
-    {
+    public function get_template_name(\renderer_base $renderer): string {
         return 'block_sharing_cart/block/content';
     }
 
-    private function export_items_for_template(): array
-    {
+    private function export_items_for_template(): array {
         global $USER, $DB;
 
-        $backup_tasks = $DB->get_records('task_adhoc', [
+        $backuptasks = $DB->get_records('task_adhoc', [
             'userid' => $USER->id,
             'classname' => "\\block_sharing_cart\\task\\asynchronous_backup_task",
         ]);
-        array_walk($backup_tasks, static function (object $task) {
-            $task->item_id = json_decode($task->customdata)?->item?->id;
+        array_walk($backuptasks, static function (object $task) {
+            $task->itemid = json_decode($task->customdata)?->item?->id;
             unset($task->customdata);
         });
-        $backup_tasks = array_combine(
-            array_column($backup_tasks, 'item_id'),
-            $backup_tasks
+        $backuptasks = array_combine(
+            array_column($backuptasks, 'item_id'),
+            $backuptasks
         );
 
-
-        $all_item_contexts = $this->base_factory->item()->repository()->get_by_user_id($this->user_id)->map(
-            static function (entity $item) use ($backup_tasks) {
-                return item::export_item_for_template($item, $backup_tasks);
+        $allitemcontexts = $this->basefactory->item()->repository()->get_by_user_id($this->userid)->map(
+            static function (entity $item) use ($backuptasks) {
+                return item::export_item_for_template($item, $backuptasks);
             }
         );
 
-        $root_item_contexts = $all_item_contexts->filter(static function (object $item_context) {
-            return $item_context->is_root;
+        $rootitemcontexts = $allitemcontexts->filter(static function (object $itemcontext) {
+            return $itemcontext->is_root;
         });
 
-        $root_item_contexts = $root_item_contexts->map(function (object $root_item_context) use ($all_item_contexts) {
-            $root_item_context->children = item::get_item_children($root_item_context, $all_item_contexts);
-            return $root_item_context;
+        $rootitemcontexts = $rootitemcontexts->map(function (object $rootitemcontext) use ($allitemcontexts) {
+            $rootitemcontext->children = item::get_item_children($rootitemcontext, $allitemcontexts);
+            return $rootitemcontext;
         });
 
-        return $root_item_contexts->to_array(true);
+        return $rootitemcontexts->to_array(true);
     }
 
-    public function export_for_template(\renderer_base $output): array
-    {
-        $course_context = \core\context\course::instance($this->course_id);
+    public function export_for_template(\renderer_base $OUTPUT): array {
+        $coursecontext = \core\context\course::instance($this->courseid);
 
         return [
             'items' => $this->export_items_for_template(),
-            'canBackupUserdata' => has_capability('moodle/backup:userinfo', $course_context),
-            'canAnonymizeUserdata' => has_capability('moodle/backup:anonymise', $course_context),
-            'canBackup' => has_capability('moodle/backup:backupactivity', $course_context),
+            'canBackupUserdata' => has_capability('moodle/backup:userinfo', $coursecontext),
+            'canAnonymizeUserdata' => has_capability('moodle/backup:anonymise', $coursecontext),
+            'canBackup' => has_capability('moodle/backup:backupactivity', $coursecontext),
             'showCopiesQueuedSegmentWhenEmpty' => get_config('block_sharing_cart', 'show_copies_queued_segment_when_empty'),
             'showSharingCartBasket' => get_config('block_sharing_cart', 'show_sharing_cart_basket'),
             'showCopySectionInBlock' => (bool)get_config('block_sharing_cart', 'show_copy_section_in_block'),
-            'courseContextId' => $course_context->id,
+            'courseContextId' => $coursecontext->id,
         ];
     }
 }

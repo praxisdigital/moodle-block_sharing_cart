@@ -1,9 +1,20 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace block_sharing_cart\external\task;
-
-// @codeCoverageIgnoreStart
-defined('MOODLE_INTERNAL') || die();
 
 // @codeCoverageIgnoreEnd
 
@@ -12,22 +23,28 @@ use core_external\external_description;
 use core_external\external_function_parameters;
 use core_external\external_value;
 
-class run_now extends external_api
-{
-    public static function execute_parameters(): external_function_parameters
-    {
+/**
+ * Class external\task\run_now for the Sharing Cart block.
+ *
+ * @package   block_sharing_cart
+ * @copyright 2021 Praxis <moodle@praxis.dk>
+ * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
+class run_now extends external_api {
+    public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
-            'task_id' => new external_value(PARAM_INT, '', VALUE_REQUIRED),
+            'taskid' => new external_value(PARAM_INT, '', VALUE_REQUIRED),
         ]);
     }
 
     public static function execute(
-        int $task_id,
+        int $taskid,
     ): bool {
         global $USER, $DB;
 
         $params = self::validate_parameters(self::execute_parameters(), [
-            'task_id' => $task_id,
+            'taskid' => $taskid,
         ]);
 
         self::validate_context(
@@ -55,7 +72,7 @@ class run_now extends external_api
         $task = $DB->get_record(
             'task_adhoc',
             [
-                'id' => $params['task_id'],
+                'id' => $params['taskid'],
                 'component' => 'block_sharing_cart',
                 'faildelay' => 0,
                 'timestarted' => null,
@@ -74,8 +91,7 @@ class run_now extends external_api
         return true;
     }
 
-    public static function execute_returns(): external_description
-    {
+    public static function execute_returns(): external_description {
         return new external_value(PARAM_BOOL, '', VALUE_REQUIRED);
     }
 }
