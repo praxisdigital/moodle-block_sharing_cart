@@ -77,8 +77,8 @@ class restored_section extends restore
         int $userid,
         int $starttime = 0,
         int $finishtime = 0
-    ): static {
-        return static::create([
+    ): \core\event\base {
+        return self::create([
             'objectid' => $sectionid,
             'context' => \core\context\course::instance($courseid),
             'relateduserid' => $userid,

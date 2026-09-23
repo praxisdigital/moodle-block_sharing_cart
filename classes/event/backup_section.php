@@ -63,8 +63,8 @@ class backup_section extends backup
         int $courseid,
         int $sectionid,
         int $userid
-    ): static {
-        return static::create([
+    ): \core\event\base {
+        return self::create([
             'context' => \core\context\user::instance($userid),
             'relateduserid' => $userid,
             'other' => [

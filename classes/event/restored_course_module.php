@@ -80,8 +80,8 @@ class restored_course_module extends restore
         int $userid,
         int $starttime = 0,
         int $finishtime = 0
-    ): static {
-        return static::create([
+    ): \core\event\base {
+        return self::create([
             'objectid' => $coursemoduleid,
             'context' => \core\context\module::instance($coursemoduleid),
             'relateduserid' => $userid,

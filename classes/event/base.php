@@ -30,9 +30,6 @@ namespace block_sharing_cart\event;
  * @copyright moxis
  * @license https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-/**
- * @method static static create(array $data = null)
- */
 abstract class base extends \core\event\base
 {
     /** CRUD_CREATE constant. */

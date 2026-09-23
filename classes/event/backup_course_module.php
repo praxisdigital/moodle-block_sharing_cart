@@ -64,12 +64,12 @@ class backup_course_module extends backup
         int $courseid,
         int $coursemoduleid,
         int $userid
-    ): static {
+    ): \core\event\base {
         global $USER;
 
         $userid ??= $USER->id;
 
-        return static::create([
+        return self::create([
             'context' => \core\context\user::instance($userid),
             'relateduserid' => $userid,
             'other' => [
