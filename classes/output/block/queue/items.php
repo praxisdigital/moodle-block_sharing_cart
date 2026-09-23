@@ -69,7 +69,7 @@ class items implements \core\output\named_templatable, \renderable {
         foreach ($records as $record) {
             $customdata = json_decode($record->customdata);
 
-            $backupsettings = $customdata->backupsettings ?? null;
+            $backupsettings = $customdata->backup_settings ?? null;
 
             $item = $customdata->item ?? null;
             $courseid = $customdata->courseid ?? null;

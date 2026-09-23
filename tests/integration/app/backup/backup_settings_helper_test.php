@@ -76,7 +76,7 @@ final class backup_settings_helper_test extends \advanced_testcase
      */
     // phpcs:ignore moodle.Files.LineLength.TooLong
     public function test_construct_backup_plan_settings_sets_all_sections_and_modules_to_not_include_users_when_users_are_set_to_false(): void {
-        $this->customdata1->backupsettings["users"] = false;
+        $this->customdata1->backup_settings["users"] = false;
         $this->customdata1->item["old_instance_id"] = $this->section1Course1->id;
         $this->customdata1->item["type"] = "section";
 
@@ -110,7 +110,7 @@ final class backup_settings_helper_test extends \advanced_testcase
      */
     // phpcs:ignore moodle.Files.LineLength.TooLong
     public function test_construct_backup_plan_settings_sets_all_sections_and_modules_to_include_users_when_users_are_set_to_true_and_user_has_capability(): void {
-        $this->customdata1->backupsettings["users"] = true;
+        $this->customdata1->backup_settings["users"] = true;
         $this->customdata1->item["old_instance_id"] = $this->section1Course1->id;
         $this->customdata1->item["type"] = "section";
 
@@ -151,7 +151,7 @@ final class backup_settings_helper_test extends \advanced_testcase
             );
         }
 
-        $this->customdata1->backupsettings["users"] = true;
+        $this->customdata1->backup_settings["users"] = true;
         $this->customdata1->item["old_instance_id"] = $this->section1Course1->id;
         $this->customdata1->item["type"] = "section";
 
@@ -175,8 +175,8 @@ final class backup_settings_helper_test extends \advanced_testcase
             );
         }
 
-        $this->customdata1->backupsettings["users"] = true;
-        $this->customdata1->backupsettings["anonymize"] = true;
+        $this->customdata1->backup_settings["users"] = true;
+        $this->customdata1->backup_settings["anonymize"] = true;
         $this->customdata1->item["old_instance_id"] = $this->section1Course1->id;
         $this->customdata1->item["type"] = "section";
 

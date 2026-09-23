@@ -154,7 +154,7 @@ final class asynchronous_restore_task_test extends \advanced_testcase
             $targetsection->id,
             $item->get_id(),
             [
-                'coursemodulestoinclude' => [(int)$item->get_old_instance_id()],
+                'course_modules_to_include' => [(int)$item->get_old_instance_id()],
             ]
         );
         self::assertInstanceOf(asynchronous_restore_task::class, $restoretask);
@@ -163,6 +163,14 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         self::assertObjectNotHasProperty('backupid', $customdata);
         self::assertSame((int)$target->id, (int)$customdata->courseid);
         self::assertNotEmpty($customdata->item);
+        self::assertSame(
+            (int)$targetsection->id,
+            (int)($customdata->backup_settings->move_to_section_id ?? 0)
+        );
+        self::assertSame(
+            [(int)$item->get_old_instance_id()],
+            array_map('intval', (array)($customdata->backup_settings->course_modules_to_include ?? []))
+        );
 
         self::assertSame($controllersbefore, $DB->count_records('backup_controllers'));
     }
@@ -194,7 +202,7 @@ final class asynchronous_restore_task_test extends \advanced_testcase
             $targetsection->id,
             $item->get_id(),
             [
-                'coursemodulestoinclude' => [(int)$item->get_old_instance_id()],
+                'course_modules_to_include' => [(int)$item->get_old_instance_id()],
             ]
         );
         self::assertInstanceOf(asynchronous_restore_task::class, $restoretask);

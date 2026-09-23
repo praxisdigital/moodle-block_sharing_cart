@@ -87,7 +87,7 @@ class item_into_section extends external_api
 
         // Only pass include/exclude list when the user can configure restore in the target course context.
         if (has_capability('moodle/restore:configure', $context)) {
-            $settings['coursemodulestoinclude'] = $params['coursemodulestoinclude'] ?? [];
+            $settings['course_modules_to_include'] = $params['coursemodulestoinclude'] ?? [];
         }
 
         $result = $basefactory->restore()->handler()->restore_item_into_section(

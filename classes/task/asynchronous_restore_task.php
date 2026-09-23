@@ -194,14 +194,17 @@ class asynchronous_restore_task extends \core\task\adhoc_task
 
             $customdata = $this->get_custom_data();
 
-            $backupsettings = $customdata->backupsettings ?? null;
+            $backupsettings = $customdata->backup_settings ?? null;
 
-            $movetosectionid = $backupsettings->movetosectionid ?? null;
+            $movetosectionid = $backupsettings->move_to_section_id ?? null;
             if ($movetosectionid) {
                 $this->update_section_number($restorecontroller, $movetosectionid);
             }
 
-            $coursemodulestoinclude = array_map('intval', $backupsettings->coursemodulestoinclude ?? []);
+            $coursemodulestoinclude = array_map(
+                'intval',
+                $backupsettings->course_modules_to_include ?? []
+            );
             if (!empty($coursemodulestoinclude) && $coursemodulestoinclude !== [0]) {
                 $this->only_include_specified_course_modules($restorecontroller, $coursemodulestoinclude);
             }

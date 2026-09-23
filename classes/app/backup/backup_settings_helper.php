@@ -77,7 +77,7 @@ class backup_settings_helper {
             'filename' => 'sharing_cart_backup-' . $itementity->get_id() . '.mbz',
         ];
 
-        $backupsettings = (object)$customdata->backupsettings;
+        $backupsettings = (object)$customdata->backup_settings;
 
         if (!empty($backupsettings->users)) {
             require_capability('moodle/backup:userinfo', $backupcontrollercontext);

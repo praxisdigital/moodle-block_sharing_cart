@@ -60,7 +60,7 @@ class handler
 
         $courseid = (int)$DB->get_field('course_sections', 'course', ['id' => $sectionid], MUST_EXIST);
 
-        $settings['movetosectionid'] = $sectionid;
+        $settings['move_to_section_id'] = $sectionid;
 
         $backupfile = $this->basefactory->item()->repository()->get_stored_file_by_item($item);
         if (!$backupfile) {
