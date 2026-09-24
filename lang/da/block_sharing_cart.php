@@ -7,7 +7,7 @@ $string['pluginname'] = 'Delingskurv';
 $string['items'] = 'Backups';
 $string['restores'] = 'Kopieringer i kø';
 $string['no_items'] = 'Ingen backups.<br><br>Træk og slip aktiviteter eller sektioner ind i delingskurven eller klik på <i class="fa fa-shopping-basket"></i> ikonet, for at tilføje elementer til Delingskurven.';
-$string['no_restores'] = '<div class="no-restores font-italic text-muted">Ingen kopieringer i kø.</div>';
+$string['no_restores'] = '<div class="no-restores fst-italic text-muted">Ingen kopieringer i kø.</div>';
 $string['has_items'] = 'Klik på <i class="fa fa-clone"></i> ikonet for at kopiere elementer fra Delingskurven til kurset.';
 $string['nopermissions'] = 'Du har ikke tilladelse til at lave backup eller gendanne elementer i dette kursus. Kontakt venligst din administrator, hvis du mener, dette er en fejl.';
 
