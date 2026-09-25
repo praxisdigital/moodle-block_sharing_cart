@@ -162,8 +162,8 @@ export default class CourseElement {
                 const courseSectionsElementList = section.querySelectorAll('.section-item ul[data-for="cmlist"]');
 
                 if (!courseSectionsElementList) {
- return;
-}
+                    return;
+                }
 
                 courseSectionsElementList.forEach((courseSectionElement) => {
 
