@@ -14,15 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
-/**
- * behat_block_sharing_cart.php
- *
- * @package    block_sharing_cart
- * @copyright  moxis
- * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- */
-defined('MOODLE_INTERNAL') || die();
-
 require_once(__DIR__ . '/../../../../lib/behat/behat_base.php');
 
 /**

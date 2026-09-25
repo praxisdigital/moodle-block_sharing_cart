@@ -163,6 +163,12 @@ class asynchronous_backup_task extends \core\task\adhoc_task
             if ($status == \backup::STATUS_AWAITING && $execution == \backup::EXECUTION_DELAYED) {
                 $this->before_backup_started_hook($bc);
 
+                // Ensure $CFG backup version/release match backup::VERSION in this process.
+                // Controller construction (often another process) already bumped the DB; load_controller
+                // does not re-apply, so workers / Behat CLI would otherwise write install defaults
+                // (2008111700 / 2.0 dev) into moodle_backup.xml.
+                \backup_controller_dbops::apply_version_and_release();
+
                 // Execute the backup.
                 $bc->execute_plan();
 

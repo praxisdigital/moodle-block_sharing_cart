@@ -5,7 +5,9 @@ Feature: As an editing teacher that has successfully copied a section with a sub
   in the sharing cart clipboard, the subsection should nest it's activities inside of it.
 
   Background:
-    Given the following "users" exist:
+    Given the "mod_subsection" plugin is installed
+    And I enable "subsection" "mod" plugin
+    And the following "users" exist:
       | username | firstname | lastname | email                |
       | teacher1 | Teacher   | 1        | teacher1@example.com |
     And the following "courses" exist:

@@ -5,7 +5,9 @@ Feature: As an editing teacher, copying a section with a subsection, should auto
   include any nested activities inside the subsection when copying the section to a different section.
 
   Background:
-    Given the following "users" exist:
+    Given the "mod_subsection" plugin is installed
+    And I enable "subsection" "mod" plugin
+    And the following "users" exist:
       | username | firstname | lastname | email                |
       | teacher1 | Teacher   | 1        | teacher1@example.com |
     And the following "courses" exist:
