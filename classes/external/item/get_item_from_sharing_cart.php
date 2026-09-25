@@ -58,11 +58,11 @@ class get_item_from_sharing_cart extends external_api
             'classname' => "\\block_sharing_cart\\task\\asynchronous_backup_task",
         ]);
         array_walk($backuptasks, static function (object $task) {
-            $task->itemid = json_decode($task->customdata)?->item?->id;
+            $task->item_id = json_decode($task->customdata)?->item?->id;
             unset($task->customdata);
         });
         $backuptasks = array_combine(
-            array_column($backuptasks, 'itemid'),
+            array_column($backuptasks, 'item_id'),
             $backuptasks
         );
         $backuptask = $backuptasks[$item->get_id()] ?? null;

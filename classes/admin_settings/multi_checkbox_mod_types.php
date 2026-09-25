@@ -16,7 +16,7 @@
 
 namespace block_sharing_cart\admin_settings;
 
-use block_sharing_cart\app\factory as base_factory;
+use block_sharing_cart\app\factory as basefactory;
 
 /**
  * Multi-checkbox admin setting for module types.
@@ -36,7 +36,7 @@ class multi_checkbox_mod_types extends multi_checkbox_with_icon
      * @param ?array $defaultsetting
      */
     public function __construct(string $name, string $visiblename, string $description, ?array $defaultsetting = null) {
-        $basefactory = base_factory::make();
+        $basefactory = basefactory::make();
         $db = $basefactory->moodle()->db();
         $output = $basefactory->moodle()->output();
 

@@ -66,7 +66,7 @@ $string['no_course_modules_in_section_description'] = 'This section does not con
     ' and you are therefore not able to copy it.';
 $string['no_items'] = 'No items.<br><br>Drag & drop activities or sections into the sharing cart or click the' .
     ' <i class="fa fa-shopping-basket"></i> icon, to add items to the Sharing Cart.';
-$string['no_restores'] = '<div class="no-restores font-italic text-muted">No copies queued.</div>';
+$string['no_restores'] = '<div class="no-restores fst-italic text-muted">No copies queued.</div>';
 $string['nopermissions'] = 'You do not have permission to backup or restore items in this course.' .
     ' Please contact your administrator if you think this is a mistake.';
 $string['old_version_module_info'] = 'This item was backed up using a previous version.';

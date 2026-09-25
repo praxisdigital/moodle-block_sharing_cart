@@ -67,7 +67,7 @@ class item implements \core\output\named_templatable, \renderable {
 
         $allowtorunnow = has_capability('block/sharing_cart:manual_run_task', \core\context\system::instance(), $USER);
 
-        $basefactory = base_factory::make();
+        $basefactory = basefactory::make();
         $db = $basefactory->moodle()->db();
 
         $backuptask = $backuptasks[$item->get_id()] ?? null;
@@ -156,7 +156,7 @@ class item implements \core\output\named_templatable, \renderable {
             'classname' => "\\block_sharing_cart\\task\\asynchronous_backup_task",
         ]);
         array_walk($backuptasks, static function (object $task) {
-            $task->itemid = json_decode($task->customdata)?->item?->id;
+            $task->item_id = json_decode($task->customdata)?->item?->id;
             unset($task->customdata);
         });
 

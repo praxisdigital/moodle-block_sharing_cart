@@ -66,7 +66,7 @@ $string['no_course_modules_in_section_description'] = 'Denne sektion indeholder 
     ' og du kan derfor ikke kopiere den.';
 $string['no_items'] = 'Ingen backups.<br><br>Træk og slip aktiviteter eller sektioner ind i delingskurven eller klik på' .
     ' <i class="fa fa-shopping-basket"></i> ikonet, for at tilføje elementer til Delingskurven.';
-$string['no_restores'] = '<div class="no-restores font-italic text-muted">Ingen kopieringer i kø.</div>';
+$string['no_restores'] = '<div class="no-restores fst-italic text-muted">Ingen kopieringer i kø.</div>';
 $string['nopermissions'] = 'Du har ikke tilladelse til at lave backup eller gendanne elementer i dette kursus.' .
     ' Kontakt venligst din administrator, hvis du mener, dette er en fejl.';
 $string['old_version_module_info'] = 'Dette element blev backup\'et med en tidligere version.';
