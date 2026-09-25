@@ -1,21 +1,37 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
-require_once __DIR__ . '/../../../../lib/behat/behat_base.php';
+require_once(__DIR__ . '/../../../../lib/behat/behat_base.php');
 
+/**
+ * behat_block_sharing_cart class.
+ *
+ * @package    block_sharing_cart
+ * @copyright  moxis
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 class behat_block_sharing_cart extends behat_base
 {
-
     /**
      *
      * @Given /^I enable the sharing cart plugin$/
      */
-    public function enable_sharing_cart_plugin()
-    {
+    public function enable_sharing_cart_plugin() {
         $this->get_selected_node("xpath_element", "//a[@data-key='addblock']")->click();
-        //$this->ensure_element_exists("//a[@data-blockname='sharing_cart']", "xpath_element");
+        // Wait until the add block menu is ready.
         $this->get_selected_node("xpath_element", "//a[@data-blockname='sharing_cart']")->click();
     }
-
-
-
 }

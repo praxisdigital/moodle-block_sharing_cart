@@ -1,7 +1,7 @@
 import ModalFactory from 'core/modal_factory';
 import ModalEvents from 'core/modal_events';
 import Notification from "core/notification";
-import {get_strings} from "core/str";
+import {get_strings as getStrings} from 'core/str';
 import Ajax from "core/ajax";
 
 const polls = [];
@@ -42,7 +42,7 @@ export default class ItemElement {
     #pollItem(currentTry = 0, retries = -1, uuid = null) {
 
         if (uuid === null) {
-            uuid = crypto.getRandomValues(new Uint32Array(1))[0]
+            uuid = crypto.getRandomValues(new Uint32Array(1))[0];
 
             if (polls[this.getItemId()]) {
                 return;
@@ -62,7 +62,9 @@ export default class ItemElement {
         Ajax.call([{
             methodname: 'block_sharing_cart_get_item_from_sharing_cart',
             args: {
+                // eslint-disable-next-line camelcase
                 item_id: this.getItemId(),
+                // eslint-disable-next-line camelcase
                 course_id: M.cfg.courseId
             },
             done: async(item) => {
@@ -139,9 +141,10 @@ export default class ItemElement {
         Ajax.call([{
             methodname: 'block_sharing_cart_run_task_now',
             args: {
+                // eslint-disable-next-line camelcase
                 task_id: currentTarget?.dataset?.taskId ?? null,
             },
-            done: async () => {
+            done: async() => {
                 currentTarget.remove();
                 this.#pollItem();
             },
@@ -157,7 +160,7 @@ export default class ItemElement {
         e.stopPropagation();
         e.stopImmediatePropagation();
 
-        const strings = await get_strings([
+        const strings = await getStrings([
             {
                 key: 'delete_item',
                 component: 'block_sharing_cart',
@@ -181,7 +184,7 @@ export default class ItemElement {
             title: strings[0] + ': "' + this.getItemName().slice(0, 50).trim() + '"',
             body: strings[1],
             buttons: {
-                delete: strings[2],
+                "delete": strings[2],
                 cancel: strings[3],
             },
             removeOnClose: true,
@@ -243,7 +246,7 @@ export default class ItemElement {
      */
     toggleCollapse(item, collapse = null, paddingLeftPercent = 0) {
 
-        if(item.style.paddingLeft === ''){
+        if (item.style.paddingLeft === '') {
             item.style.paddingLeft = `${paddingLeftPercent}%`;
         }
 
@@ -275,7 +278,7 @@ export default class ItemElement {
             if (classMap) {
                 iconElement.classList.remove(...classMap);
 
-                //Add the correct class based on collapsed state
+                // Add the correct class based on collapsed state
                 const collapsed = item.dataset.collapsed === 'true';
                 const classToAdd = collapsed ? classMap[0] : classMap[1];
                 iconElement.classList.add(classToAdd);
@@ -291,7 +294,7 @@ export default class ItemElement {
         return this.#element.dataset.type === 'section';
     }
 
-    isSubsection(){
+    isSubsection() {
         return this.#element.dataset.type === 'mod_subsection';
     }
 
@@ -299,21 +302,27 @@ export default class ItemElement {
      * Checks if the item's element is nested under a subsection in the clipboard.
      * @returns {boolean}
      */
-    isNestedUnderSubsection(){
+    isNestedUnderSubsection() {
 
         let tempElem = this.getItemElement();
         const maxIterations = 5;
         let i = 0;
-        //Loop upwards in the tree, from item.
-        while(tempElem != null && i < maxIterations){
-            tempElem = tempElem.parentElement
-            if(tempElem.classList.contains("sharing_cart_item")) break;
+        // Loop upwards in the tree, from item.
+        while (tempElem !== null && i < maxIterations) {
+            tempElem = tempElem.parentElement;
+            if (tempElem.classList.contains("sharing_cart_item")) {
+                break;
+            }
             i++;
         }
 
-        if(!tempElem) return false;
+        if (!tempElem) {
+            return false;
+        }
 
-        if(tempElem.dataset.type && tempElem.dataset.type === "mod_subsection") return true;
+        if (tempElem.dataset.type && tempElem.dataset.type === "mod_subsection") {
+            return true;
+        }
 
         return false;
     }

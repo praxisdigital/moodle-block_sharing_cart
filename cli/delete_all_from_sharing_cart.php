@@ -1,8 +1,29 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
-const CLI_SCRIPT = true;
+/**
+ * delete_all_from_sharing_cart.php
+ *
+ * @package    block_sharing_cart
+ * @copyright  moxis
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+define('CLI_SCRIPT', true);
 
-require __DIR__ . '/../../../config.php';
+require(__DIR__ . '/../../../config.php');
 
 global $CFG, $DB;
 require_once($CFG->libdir . "/clilib.php");
@@ -39,39 +60,40 @@ EOT;
     die;
 }
 
-$is_dry_run = $options['execute'] === false;
+$isdryrun = $options['execute'] === false;
 
 cli_heading('Checking amount of items in sharing cart across all users');
-$base_factory = \block_sharing_cart\app\factory::make();
+$basefactory = \block_sharing_cart\app\factory::make();
 
-$item_count = $base_factory->item()->repository()->get_count();
-cli_writeln("Found {$item_count} items in the sharing cart.");
+$itemcount = $basefactory->item()->repository()->get_count();
+cli_writeln("Found {$itemcount} items in the sharing cart.");
 
-if ($is_dry_run) {
+if ($isdryrun) {
     die();
 }
 
-if ($item_count === 0) {
+if ($itemcount === 0) {
     cli_writeln("Nothing to delete. Aborting...");
     die();
 }
 
 cli_heading('Proceeding with deletion of all items in sharing cart across all users');
 
-$failed_deletions = 0;
+$faileddeletions = 0;
 
-$records = $DB->get_recordset($base_factory->item()->repository()->get_table(), fields: 'id');
+$records = $DB->get_recordset($basefactory->item()->repository()->get_table(), fields: 'id');
 foreach ($records as $record) {
     try {
         cli_writeln("Deleting item with id {$record->id} from sharing cart...");
-        $base_factory->item()->repository()->delete_by_id($record->id);
+        $basefactory->item()->repository()->delete_by_id($record->id);
     } catch (\Exception $e) {
         cli_writeln(
-            "Failed to delete item with id {$record->id} from sharing cart. Error: {$e->getMessage()} Trace: {$e->getTraceAsString()}"
+            "Failed to delete item with id {$record->id} from sharing cart." .
+            " Error: {$e->getMessage()} Trace: {$e->getTraceAsString()}"
         );
-        $failed_deletions++;
+        $faileddeletions++;
     }
 }
 $records->close();
 
-cli_writeln("Deletion process completed. {$failed_deletions} items couldn't be deleted.");
+cli_writeln("Deletion process completed. {$faileddeletions} items couldn't be deleted.");

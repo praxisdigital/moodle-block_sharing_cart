@@ -29,11 +29,12 @@ export default class Template {
     async renderTemplate(template, data) {
         return await new Promise((resolve, reject) => {
             Templates.render(template, data)
-                .then(async (html, js) => {
+                .then(async(html, js) => {
                     resolve({
                         html,
                         js
                     });
+                    return null;
                 }).fail(reject);
         });
     }
@@ -62,6 +63,7 @@ export default class Template {
                     html,
                     js
                 });
+                return null;
             }).fail(reject);
         });
     }
