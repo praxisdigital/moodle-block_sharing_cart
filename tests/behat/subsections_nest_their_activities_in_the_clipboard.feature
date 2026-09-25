@@ -1,4 +1,4 @@
-@blocks @blocks_sharing_cart
+@block @block_sharing_cart
 @javascript
 
 Feature: As an editing teacher that has successfully copied a section with a subsection containing an activity,
@@ -25,21 +25,14 @@ Feature: As an editing teacher that has successfully copied a section with a sub
       | 2       |  Subsection 1    | mod_book       | Subsection 1 Book 1      |
 
   Scenario: The editing teacher is on the course page and has enabled editing mode, aswell as enabled the sharing cart plugin.
-  The editing teacher clicks the folder icon in the items clipboard of the sharing card, and clicks the subsection icon.
-
+    The editing teacher clicks the folder icon in the items clipboard of the sharing card, and clicks the subsection icon.
     Given I log in as "admin"
-
     And I am on "Course 1" course homepage with editing mode on
-
-    #Enable sharing cart plugin
+    # Enable sharing cart plugin.
     And I click on "//a[@data-key='addblock']" "xpath_element"
     And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists
     And I click on "//a[@data-blockname='sharing_cart']" "xpath_element"
-
     And I wait "5" seconds
-
-    #Click on section icon
+    # Click on section icon.
     When I click on "//div[@data-type='section']//i[@class='fa fa-folder-o']" "xpath_element"
-
     Then I should see "Subsection 1 Book 1" in the "//div[@data-type='mod_subsection']//div[@class='sharing_cart_item_children']//div[@data-type='mod_book']//span" "xpath_element"
-

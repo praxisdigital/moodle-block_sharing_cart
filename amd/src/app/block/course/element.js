@@ -219,7 +219,7 @@ export default class CourseElement {
      */
     isSectionClipboardTargetEligible(section, item) {
 
-        //Has already been made a clipboardTarget.
+        // Has already been made a clipboardTarget.
         if (section.querySelector('.clipboard_target')) {
             return false;
         }
@@ -230,12 +230,12 @@ export default class CourseElement {
             return false;
         }
 
-        //Activities can always be inserted into any clipboardTarget.
+        // Activities can always be inserted into any clipboardTarget.
         if (!item.isSubsection() && !item.isSection()) {
             return true;
         }
 
-        //No section nor subsection can be inserted into an activity clipboardTarget.
+        // No section nor subsection can be inserted into an activity clipboardTarget.
         if (section.closest('[data-region="activity-card"]')) {
             return false;
         }
