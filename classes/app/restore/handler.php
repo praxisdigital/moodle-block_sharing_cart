@@ -52,17 +52,13 @@ class handler
             throw new \Exception('Backup file not found for item (id: ' . $item->get_id() . ')');
         }
 
+        $this->base_factory->restore()->assert_backup_file_looks_valid($backup_file);
+
         if (!$this->restore_is_valid($item_id, $section_id, !empty($settings['insert_as_new_section']))) {
             return null;
         }
 
-        $restore_controller = $this->base_factory->restore()->restore_controller(
-            $backup_file,
-            $course_id,
-            $USER->id
-        );
-
-        return $this->queue_async_restore($restore_controller, $item, $settings);
+        return $this->queue_async_restore($item, $course_id, (int)$USER->id, $settings);
     }
 
     /**
@@ -70,8 +66,8 @@ class handler
      * The UI presents the user with the options of where to restore the item copied from the clipboard.
      * This function is the backend check of that logic.
      */
-    private function restore_is_valid(int $item_id, int $target_section_id, bool $insert_as_new_section = false) : bool{
-
+    private function restore_is_valid(int $item_id, int $target_section_id, bool $insert_as_new_section = false): bool
+    {
         global $DB;
 
         $sql = "SELECT
@@ -84,7 +80,7 @@ class handler
             'item_id' => $item_id,
         ];
 
-        $subject_item = $DB->get_record_sql($sql,$params,MUST_EXIST);
+        $subject_item = $DB->get_record_sql($sql, $params, MUST_EXIST);
 
         // Creating a new section (top level or under a regular section) only makes sense for section items.
         if ($insert_as_new_section && $subject_item->own_type !== 'section') {
@@ -102,34 +98,40 @@ class handler
         $is_target_a_subsection = !empty($target_section->component) && $target_section->component == 'mod_subsection';
 
         //Attempt to restore a section into a non-section?
-        if(!$is_target_a_section){
-            if($subject_item->own_type === 'section'){return false;}
+        if (!$is_target_a_section) {
+            if ($subject_item->own_type === 'section') {
+                return false;
+            }
         }
 
         //Attempt to restore a subsection into a subsection?
-        if($is_target_a_subsection){
-            if($subject_item->own_type === 'mod_subsection'){return false;}
+        if ($is_target_a_subsection) {
+            if ($subject_item->own_type === 'mod_subsection') {
+                return false;
+            }
 
             //Attempt to restore a subsections's child into a subsection?
-            if($subject_item->parent_type === 'mod_subsection'){return false;}
+            if ($subject_item->parent_type === 'mod_subsection') {
+                return false;
+            }
         }
 
         return true;
     }
 
     private function queue_async_restore(
-        \restore_controller $restore_controller,
         entity $item,
+        int $course_id,
+        int $user_id,
         array $settings = []
     ): asynchronous_restore_task {
         $asynctask = new asynchronous_restore_task();
         $asynctask->set_custom_data([
-            'backupid' => $restore_controller->get_restoreid(),
             'item' => $item->to_array(),
-            'course_id' => $restore_controller->get_courseid(),
+            'course_id' => $course_id,
             'backup_settings' => $settings
         ]);
-        $asynctask->set_userid($restore_controller->get_userid());
+        $asynctask->set_userid($user_id);
         \core\task\manager::queue_adhoc_task($asynctask);
 
         return $asynctask;
