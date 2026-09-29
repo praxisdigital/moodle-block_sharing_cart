@@ -1,51 +1,87 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace block_sharing_cart\integration;
-
-// @codeCoverageIgnoreStart
-defined('MOODLE_INTERNAL') || die();
-
-// @codeCoverageIgnoreEnd
 
 use advanced_testcase;
 use block_sharing_cart\app\factory;
 
-class observers_test extends advanced_testcase
+/**
+ * Unit/integration tests for the Sharing Cart block.
+ *
+ * @package   block_sharing_cart
+ * @copyright moxis
+ * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+final class observers_test extends advanced_testcase
 {
-    protected function setUp(): void
-    {
+    /**
+     * setUp
+     *
+     * @return void
+     */
+    protected function setUp(): void {
+        parent::setUp();
         $this->resetAfterTest();
     }
 
-    public function test_deleted_user_expect_sharing_cart_record_to_be_remove(): void
-    {
-        $user = self::getDataGenerator()->create_user();
-        $this->create_sharing_cart_item($user->id);
+    /**
+     * test_deleted_user_expect_sharing_cart_record_to_be_remove
+     *
+     * @return void
+     * @covers \block_sharing_cart\app\factory
+     */
+    public function test_deleted_user_expect_sharing_cart_record_to_be_remove(): void {
+        $USER = self::getDataGenerator()->create_user();
+        $this->create_sharing_cart_item($USER->id);
 
         self::assertTrue(
-            $this->has_sharing_cart_item($user->id)
+            $this->has_sharing_cart_item($USER->id)
         );
 
-        delete_user($user);
+        delete_user($USER);
 
         self::assertFalse(
-            $this->has_sharing_cart_item($user->id)
+            $this->has_sharing_cart_item($USER->id)
         );
     }
 
-    private function has_sharing_cart_item(int $user_id): bool
-    {
-        $base_factory = factory::make();
+    /**
+     * has_sharing_cart_item
+     *
+     * @param int $userid
+     * @return bool
+     */
+    private function has_sharing_cart_item(int $userid): bool {
+        $basefactory = factory::make();
 
-        return $base_factory->item()->repository()->get_by_user_id($user_id)->not_empty();
+        return $basefactory->item()->repository()->get_by_user_id($userid)->not_empty();
     }
 
-    private function create_sharing_cart_item(int $user_id): object
-    {
-        $base_factory = factory::make();
+    /**
+     * create_sharing_cart_item
+     *
+     * @param int $userid
+     * @return object
+     */
+    private function create_sharing_cart_item(int $userid): object {
+        $basefactory = factory::make();
 
-        $entity = $base_factory->item()->entity((object)[]);
-        $entity->set_user_id($user_id);
+        $entity = $basefactory->item()->entity((object)[]);
+        $entity->set_user_id($userid);
         $entity->set_file_id(0);
         $entity->set_parent_item_id(0);
         $entity->set_old_instance_id(0);
@@ -56,7 +92,7 @@ class observers_test extends advanced_testcase
         $entity->set_timecreated(time());
         $entity->set_timemodified(time());
 
-        $id = $base_factory->item()->repository()->insert($entity);
+        $id = $basefactory->item()->repository()->insert($entity);
 
         $entity->set_id($id);
 

@@ -209,7 +209,7 @@ Core only writes the copied section's title and description into a target
 whose fields are empty, so a merge silently kept the existing text. The import
 modal now offers "Also replace the title and description of X with those of the
 copied section" whenever the target has a title or description, and the web
-service accepts `replace_section_details`. `section_details_replacement`
+service accepts `replacesectiondetails`. `section_details_replacement`
 implements it by keeping the target's title, description and description files
 in a snapshot (file area `block_sharing_cart/section_snapshot`, item id = the
 section), then blanking them right before the plan runs so core fills them from
@@ -221,8 +221,8 @@ anyway.
 
 ### Insert as a new section (front page)
 
-The insert web service also accepts `insert_as_new_section` and, for the top
-level of a course, `section_id = 0` together with `course_id`. In that mode the
+The insert web service also accepts `insertasnewsection` and, for the top
+level of a course, `sectionid = 0` together with `courseid`. In that mode the
 copied section itself is planned like a descendant: it gets a fresh number, core
 creates it from the backup (name, summary, visibility included), and it becomes
 the parent of its own subtree. `after_sections_restored` then carries the root
@@ -242,7 +242,7 @@ section item is on the clipboard. pxgrid renders it under its card grid: on the
 front page with parent `0`, on a section page with that section as parent, so a
 copied section can also be dropped in as a new subsection.
 
-The optional `sections_to_include` parameter of the insert web service lets the
+The optional `sectionstoinclude` parameter of the insert web service lets the
 import modal drop whole branches; an excluded section drops its subtree.
 
 ## 8. User interface
@@ -253,7 +253,7 @@ import modal drop whole branches; an excluded section drops its subtree.
 - The import modal is built from the cart item subtree instead of the backup
   file and renders nested sections recursively. Section checkboxes carry
   `data-type="section"`; the block JavaScript sends them as
-  `sections_to_include` and everything else as `course_modules_to_include`.
+  `sectionstoinclude` and everything else as `coursemodulestoinclude`.
 - Drop targets: a section item (root or nested) can be inserted into any regular
   section but not into a core subsection, the same rule that applies to root
   sections today.

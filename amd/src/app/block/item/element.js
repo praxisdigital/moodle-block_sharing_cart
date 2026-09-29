@@ -1,7 +1,7 @@
 import ModalDeleteCancel from 'core/modal_delete_cancel';
 import ModalEvents from 'core/modal_events';
 import Notification from "core/notification";
-import {get_strings} from "core/str";
+import {get_strings as getStrings} from 'core/str';
 import Ajax from "core/ajax";
 
 const polls = [];
@@ -62,10 +62,10 @@ export default class ItemElement {
         Ajax.call([{
             methodname: 'block_sharing_cart_get_item_from_sharing_cart',
             args: {
-                item_id: this.getItemId(),
-                course_id: M.cfg.courseId
+                itemid: this.getItemId(),
+                courseid: M.cfg.courseId
             },
-            done: async (item) => {
+            done: async(item) => {
                 const actionsContainer = this.#element.querySelector(':scope > .item-body .sharing_cart_item_actions');
                 const runNowButton = actionsContainer?.querySelector('[data-action="run_now"]');
                 if (!runNowButton && item.show_run_now) {
@@ -139,9 +139,9 @@ export default class ItemElement {
         Ajax.call([{
             methodname: 'block_sharing_cart_run_task_now',
             args: {
-                task_id: currentTarget?.dataset?.taskId ?? null,
+                taskid: currentTarget?.dataset?.taskId ?? null,
             },
-            done: async () => {
+            done: async() => {
                 currentTarget.remove();
                 this.#pollItem();
             },
@@ -157,7 +157,7 @@ export default class ItemElement {
         e.stopPropagation();
         e.stopImmediatePropagation();
 
-        const strings = await get_strings([
+        const strings = await getStrings([
             {
                 key: 'delete_item',
                 component: 'block_sharing_cart',
@@ -180,7 +180,7 @@ export default class ItemElement {
             title: strings[0] + ': "' + this.getItemName().slice(0, 50).trim() + '"',
             body: strings[1],
             buttons: {
-                delete: strings[2],
+                "delete": strings[2],
                 cancel: strings[3],
             },
             removeOnClose: true,
@@ -274,7 +274,7 @@ export default class ItemElement {
             if (classMap) {
                 iconElement.classList.remove(...classMap);
 
-                //Add the correct class based on collapsed state
+                // Add the correct class based on collapsed state
                 const collapsed = item.dataset.collapsed === 'true';
                 const classToAdd = collapsed ? classMap[0] : classMap[1];
                 iconElement.classList.add(classToAdd);

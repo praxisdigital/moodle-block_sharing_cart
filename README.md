@@ -95,7 +95,7 @@ GPL v3
 Change Log
 ----------
 
-* 5.2, release 4 2026.09.28
+* 5.2, release 3 2026.09.29
     * Added support for copying sections with a nested structure (e.g. subsections) into the
       cart and restoring them with the structure preserved, via hooks a course format can
       implement. See docs/nested_sections_design.md.
@@ -106,12 +106,11 @@ Change Log
     * Fixed the block only refreshing the target section's state after a restore, which could
       leave newly restored sections briefly unrendered until a page reload.
     * Fixed restore_is_valid comparing against the wrong subsection type name.
-* 5.2, release 3 2026.09.18
+* 5.2, release 2 2026.09.21
     * Fixed async restore failing with `error/missing_roles_xml_file` on multi-frontend
       sites when web and cron do not share `backuptempdir`: queue no longer extracts the
       cart MBZ; the worker creates the restore controller and temp tree at task run.
     * Added light MBZ validation before queue. Documented multi-server behaviour in README.
-* 5.2, release 2 2026.07.24
     * Fixed sharing cart icon doesn't appear after course module items due to JS only scanning the first element of course content.
 * 5.2, release 1 2026.06.11
     * Added support for Moodle 5.2

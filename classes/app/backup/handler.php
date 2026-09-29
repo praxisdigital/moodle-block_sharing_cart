@@ -1,121 +1,164 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace block_sharing_cart\app\backup;
 
-// @codeCoverageIgnoreStart
-defined('MOODLE_INTERNAL') || die();
-
-// @codeCoverageIgnoreEnd
-
-use block_sharing_cart\app\factory as base_factory;
+use block_sharing_cart\app\factory as basefactory;
 use block_sharing_cart\app\item\entity;
 use block_sharing_cart\event\backup_course_module;
 use block_sharing_cart\event\backup_section;
 use block_sharing_cart\hook\backup\resolve_section_tree;
 use block_sharing_cart\task\asynchronous_backup_task;
 
+defined('MOODLE_INTERNAL') || die();
+
 global $CFG;
 require_once($CFG->dirroot . '/backup/util/includes/backup_includes.php');
 require_once($CFG->dirroot . '/backup/util/includes/restore_includes.php');
 require_once($CFG->dirroot . '/course/format/lib.php');
 
+/**
+ * Backup handler for the Sharing Cart block.
+ *
+ * @package   block_sharing_cart
+ * @copyright moxis
+ * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 class handler
 {
-    private base_factory $base_factory;
+    /** @var basefactory $basefactory */
+    private basefactory $basefactory;
 
-    public function __construct(base_factory $base_factory)
-    {
-        $this->base_factory = $base_factory;
+    /**
+     * __construct
+     *
+     * @param basefactory $basefactory
+     */
+    public function __construct(basefactory $basefactory) {
+        $this->basefactory = $basefactory;
     }
 
-    private function get_backup_info(\stored_file $file): object
-    {
-        /**
-         * @var \file_storage $fs
-         */
+    /**
+     * get_backup_info
+     *
+     * @param \stored_file $file
+     * @return object
+     */
+    private function get_backup_info(\stored_file $file): object {
+        // File storage instance.
         $fs = get_file_storage();
-        $file_path = $fs->get_file_system()->get_local_path_from_storedfile($file, true);
+        $filepath = $fs->get_file_system()->get_local_path_from_storedfile($file, true);
 
-        /** @var object $info */
-        $info = \backup_general_helper::get_backup_information_from_mbz($file_path);
+        // Backup information from the MBZ file.
+        $info = \backup_general_helper::get_backup_information_from_mbz($filepath);
 
         return $info;
     }
 
+    /**
+     * backup_course_module
+     *
+     * @param int $coursemoduleid
+     * @param entity $rootitem
+     * @param array $settings
+     * @return asynchronous_backup_task
+     */
     public function backup_course_module(
-        int $course_module_id,
-        entity $root_item,
+        int $coursemoduleid,
+        entity $rootitem,
         array $settings = []
     ): asynchronous_backup_task {
         global $USER;
 
-        $record = $this->base_factory->moodle()->db()->get_record(
+        $record = $this->basefactory->moodle()->db()->get_record(
             'course_modules',
-            ['id' =>  $course_module_id],
+            ['id' => $coursemoduleid],
             'id, course',
             MUST_EXIST
         );
 
-        $backup_controller = $this->base_factory->backup()->backup_controller(
+        $backupcontroller = $this->basefactory->backup()->backup_controller(
             \backup::TYPE_1ACTIVITY,
-            $course_module_id,
+            $coursemoduleid,
             $USER->id
         );
 
         backup_course_module::create_by_course_module(
             $record->course,
-            $course_module_id,
+            $coursemoduleid,
             $USER->id
         )->trigger();
 
-        return $this->queue_async_backup($backup_controller, $root_item, $settings);
+        return $this->queue_async_backup($backupcontroller, $rootitem, $settings);
     }
 
     /**
+     * backup_section
+     *
      * @param object $section course_sections record
-     * @param entity $root_item
+     * @param entity $rootitem
      * @param array $settings
-     * @param array|null $section_tree descendants as returned by resolve_section_tree(); resolved here when null
+     * @param array|null $sectiontree descendants as returned by resolve_section_tree(); resolved here when null
+     * @return array
      */
-    public function backup_section(object $section, entity $root_item, array $settings = [], ?array $section_tree = null): array
-    {
+    public function backup_section(
+        object $section,
+        entity $rootitem,
+        array $settings = [],
+        ?array $sectiontree = null
+    ): array {
         global $USER;
 
-        $course_id = $this->base_factory->moodle()->db()->get_record(
+        $courseid = $this->basefactory->moodle()->db()->get_record(
             'course_sections',
-            ['id' =>  $section->id],
+            ['id' => $section->id],
             'course',
             MUST_EXIST
         )->course;
 
         // The descendant sections of the copied section, as declared by the course format (nested formats only).
-        $settings['section_tree'] = $section_tree ?? $this->resolve_section_tree((int)$course_id, (int)$section->id);
+        $settings['section_tree'] = $sectiontree ?? $this->resolve_section_tree((int)$courseid, (int)$section->id);
 
-        $backup_controller = $this->base_factory->backup()->backup_controller(
+        $backupcontroller = $this->basefactory->backup()->backup_controller(
             \backup::TYPE_1COURSE,
-            $course_id,
+            $courseid,
             $USER->id
         );
 
-        $task = $this->queue_async_backup($backup_controller, $root_item, $settings);
+        $task = $this->queue_async_backup($backupcontroller, $rootitem, $settings);
 
         backup_section::create_by_section(
-            $course_id,
+            $courseid,
             $section->id,
             $USER->id
         )->trigger();
 
-        return ["task" => $task, "controller" => $backup_controller];
-
+        return ["task" => $task, "controller" => $backupcontroller];
     }
 
     /**
      * Depth-first list of {section_id, parent_section_id, sort_order, name} describing the descendants of a section,
      * as declared by the course format through the resolve_section_tree hook. Empty for formats that do not nest.
+     *
+     * @param int $courseid
+     * @param int $sectionid
+     * @return array
      */
-    public function resolve_section_tree(int $course_id, int $section_id): array
-    {
-        $hook = new resolve_section_tree($course_id, $section_id);
+    public function resolve_section_tree(int $courseid, int $sectionid): array {
+        $hook = new resolve_section_tree($courseid, $sectionid);
         \core\di::get(\core\hook\manager::class)->dispatch($hook);
 
         $tree = $hook->get_tree();
@@ -124,21 +167,21 @@ class handler
         }
 
         // Record the display names now; the backup manifest only carries section numbers for unnamed sections.
-        $course_format = course_get_format($course_id);
-        $sections = $this->base_factory->moodle()->db()->get_records_list(
+        $courseformat = course_get_format($courseid);
+        $sections = $this->basefactory->moodle()->db()->get_records_list(
             'course_sections',
             'id',
             array_map(static fn(object $node): int => $node->section_id, $tree)
         );
 
-        return array_map(static function (object $node) use ($course_format, $sections): array {
+        return array_map(static function (object $node) use ($courseformat, $sections): array {
             $section = $sections[$node->section_id] ?? null;
 
             $name = '';
             if ($section) {
                 $name = (string)$section->name !== ''
                     ? format_string($section->name)
-                    : $course_format->get_section_name($section);
+                    : $courseformat->get_section_name($section);
             }
 
             return [
@@ -155,23 +198,23 @@ class handler
      * structural parent that only contains subsections is copyable through its descendants.
      *
      * @param object $section course_sections record with at least 'sequence'
-     * @param array $section_tree descendants as returned by resolve_section_tree()
+     * @param array $sectiontree descendants as returned by resolve_section_tree()
+     * @return bool
      */
-    public function section_has_content(object $section, array $section_tree): bool
-    {
+    public function section_has_content(object $section, array $sectiontree): bool {
         if (trim((string)($section->sequence ?? '')) !== '') {
             return true;
         }
 
-        $section_ids = array_map(static fn(array|object $node): int => (int)((object)$node)->section_id, $section_tree);
-        if (empty($section_ids)) {
+        $sectionids = array_map(static fn(array|object $node): int => (int)((object)$node)->section_id, $sectiontree);
+        if (empty($sectionids)) {
             return false;
         }
 
-        $descendants = $this->base_factory->moodle()->db()->get_records_list(
+        $descendants = $this->basefactory->moodle()->db()->get_records_list(
             'course_sections',
             'id',
-            $section_ids,
+            $sectionids,
             '',
             'id, sequence'
         );
@@ -184,13 +227,18 @@ class handler
         return false;
     }
 
-    public function get_backup_course_info(\stored_file $file): array
-    {
+    /**
+     * get_backup_course_info
+     *
+     * @param \stored_file $file
+     * @return array
+     */
+    public function get_backup_course_info(\stored_file $file): array {
         $info = $this->get_backup_info($file);
 
         return [
             'id' => $info->original_course_id,
-            'fullname' => $info->original_course_fullname
+            'fullname' => $info->original_course_fullname,
         ];
     }
 
@@ -200,11 +248,11 @@ class handler
      * appear in that section's activities with a 'subsection_activities' list of their own.
      *
      * @param \stored_file $file
-     * @param array $section_tree depth-first list of {section_id, parent_section_id, sort_order} captured at backup
+     * @param array $sectiontree depth-first list of {section_id, parent_section_id, sort_order} captured at backup
      *                            time; empty for backups of a single section.
+     * @return array
      */
-    public function get_backup_item_tree(\stored_file $file, array $section_tree = []): array
-    {
+    public function get_backup_item_tree(\stored_file $file, array $sectiontree = []): array {
         $info = $this->get_backup_info($file);
 
         $sections = [];
@@ -217,7 +265,7 @@ class handler
                     'sectionid' => $section->sectionid,
                     'title' => $section->title,
                     'modulename' => $section->modname,
-                    'subsection_activities' => []
+                    'subsection_activities' => [],
                 ];
                 continue;
             }
@@ -228,26 +276,26 @@ class handler
                 'modulename' => $section->modname,
                 'parent_section_id' => 0,
                 'sort_order' => 0,
-                'activities' => []
+                'activities' => [],
             ];
         }
 
         // Order the sections root first, then by the stored tree, and record the parent relations.
-        if (!empty($section_tree) && !empty($sections)) {
+        if (!empty($sectiontree) && !empty($sections)) {
             $ordered = [];
-            foreach ($sections as $section_id => $section) {
-                $in_tree = false;
-                foreach ($section_tree as $node) {
-                    if ((int)((object)$node)->section_id === (int)$section_id) {
-                        $in_tree = true;
+            foreach ($sections as $sectionid => $section) {
+                $intree = false;
+                foreach ($sectiontree as $node) {
+                    if ((int)((object)$node)->section_id === (int)$sectionid) {
+                        $intree = true;
                         break;
                     }
                 }
-                if (!$in_tree) {
-                    $ordered[$section_id] = $section;
+                if (!$intree) {
+                    $ordered[$sectionid] = $section;
                 }
             }
-            foreach ($section_tree as $node) {
+            foreach ($sectiontree as $node) {
                 $node = (object)$node;
                 if (!isset($sections[$node->section_id])) {
                     continue;
@@ -260,22 +308,22 @@ class handler
         }
 
         // Attach core subsections to the section that owns their parent module.
-        $module_sections = [];
+        $modulesections = [];
         foreach ($info->activities as $activity) {
-            $module_sections[$activity->moduleid] = $activity->sectionid;
+            $modulesections[$activity->moduleid] = $activity->sectionid;
         }
         foreach ($subsections as $subsection) {
-            $owner_section_id = $module_sections[$subsection->moduleid] ?? null;
-            if ($owner_section_id !== null && isset($sections[$owner_section_id])) {
-                $sections[$owner_section_id]->activities['sub_' . $subsection->sectionid] = $subsection;
-            } elseif (!empty($sections)) {
+            $ownersectionid = $modulesections[$subsection->moduleid] ?? null;
+            if ($ownersectionid !== null && isset($sections[$ownersectionid])) {
+                $sections[$ownersectionid]->activities['sub_' . $subsection->sectionid] = $subsection;
+            } else if (!empty($sections)) {
                 $sections[array_key_first($sections)]->activities['sub_' . $subsection->sectionid] = $subsection;
             }
         }
 
         if (empty($sections)) {
             if (empty($subsections)) {
-                //If no sections and no subsections are supplied, it's a single activity. Make artificial activities array.
+                // If no sections and no subsections are supplied, it's a single activity. Make artificial activities array.
                 $sections["lone_activity"] = (object) ['activities' => []];
             } else {
                 $sections = $subsections;
@@ -287,19 +335,19 @@ class handler
                 continue;
             }
 
-            //Activities that live in a section
+            // Activities that live in a section.
             if (isset($sections[$activity->sectionid])) {
                 $sections[$activity->sectionid]->activities[$activity->moduleid] = (object)[
                     'moduleid' => $activity->moduleid,
                     'sectionid' => $activity->sectionid,
                     'modulename' => $activity->modulename,
                     'title' => $activity->title,
-                    'activities' => []
+                    'activities' => [],
                 ];
                 continue;
             }
 
-            //Activities that live under a core subsection
+            // Activities that live under a core subsection.
             if (isset($subsections[$activity->sectionid])) {
                 $subsections[$activity->sectionid]->subsection_activities[] = $activity;
                 continue;
@@ -313,21 +361,29 @@ class handler
         return $sections;
     }
 
+    /**
+     * queue_async_backup
+     *
+     * @param \backup_controller $backupcontroller
+     * @param entity $rootitem
+     * @param array $settings
+     * @return asynchronous_backup_task
+     */
     private function queue_async_backup(
-        \backup_controller $backup_controller,
-        entity $root_item,
+        \backup_controller $backupcontroller,
+        entity $rootitem,
         array $settings = []
     ): asynchronous_backup_task {
         $asynctask = new asynchronous_backup_task();
         $asynctask->set_custom_data([
-            'backupid' => $backup_controller->get_backupid(),
-            'item' => $root_item->to_array(),
-            'backup_settings' => $settings
+            'backupid' => $backupcontroller->get_backupid(),
+            'item' => $rootitem->to_array(),
+            'backup_settings' => $settings,
         ]);
-        $asynctask->set_userid($backup_controller->get_userid());
-        $task_id = \core\task\manager::queue_adhoc_task($asynctask);
+        $asynctask->set_userid($backupcontroller->get_userid());
+        $taskid = \core\task\manager::queue_adhoc_task($asynctask);
 
-        $asynctask->set_id($task_id);
+        $asynctask->set_id($taskid);
 
         return $asynctask;
     }
