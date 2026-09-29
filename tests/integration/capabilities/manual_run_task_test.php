@@ -1,62 +1,100 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace block_sharing_cart\integration\capabilities;
 
 use core\context\course;
 use core\context\system;
 
-// @codeCoverageIgnoreStart
-defined('MOODLE_INTERNAL') || die();
-// @codeCoverageIgnoreEnd
-
-class manual_run_task_test extends \advanced_testcase
+/**
+ * capabilities tests for the Sharing Cart block.
+ *
+ * @package   block_sharing_cart
+ * @copyright moxis
+ * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @covers    \block_sharing_cart\external\task\run_now
+ */
+final class manual_run_task_test extends \advanced_testcase
 {
-    protected function setUp(): void
-    {
+    /**
+     * setUp
+     *
+     * @return void
+     */
+    protected function setUp(): void {
+        parent::setUp();
         $this->resetAfterTest();
     }
 
-    private function db(): \moodle_database
-    {
+    /**
+     * db
+     *
+     * @return \moodle_database
+     */
+    private function db(): \moodle_database {
         global $DB;
         return $DB;
     }
 
-    public function test_user_expected_not_allowed(): void
-    {
+    /**
+     * test_user_expected_not_allowed
+     *
+     * @return void
+     */
+    public function test_user_expected_not_allowed(): void {
         $generator = $this->getDataGenerator();
-        $user = $generator->create_user();
+        $USER = $generator->create_user();
         $course = $generator->create_course();
-        $course_context = course::instance($course->id);
-        $system_context = system::instance();
+        $coursecontext = course::instance($course->id);
+        $systemcontext = system::instance();
 
         self::assertFalse(
-            has_capability('block/sharing_cart:manual_run_task', $course_context, $user),
+            has_capability('block/sharing_cart:manual_run_task', $coursecontext, $USER),
         );
         self::assertFalse(
-            has_capability('block/sharing_cart:manual_run_task', $system_context, $user),
+            has_capability('block/sharing_cart:manual_run_task', $systemcontext, $USER),
         );
-
     }
 
-    public function test_user_with_manager_role_expected_not_allowed(): void
-    {
+    /**
+     * test_user_with_manager_role_expected_not_allowed
+     *
+     * @return void
+     */
+    public function test_user_with_manager_role_expected_not_allowed(): void {
         $generator = $this->getDataGenerator();
-        $user = $generator->create_user();
+        $USER = $generator->create_user();
         $course = $generator->create_course();
 
-        $generator->enrol_user($user->id, $course->id, 'manager');
+        $generator->enrol_user($USER->id, $course->id, 'manager');
         $context = course::instance($course->id);
 
         self::assertFalse(
-            has_capability('block/sharing_cart:manual_run_task', $context, $user),
+            has_capability('block/sharing_cart:manual_run_task', $context, $USER),
         );
     }
 
-    public function test_user_enrolled_in_course_with_capable_role_expected_allowed(): void
-    {
+    /**
+     * test_user_enrolled_in_course_with_capable_role_expected_allowed
+     *
+     * @return void
+     */
+    public function test_user_enrolled_in_course_with_capable_role_expected_allowed(): void {
         $generator = $this->getDataGenerator();
-        $user = $generator->create_user();
+        $USER = $generator->create_user();
         $course = $generator->create_course();
 
         $context = course::instance($course->id);
@@ -71,22 +109,26 @@ class manual_run_task_test extends \advanced_testcase
             $context
         );
         $generator->enrol_user(
-            $user->id,
+            $USER->id,
             $course->id,
             $role->shortname
         );
 
         self::assertTrue(
-            has_capability('block/sharing_cart:manual_run_task', $context, $user),
+            has_capability('block/sharing_cart:manual_run_task', $context, $USER),
         );
     }
 
-    public function test_user_assign_to_capable_role_expected_allowed(): void
-    {
+    /**
+     * test_user_assign_to_capable_role_expected_allowed
+     *
+     * @return void
+     */
+    public function test_user_assign_to_capable_role_expected_allowed(): void {
         $generator = $this->getDataGenerator();
-        $user = $generator->create_user();
+        $USER = $generator->create_user();
 
-        $system_context = system::instance();
+        $systemcontext = system::instance();
         $role = $this->db()->get_record(
             'role',
             ['id' => $generator->create_role(['shortname' => 'testrole'])]
@@ -95,22 +137,26 @@ class manual_run_task_test extends \advanced_testcase
         $generator->create_role_capability(
             $role->id,
             ['block/sharing_cart:manual_run_task' => 'allow'],
-            $system_context
+            $systemcontext
         );
 
         $generator->role_assign(
             $role->id,
-            $user->id,
-            $system_context->id
+            $USER->id,
+            $systemcontext->id
         );
 
         self::assertTrue(
-            has_capability('block/sharing_cart:manual_run_task', $system_context, $user),
+            has_capability('block/sharing_cart:manual_run_task', $systemcontext, $USER),
         );
     }
 
-    public function test_user_with_site_admin_expected_allowed(): void
-    {
+    /**
+     * test_user_with_site_admin_expected_allowed
+     *
+     * @return void
+     */
+    public function test_user_with_site_admin_expected_allowed(): void {
         global $USER;
 
         $generator = $this->getDataGenerator();

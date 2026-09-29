@@ -114,7 +114,7 @@ export default class Block extends BaseComponent {
 
             const select = showCopySectionInBlockSegment.querySelector('select');
             const copySectionButton = showCopySectionInBlockSegment.querySelector('button');
-            copySectionButton.addEventListener('click', async () => {
+            copySectionButton.addEventListener('click', async() => {
                 await this.block.addSectionBackupToSharingCart(select.value);
             });
         }

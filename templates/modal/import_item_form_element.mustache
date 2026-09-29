@@ -1,11 +1,33 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses>.
+}}
+{{!
+    @template block_sharing_cart/modal/import_item_form_element
+
+    Example context (json):
+    {"id":1,"name":"Activity","type":"mod_page"}
+}}
 <div class="form-check">
     <label class="form-check-label"
            {{#module_is_disabled_on_site}}title="{{#str}}module_is_disabled_on_site, block_sharing_cart{{/str}}"{{/module_is_disabled_on_site}}
         {{^module_is_disabled_on_site}}{{#locked}}title="{{#str}}you_do_not_have_permission_to_configure_restores, block_sharing_cart{{/str}}"{{/locked}}{{/module_is_disabled_on_site}}>
         <input type="checkbox" class="form-check-input" data-id="{{id}}"
-               data-type="{{type}}" {{#locked}}disabled{{/locked}} {{^module_is_disabled_on_site}}checked{{/module_is_disabled_on_site}}/>
+               data-type="{{type}}" {{#locked}}disabled{{/locked}} {{^module_is_disabled_on_site}}checked{{/module_is_disabled_on_site}}>
         {{#mod_icon}}
-            <img src="{{mod_icon}}" alt="" style="height: 1rem;"/>
+            <img src="{{mod_icon}}" alt="" style="height: 1rem;">
         {{/mod_icon}}
         {{{title}}}
     </label>
