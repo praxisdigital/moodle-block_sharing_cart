@@ -224,10 +224,10 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 }
 
                 \core\di::get(\core\hook\manager::class)->dispatch(new before_sections_restored(
-                    restore_id: $restorecontroller->get_restoreid(),
-                    course_id: (int)$restorecontroller->get_courseid(),
-                    target_section_id: $this->sectionplan->target_section_id,
-                    planned_sections: array_values($this->sectionplan->sections),
+                    restoreid: $restorecontroller->get_restoreid(),
+                    courseid: (int)$restorecontroller->get_courseid(),
+                    targetsectionid: $this->sectionplan->targetsectionid,
+                    plannedsections: array_values($this->sectionplan->sections),
                 ));
             }
 
@@ -266,7 +266,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             if ($this->sectionplan !== null) {
                 $planner = $this->factory()->restore()->section_planner();
                 $courseid = (int)$restorecontroller->get_courseid();
-                $targetsectionid = $this->sectionplan->target_section_id;
+                $targetsectionid = $this->sectionplan->targetsectionid;
 
                 $restoredsections = $planner->resolve_restored_sections($restorecontroller, $this->sectionplan);
 
@@ -274,9 +274,9 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 $planner->place_after_target($courseid, $targetsectionid, $restoredsections);
 
                 \core\di::get(\core\hook\manager::class)->dispatch(new after_sections_restored(
-                    course_id: $courseid,
-                    target_section_id: $targetsectionid,
-                    restored_sections: $restoredsections,
+                    courseid: $courseid,
+                    targetsectionid: $targetsectionid,
+                    restoredsections: $restoredsections,
                 ));
 
                 rebuild_course_cache($courseid, true);
@@ -299,7 +299,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
      * @return void
      */
     private function replace_section_details(\restore_controller $restorecontroller): void {
-        $sectionid = $this->sectionplan->target_section_id;
+        $sectionid = $this->sectionplan->targetsectionid;
         mtrace("...Replacing the title and description of section (id: $sectionid) with the copied section's");
 
         $this->factory()->restore()->section_details_replacement()->snapshot_and_blank(

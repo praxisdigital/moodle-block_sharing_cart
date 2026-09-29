@@ -263,10 +263,10 @@ final class asynchronous_restore_task_test extends \advanced_testcase
 
         // The format is told the new hierarchy.
         $this->assertNotNull($payload);
-        $this->assertSame((int)$target->id, $payload->course_id);
-        $this->assertSame($targetsectionid, $payload->target_section_id);
-        $this->assertCount(2, $payload->restored_sections);
-        [$child, $grandchild] = $payload->restored_sections;
+        $this->assertSame((int)$target->id, $payload->courseid);
+        $this->assertSame($targetsectionid, $payload->targetsectionid);
+        $this->assertCount(2, $payload->restoredsections);
+        [$child, $grandchild] = $payload->restoredsections;
         $this->assertSame((int)$sections['Child']->id, $child->new_section_id);
         $this->assertSame($targetsectionid, $child->new_parent_section_id);
         $this->assertSame((int)$sections['Grandchild']->id, $grandchild->new_section_id);
@@ -372,8 +372,8 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $this->assertSame(['Page child'], $this->module_names((int)$sections['Child']->id));
         $this->assertSame([], $this->module_names((int)$sections['Existing']->id));
 
-        $this->assertSame(0, $payload->target_section_id);
-        [$copied, $child] = $payload->restored_sections;
+        $this->assertSame(0, $payload->targetsectionid);
+        [$copied, $child] = $payload->restoredsections;
         $this->assertSame(0, $copied->new_parent_section_id);
         $this->assertSame((int)$sections['Copied']->id, $child->new_parent_section_id);
     }

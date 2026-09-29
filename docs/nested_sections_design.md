@@ -83,14 +83,16 @@ RESTORE (adhoc task)
 ## 5. The hooks
 
 All hook classes live in `classes/hook/` of the cart and are plain value
-objects. Payload fields are public readonly properties.
+objects. Payload fields are public readonly properties. Property names follow
+the Moodle coding style (no underscores); the fields of the tree nodes inside
+the lists are plain data and keep their snake_case names.
 
 ### `backup\resolve_section_tree`
 
 Dispatched synchronously when a section is added to the cart.
 
-- Input: `course_id`, `section_id` (the copied section).
-- Callbacks call `add_child(section_id, parent_section_id, sort_order)` for
+- Input: `courseid`, `sectionid` (the copied section).
+- Callbacks call `add_child(sectionid, parentsectionid, sortorder)` for
   every descendant, any depth.
 - `get_tree()` returns the descendants depth-first (parents before children,
   siblings by `sort_order`), root excluded, unreachable nodes dropped.
@@ -99,8 +101,8 @@ Dispatched synchronously when a section is added to the cart.
 
 Dispatched inside the restore adhoc task, before `execute_plan()`.
 
-- `restore_id`, `course_id`, `target_section_id`.
-- `planned_sections`: depth-first list of
+- `restoreid`, `courseid`, `targetsectionid`.
+- `plannedsections`: depth-first list of
   `{old_section_id, old_parent_section_id, sort_order, new_section_number}`.
 - Purpose: let a format mark this restore as "structure managed by the cart" so
   its own format restore plugin does not try to merge or reposition sections.
@@ -109,8 +111,8 @@ Dispatched inside the restore adhoc task, before `execute_plan()`.
 
 Dispatched after `execute_plan()`, before the controller is destroyed.
 
-- `course_id`, `target_section_id` (the section the root merged into).
-- `restored_sections`: depth-first list of
+- `courseid`, `targetsectionid` (the section the root merged into).
+- `restoredsections`: depth-first list of
   `{old_section_id, new_section_id, new_parent_section_id, sort_order}`.
   For first-level children `new_parent_section_id` is the target section.
 - Purpose: let a format write its own hierarchy rows for the new sections.

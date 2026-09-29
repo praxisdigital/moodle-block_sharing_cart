@@ -1,40 +1,68 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace block_sharing_cart\hook\backup;
-
-// @codeCoverageIgnoreStart
-defined('MOODLE_INTERNAL') || die();
-// @codeCoverageIgnoreEnd
 
 /**
  * Lets a course format declare the descendant sections of a section that is being copied into the sharing cart.
  *
  * Callbacks call add_child() for every descendant (any depth). The cart includes those sections in the backup and
  * records the tree so it can be recreated on restore.
+ *
+ * @package   block_sharing_cart
+ * @copyright moxis
+ * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-#[\core\attribute\label('Lets a course format add the nested child sections of a section being copied to the sharing cart')]
+#[\core\attribute\label('Lets a course format add the nested child sections of a section copied to the sharing cart')]
 #[\core\attribute\tags('backup')]
-final class resolve_section_tree
-{
+final class resolve_section_tree {
     /** @var object[] keyed by section id: {section_id, parent_section_id, sort_order} */
     private array $children = [];
 
+    /**
+     * Hook for one copied section.
+     *
+     * @param int $courseid course of the copied section
+     * @param int $sectionid the copied section
+     */
     public function __construct(
-        public readonly int $course_id,
-        public readonly int $section_id,
+        /** @var int course of the copied section */
+        public readonly int $courseid,
+        /** @var int the copied section */
+        public readonly int $sectionid,
     ) {
     }
 
-    public function add_child(int $section_id, int $parent_section_id, int $sort_order): void
-    {
-        if ($section_id === $this->section_id || $section_id === $parent_section_id) {
+    /**
+     * Declares a descendant of the copied section. The copied section itself and self references are ignored.
+     *
+     * @param int $sectionid descendant section
+     * @param int $parentsectionid its parent: the copied section or another descendant
+     * @param int $sortorder position among its siblings
+     * @return void
+     */
+    public function add_child(int $sectionid, int $parentsectionid, int $sortorder): void {
+        if ($sectionid === $this->sectionid || $sectionid === $parentsectionid) {
             return;
         }
 
-        $this->children[$section_id] = (object)[
-            'section_id' => $section_id,
-            'parent_section_id' => $parent_section_id,
-            'sort_order' => $sort_order,
+        $this->children[$sectionid] = (object)[
+            'section_id' => $sectionid,
+            'parent_section_id' => $parentsectionid,
+            'sort_order' => $sortorder,
         ];
     }
 
@@ -44,13 +72,12 @@ final class resolve_section_tree
      *
      * @return object[]
      */
-    public function get_tree(): array
-    {
-        $by_parent = [];
+    public function get_tree(): array {
+        $byparent = [];
         foreach ($this->children as $child) {
-            $by_parent[$child->parent_section_id][] = $child;
+            $byparent[$child->parent_section_id][] = $child;
         }
-        foreach ($by_parent as &$siblings) {
+        foreach ($byparent as &$siblings) {
             usort($siblings, static function (object $a, object $b): int {
                 return ($a->sort_order <=> $b->sort_order) ?: ($a->section_id <=> $b->section_id);
             });
@@ -58,9 +85,9 @@ final class resolve_section_tree
         unset($siblings);
 
         $tree = [];
-        $visited = [$this->section_id => true];
-        $walk = function (int $parent_id) use (&$walk, &$tree, &$visited, $by_parent): void {
-            foreach ($by_parent[$parent_id] ?? [] as $child) {
+        $visited = [$this->sectionid => true];
+        $walk = function (int $parentid) use (&$walk, &$tree, &$visited, $byparent): void {
+            foreach ($byparent[$parentid] ?? [] as $child) {
                 if (isset($visited[$child->section_id])) {
                     continue;
                 }
@@ -69,7 +96,7 @@ final class resolve_section_tree
                 $walk($child->section_id);
             }
         };
-        $walk($this->section_id);
+        $walk($this->sectionid);
 
         return $tree;
     }

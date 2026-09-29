@@ -148,13 +148,21 @@ class factory
         return new handler($this->basefactory);
     }
 
-    public function section_planner(): section_planner
-    {
+    /**
+     * section_planner
+     *
+     * @return section_planner
+     */
+    public function section_planner(): section_planner {
         return new section_planner($this->basefactory);
     }
 
-    public function section_details_replacement(): section_details_replacement
-    {
+    /**
+     * section_details_replacement
+     *
+     * @return section_details_replacement
+     */
+    public function section_details_replacement(): section_details_replacement {
         return new section_details_replacement($this->basefactory);
     }
 }
