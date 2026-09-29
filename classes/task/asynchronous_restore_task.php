@@ -1,18 +1,43 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
+/**
+ * asynchronous_restore_task.php
+ *
+ * @package    block_sharing_cart
+ * @copyright  moxis
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace block_sharing_cart\task;
 
-// @codeCoverageIgnoreStart
 defined('MOODLE_INTERNAL') || die();
 
-// @codeCoverageIgnoreEnd
-
 use async_helper;
-use block_sharing_cart\app\factory as base_factory;
+use block_sharing_cart\app\factory as basefactory;
 
 global $CFG;
 require_once($CFG->dirroot . '/backup/util/includes/restore_includes.php');
 
+/**
+ * asynchronous_restore_task class.
+ *
+ * @package    block_sharing_cart
+ * @copyright  moxis
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 class asynchronous_restore_task extends \core\task\adhoc_task
 {
     /**
@@ -26,24 +51,23 @@ class asynchronous_restore_task extends \core\task\adhoc_task
      * Controller and backup tempdir are created here (worker), not at queue time,
      * so multi-frontend sites do not depend on a shared backuptempdir.
      */
-    public function execute(): void
-    {
-        $factory = base_factory::make();
+    public function execute(): void {
+        $factory = basefactory::make();
         $db = $factory->moodle()->db();
         $started = time();
 
         $customdata = $this->get_custom_data();
-        $course_id = (int)($customdata->course_id ?? 0);
-        $user_id = (int)$this->get_userid();
+        $courseid = (int)($customdata->course_id ?? 0);
+        $userid = (int)$this->get_userid();
 
-        if (empty($customdata->item) || $course_id <= 0 || $user_id <= 0) {
+        if (empty($customdata->item) || $courseid <= 0 || $userid <= 0) {
             mtrace('Sharing cart restore task missing item, course_id, or userid; ending restore execution.');
             return;
         }
 
         $item = $factory->item()->entity((object)$customdata->item);
-        $backup_file = $factory->item()->repository()->get_stored_file_by_item($item);
-        if (!$backup_file) {
+        $backupfile = $factory->item()->repository()->get_stored_file_by_item($item);
+        if (!$backupfile) {
             mtrace(
                 'Sharing cart backup file not found for item (id: ' . $item->get_id()
                 . '); ending restore execution.'
@@ -54,13 +78,13 @@ class asynchronous_restore_task extends \core\task\adhoc_task
         mtrace(implode(' | ', [
             'hostname=' . (gethostname() ?: 'unknown-host'),
             'itemid=' . $item->get_id(),
-            'fileid=' . $backup_file->get_id(),
-            'courseid=' . $course_id,
-            'userid=' . $user_id
+            'fileid=' . $backupfile->get_id(),
+            'courseid=' . $courseid,
+            'userid=' . $userid,
         ]));
 
         /** @var \restore_controller $rc */
-        $rc = $factory->restore()->restore_controller($backup_file, $course_id, $user_id);
+        $rc = $factory->restore()->restore_controller($backupfile, $courseid, $userid);
         $restoreid = $rc->get_restoreid();
 
         mtrace('Processing asynchronous restore for id: ' . $restoreid);
@@ -86,8 +110,8 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             $status = $rc->get_status();
             $execution = $rc->get_execution();
 
-            // Check that the restore is in the correct status and
-            // that is set for asynchronous execution.
+            // Check that the restore is in the correct status and.
+            // That is set for asynchronous execution.
             if ($status == \backup::STATUS_AWAITING && $execution == \backup::EXECUTION_DELAYED) {
                 $this->before_restore_finished_hook($rc);
 
@@ -118,7 +142,6 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 $started,
                 $finished
             );
-
         } catch (\Exception $e) {
             // If an exception is thrown, mark the restore as failed.
             $rc->set_status(\backup::STATUS_FINISHED_ERR);
@@ -137,13 +160,22 @@ class asynchronous_restore_task extends \core\task\adhoc_task
         }
     }
 
-    public function retry_until_success(): bool
-    {
+    /**
+     * retry_until_success
+     *
+     * @return bool
+     */
+    public function retry_until_success(): bool {
         return false;
     }
 
-    private function after_restore_finished_hook(\restore_controller $restore_controller): void
-    {
+    /**
+     * after_restore_finished_hook
+     *
+     * @param \restore_controller $restorecontroller
+     * @return void
+     */
+    private function after_restore_finished_hook(\restore_controller $restorecontroller): void {
         try {
             mtrace('Executing after_restore_finished_hook...');
 
@@ -157,34 +189,39 @@ class asynchronous_restore_task extends \core\task\adhoc_task
         }
     }
 
-    private function before_restore_finished_hook(\restore_controller $restore_controller): void
-    {
+    /**
+     * before_restore_finished_hook
+     *
+     * @param \restore_controller $restorecontroller
+     * @return void
+     */
+    private function before_restore_finished_hook(\restore_controller $restorecontroller): void {
         try {
             mtrace('Executing before_restore_finished_hook...');
 
             $customdata = $this->get_custom_data();
 
-            $backup_settings = $customdata->backup_settings ?? null;
+            $backupsettings = $customdata->backup_settings ?? null;
 
-            $move_to_section_id = $backup_settings->move_to_section_id ?? null;
-            if ($move_to_section_id) {
-                $this->update_section_number($restore_controller, $move_to_section_id);
+            $movetosectionid = $backupsettings->move_to_section_id ?? null;
+            if ($movetosectionid) {
+                $this->update_section_number($restorecontroller, $movetosectionid);
             }
 
-            $course_modules_to_include = array_map('intval', $backup_settings->course_modules_to_include ?? []);
-            if (!empty($course_modules_to_include) && $course_modules_to_include !== [0]) {
-                $this->only_include_specified_course_modules($restore_controller, $course_modules_to_include);
+            $coursemodulestoinclude = array_map('intval', $backupsettings->course_modules_to_include ?? []);
+            if (!empty($coursemodulestoinclude) && $coursemodulestoinclude !== [0]) {
+                $this->only_include_specified_course_modules($restorecontroller, $coursemodulestoinclude);
             }
 
-            $has_atleast_one_course_module_included = false;
-            foreach ($restore_controller->get_plan()->get_tasks() as $task) {
+            $hasatleastonecoursemoduleincluded = false;
+            foreach ($restorecontroller->get_plan()->get_tasks() as $task) {
                 if (($task instanceof \restore_activity_task) && $task->get_setting('included')->get_value()) {
-                    $has_atleast_one_course_module_included = true;
+                    $hasatleastonecoursemoduleincluded = true;
                     break;
                 }
             }
 
-            if (!$has_atleast_one_course_module_included) {
+            if (!$hasatleastonecoursemoduleincluded) {
                 throw new \Exception('No course modules were included in the restore.');
             }
 
@@ -198,97 +235,125 @@ class asynchronous_restore_task extends \core\task\adhoc_task
         }
     }
 
-    private function update_section_number(\restore_controller $restore_controller, int $section_id): void
-    {
-        $db = base_factory::make()->moodle()->db();
+    /**
+     * update_section_number
+     *
+     * @param \restore_controller $restorecontroller
+     * @param int $sectionid
+     * @return void
+     */
+    private function update_section_number(\restore_controller $restorecontroller, int $sectionid): void {
+        $db = basefactory::make()->moodle()->db();
 
-        $new_section_number = $db->get_field(
+        $newsectionnumber = $db->get_field(
             'course_sections',
             'section',
-            ['id' => $section_id],
+            ['id' => $sectionid],
             strictness: MUST_EXIST
         );
 
-        /**
-         * Dirty hack which updates the section number in the section.xml & module.xml files.
-         * This is necessary because the section number is hardcoded in the section.xml & module.xml files and cannot be changed
-         * through the restore_controller API or any other way. ;(
-         */
-        foreach ($restore_controller->get_plan()->get_tasks() as $task) {
-            // Make sure we import into the correct section
+        // Dirty hack: update section numbers hardcoded in section.xml and module.xml.
+        foreach ($restorecontroller->get_plan()->get_tasks() as $task) {
+            // Make sure we import into the correct section.
             if ($task instanceof \restore_activity_task) {
-                $module_xml_path = "{$task->get_taskbasepath()}/module.xml";
+                $modulexmlpath = "{$task->get_taskbasepath()}/module.xml";
 
-                $module_xml = simplexml_load_string(
-                    file_get_contents($module_xml_path)
+                $modulexml = simplexml_load_string(
+                    file_get_contents($modulexmlpath)
                 );
-                $module_xml->sectionnumber = $new_section_number;
+                $modulexml->sectionnumber = $newsectionnumber;
 
-                $module_xml->asXML($module_xml_path);
+                $modulexml->asXML($modulexmlpath);
             }
 
-            // Overwrite empty/missing section settings in the target section
+            // Overwrite empty/missing section settings in the target section.
             if ($task instanceof \restore_section_task) {
-                $section_xml_path = "{$task->get_taskbasepath()}/section.xml";
+                $sectionxmlpath = "{$task->get_taskbasepath()}/section.xml";
 
-                $section_xml = simplexml_load_string(
-                    file_get_contents($section_xml_path)
+                $sectionxml = simplexml_load_string(
+                    file_get_contents($sectionxmlpath)
                 );
-                $section_xml->number = $new_section_number;
+                $sectionxml->number = $newsectionnumber;
 
-                $section_xml->asXML($section_xml_path);
+                $sectionxml->asXML($sectionxmlpath);
             }
         }
     }
 
-    private function get_section_name($section_id): ?string
-    {
-        $db = base_factory::make()->moodle()->db();
-        $section_name = $db->get_field(
+    /**
+     * get_section_name
+     *
+     * @param mixed $sectionid
+     * @return ?string
+     */
+    private function get_section_name($sectionid): ?string {
+        $db = basefactory::make()->moodle()->db();
+        $sectionname = $db->get_field(
             'course_sections',
             'name',
-            ['id' => $section_id],
+            ['id' => $sectionid],
             strictness: IGNORE_MISSING
         );
 
-        if (!$section_name) {
+        if (!$sectionname) {
             return null;
         }
 
-        return $section_name;
+        return $sectionname;
     }
 
-    private function update_section_name($section_id, $section_name): bool
-    {
-        $db = base_factory::make()->moodle()->db();
+    /**
+     * update_section_name
+     *
+     * @param mixed $sectionid
+     * @param mixed $sectionname
+     * @return bool
+     */
+    private function update_section_name($sectionid, $sectionname): bool {
+        $db = basefactory::make()->moodle()->db();
 
         return $db->set_field(
             'course_sections',
             'name',
-            $section_name,
-            ['id' => $section_id],
+            $sectionname,
+            ['id' => $sectionid],
         );
     }
 
+    /**
+     * only_include_specified_course_modules
+     *
+     * @param \restore_controller $restorecontroller
+     * @param array $coursemodulestoinclude
+     * @return void
+     */
     private function only_include_specified_course_modules(
-        \restore_controller $restore_controller,
-        array $course_modules_to_include
+        \restore_controller $restorecontroller,
+        array $coursemodulestoinclude
     ): void {
         mtrace("Excluding/Including activities...");
 
-        foreach ($restore_controller->get_plan()->get_tasks() as $task) {
+        foreach ($restorecontroller->get_plan()->get_tasks() as $task) {
             if ($task instanceof \restore_activity_task) {
-                $cm_id = (int)$task->get_old_moduleid();
+                $cmid = (int)$task->get_old_moduleid();
 
-                $include_activity = in_array($cm_id, $course_modules_to_include, true);
+                $includeactivity = in_array($cmid, $coursemodulestoinclude, true);
                 mtrace(
-                    '...' . ($include_activity ? "Including activity: (id: $cm_id)" : "Excluding activity: (id: $cm_id)")
+                    '...' . ($includeactivity ? "Including activity: (id: $cmid)" : "Excluding activity: (id: $cmid)")
                 );
-                $task->get_setting('included')->set_value($include_activity);
+                $task->get_setting('included')->set_value($includeactivity);
             }
         }
     }
 
+    /**
+     * trigger_restored_event
+     *
+     * @param \restore_controller $controller
+     * @param int $started
+     * @param int $finished
+     * @return void
+     */
     private function trigger_restored_event(
         \restore_controller $controller,
         int $started,
@@ -306,6 +371,14 @@ class asynchronous_restore_task extends \core\task\adhoc_task
         }
     }
 
+    /**
+     * trigger_restore_course_module_event
+     *
+     * @param \restore_activity_task $task
+     * @param int $started
+     * @param int $finished
+     * @return void
+     */
     private function trigger_restore_course_module_event(
         \restore_activity_task $task,
         int $started,
@@ -327,6 +400,14 @@ class asynchronous_restore_task extends \core\task\adhoc_task
         $event->trigger();
     }
 
+    /**
+     * trigger_restore_section_event
+     *
+     * @param \restore_section_task $task
+     * @param int $started
+     * @param int $finished
+     * @return void
+     */
     private function trigger_restore_section_event(
         \restore_section_task $task,
         int $started,
@@ -342,8 +423,12 @@ class asynchronous_restore_task extends \core\task\adhoc_task
         $event->trigger();
     }
 
-    public function get_name(): string
-    {
+    /**
+     * get_name
+     *
+     * @return string
+     */
+    public function get_name(): string {
         return parent::get_name() . ' (block_sharing_cart)';
     }
 }

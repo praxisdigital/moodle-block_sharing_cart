@@ -1,34 +1,76 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
+/**
+ * collection.php
+ *
+ * @package    block_sharing_cart
+ * @copyright  moxis
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace block_sharing_cart\app;
 
-// @codeCoverageIgnoreStart
-defined('MOODLE_INTERNAL') || die();
-
-// @codeCoverageIgnoreEnd
-
-class collection implements \Iterator, \Countable, \ArrayAccess, \JsonSerializable
-{
+/**
+ * collection class.
+ *
+ * @package    block_sharing_cart
+ * @copyright  moxis
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+class collection implements \ArrayAccess, \Countable, \Iterator, \JsonSerializable {
+    /** @var array $items */
     protected array $items = [];
 
-    public function __construct(array $items = [])
-    {
+    /**
+     * __construct
+     *
+     * @param array $items
+     */
+    public function __construct(array $items = []) {
         $this->set($items);
     }
 
-    public function set(array $items): void
-    {
+    /**
+     * set
+     *
+     * @param array $items
+     * @return void
+     */
+    public function set(array $items): void {
         $this->items = $items;
     }
 
-    public function sort_asc(callable $selector): self
-    {
+    /**
+     * sort_asc
+     *
+     * @param callable $selector
+     * @return self
+     */
+    public function sort_asc(callable $selector): self {
         $this->sort($selector);
         return $this;
     }
 
-    public function sort_desc(callable $selector): self
-    {
+    /**
+     * sort_desc
+     *
+     * @param callable $selector
+     * @return self
+     */
+    public function sort_desc(callable $selector): self {
         $this->sort($selector, false);
         return $this;
     }
@@ -41,13 +83,12 @@ class collection implements \Iterator, \Countable, \ArrayAccess, \JsonSerializab
      * });
      *
      * @param callable $selector
-     * @param bool $direction_asc
+     * @param bool $directionasc
      * @return void
      */
-    private function sort(callable $selector, bool $direction_asc = true): void
-    {
-        usort($this->items, static function ($a, $b) use ($selector, $direction_asc) {
-            if ($direction_asc) {
+    private function sort(callable $selector, bool $directionasc = true): void {
+        usort($this->items, static function ($a, $b) use ($selector, $directionasc) {
+            if ($directionasc) {
                 return strnatcasecmp(
                     $selector($a),
                     $selector($b)
@@ -70,8 +111,7 @@ class collection implements \Iterator, \Countable, \ArrayAccess, \JsonSerializab
      * @param callable $instance
      * @return self
      */
-    public function pluck(callable $instance): self
-    {
+    public function pluck(callable $instance): self {
         $values = [];
         foreach ($this->items as $item) {
             $values[] = $instance($item);
@@ -79,8 +119,12 @@ class collection implements \Iterator, \Countable, \ArrayAccess, \JsonSerializab
         return new static($values);
     }
 
-    public function count(): int
-    {
+    /**
+     * count
+     *
+     * @return int
+     */
+    public function count(): int {
         return count($this->items);
     }
 
@@ -92,8 +136,7 @@ class collection implements \Iterator, \Countable, \ArrayAccess, \JsonSerializab
      * @return array
      * @throws JsonException
      */
-    public function to_array(bool $indexed = false): array
-    {
+    public function to_array(bool $indexed = false): array {
         $encoded = json_encode($this->items, JSON_THROW_ON_ERROR);
         $items = json_decode($encoded, true, 512, JSON_THROW_ON_ERROR);
 
@@ -104,21 +147,36 @@ class collection implements \Iterator, \Countable, \ArrayAccess, \JsonSerializab
         return $items;
     }
 
-    public function implode(string $separator): string
-    {
+    /**
+     * implode
+     *
+     * @param string $separator
+     * @return string
+     */
+    public function implode(string $separator): string {
         return implode($separator, $this->items);
     }
 
-    public function explode(string $text, string $separator = ','): self
-    {
+    /**
+     * explode
+     *
+     * @param string $text
+     * @param string $separator
+     * @return self
+     */
+    public function explode(string $text, string $separator = ','): self {
         foreach (explode($separator, $text) as $item) {
             $this->append(trim($item));
         }
         return $this;
     }
 
-    public function by_key(string $key)
-    {
+    /**
+     * by_key
+     *
+     * @param string $key
+     */
+    public function by_key(string $key) {
         if ($this->empty()) {
             throw new \Exception('Key not found in collection');
         }
@@ -126,8 +184,12 @@ class collection implements \Iterator, \Countable, \ArrayAccess, \JsonSerializab
         return $this->items[$key] ?? null;
     }
 
-    public function first(): mixed
-    {
+    /**
+     * first
+     *
+     * @return mixed
+     */
+    public function first(): mixed {
         if ($this->empty()) {
             throw new \Exception('No first item in collection');
         }
@@ -135,8 +197,13 @@ class collection implements \Iterator, \Countable, \ArrayAccess, \JsonSerializab
         return reset($this->items);
     }
 
-    public function last($optional = false): mixed
-    {
+    /**
+     * last
+     *
+     * @param mixed $optional
+     * @return mixed
+     */
+    public function last($optional = false): mixed {
         if ($this->empty()) {
             throw new \Exception('No last item in collection');
         }
@@ -144,29 +211,53 @@ class collection implements \Iterator, \Countable, \ArrayAccess, \JsonSerializab
         return end($this->items);
     }
 
-    public function slice(int $offset, int $length): self
-    {
+    /**
+     * slice
+     *
+     * @param int $offset
+     * @param int $length
+     * @return self
+     */
+    public function slice(int $offset, int $length): self {
         $this->items = array_values(array_slice($this->items, $offset, $length));
         return $this;
     }
 
-    public function empty(): bool
-    {
+    /**
+     * empty
+     *
+     * @return bool
+     */
+    public function empty(): bool {
         return empty($this->items);
     }
 
-    public function not_empty(): bool
-    {
+    /**
+     * not_empty
+     *
+     * @return bool
+     */
+    public function not_empty(): bool {
         return !$this->empty();
     }
 
-    public function filter(callable $item): self
-    {
+    /**
+     * filter
+     *
+     * @param callable $item
+     * @return self
+     */
+    public function filter(callable $item): self {
         return new static(array_filter($this->items, $item));
     }
 
-    public function map(callable $items): self
-    {
+    /**
+     * map
+     *
+     * @param callable $items
+     * @return self
+     */
+    public function map(callable $items): self {
         return new static(array_map($items, $this->items));
     }
 
@@ -184,14 +275,13 @@ class collection implements \Iterator, \Countable, \ArrayAccess, \JsonSerializab
      *
      * @param callable $key
      * @param callable $value
-     * @param bool $append_items
+     * @param bool $appenditems
      * @return self
      */
-    public function to_list(callable $key, callable $value, bool $append_items = false): self
-    {
+    public function to_list(callable $key, callable $value, bool $appenditems = false): self {
         $items = [];
         foreach ($this->items as $instance) {
-            if (!$append_items) {
+            if (!$appenditems) {
                 $items[$key($instance)] = $value($instance);
             } else {
                 $items[$key($instance)][] = $value($instance);
@@ -200,33 +290,51 @@ class collection implements \Iterator, \Countable, \ArrayAccess, \JsonSerializab
         return new static($items);
     }
 
-    public function splice(int $offset, int $length, mixed $replacement): self
-    {
+    /**
+     * splice
+     *
+     * @param int $offset
+     * @param int $length
+     * @param mixed $replacement
+     * @return self
+     */
+    public function splice(int $offset, int $length, mixed $replacement): self {
         $items = array_splice($this->items, $offset, $length, $replacement);
         return new static($items);
     }
 
-    public function shuffle(int $times = 1): self
-    {
+    /**
+     * shuffle
+     *
+     * @param int $times
+     * @return self
+     */
+    public function shuffle(int $times = 1): self {
         for ($i = 0; $i < $times; $i++) {
             shuffle($this->items);
         }
         return $this;
     }
 
-    public function find(mixed $value, string $field = ''): self
-    {
+    /**
+     * find
+     *
+     * @param mixed $value
+     * @param string $field
+     * @return self
+     */
+    public function find(mixed $value, string $field = ''): self {
         $found = [];
         foreach ($this as $item) {
             if (is_object($item) && isset($item->$field)) {
                 if ($item->$field == $value) {
                     $found[] = $item;
                 }
-            } elseif (is_array($item) && isset($item[$field])) {
+            } else if (is_array($item) && isset($item[$field])) {
                 if ($item[$field] == $value) {
                     $found[] = $item;
                 }
-            } elseif (empty($field) && $item == $value) {
+            } else if (empty($field) && $item == $value) {
                 $found[] = $item;
             }
         }
@@ -234,33 +342,59 @@ class collection implements \Iterator, \Countable, \ArrayAccess, \JsonSerializab
         return new static($found);
     }
 
-    public function add(mixed $item): self
-    {
+    /**
+     * add
+     *
+     * @param mixed $item
+     * @return self
+     */
+    public function add(mixed $item): self {
         return $this->append($item);
     }
 
-    public function append(mixed $item): self
-    {
+    /**
+     * append
+     *
+     * @param mixed $item
+     * @return self
+     */
+    public function append(mixed $item): self {
         $this->items[] = $item;
         return $this;
     }
 
-    public function prepend(mixed $item): collection
-    {
+    /**
+     * prepend
+     *
+     * @param mixed $item
+     * @return collection
+     */
+    public function prepend(mixed $item): collection {
         array_unshift($this->items, $item);
         return new static($this->items);
     }
 
-    public function merge(self $collection): self
-    {
+    /**
+     * merge
+     *
+     * @param self $collection
+     * @return self
+     */
+    public function merge(self $collection): self {
         foreach ($collection as $item) {
             $this->append($item);
         }
         return $this;
     }
 
-    public function contains(callable $field, mixed $value): bool
-    {
+    /**
+     * contains
+     *
+     * @param callable $field
+     * @param mixed $value
+     * @return bool
+     */
+    public function contains(callable $field, mixed $value): bool {
         foreach ($this->items as $item) {
             if ($field($item) === $value) {
                 return true;
@@ -269,43 +403,79 @@ class collection implements \Iterator, \Countable, \ArrayAccess, \JsonSerializab
         return false;
     }
 
-    public function column(string $key): array
-    {
+    /**
+     * column
+     *
+     * @param string $key
+     * @return array
+     */
+    public function column(string $key): array {
         return array_column($this->items, $key);
     }
 
-    public function combine(array $keys): array
-    {
+    /**
+     * combine
+     *
+     * @param array $keys
+     * @return array
+     */
+    public function combine(array $keys): array {
         return array_combine($keys, $this->items);
     }
 
-    public function current(): mixed
-    {
+    /**
+     * current
+     *
+     * @return mixed
+     */
+    public function current(): mixed {
         return current($this->items);
     }
 
-    public function next(): void
-    {
+    /**
+     * next
+     *
+     * @return void
+     */
+    public function next(): void {
         next($this->items);
     }
 
-    public function key(): string|int|null
-    {
+    /**
+     * key
+     *
+     * @return string|int|null
+     */
+    public function key(): string|int|null {
         return key($this->items);
     }
 
-    public function valid(): bool
-    {
+    /**
+     * valid
+     *
+     * @return bool
+     */
+    public function valid(): bool {
         return array_key_exists(key($this->items), $this->items);
     }
 
-    public function rewind(): void
-    {
+    /**
+     * rewind
+     *
+     * @return void
+     */
+    public function rewind(): void {
         reset($this->items);
     }
 
-    public function offsetSet(mixed $offset, mixed $value): void
-    {
+    /**
+     * offsetSet
+     *
+     * @param mixed $offset
+     * @param mixed $value
+     * @return void
+     */
+    public function offsetSet(mixed $offset, mixed $value): void {
         if (is_null($offset)) {
             $this->items[] = $value;
         } else {
@@ -313,23 +483,42 @@ class collection implements \Iterator, \Countable, \ArrayAccess, \JsonSerializab
         }
     }
 
-    public function offsetExists(mixed $offset): bool
-    {
+    /**
+     * offsetExists
+     *
+     * @param mixed $offset
+     * @return bool
+     */
+    public function offsetExists(mixed $offset): bool {
         return isset($this->items[$offset]);
     }
 
-    public function offsetUnset(mixed $offset): void
-    {
+    /**
+     * offsetUnset
+     *
+     * @param mixed $offset
+     * @return void
+     */
+    public function offsetUnset(mixed $offset): void {
         unset($this->items[$offset]);
     }
 
-    public function offsetGet(mixed $offset): mixed
-    {
+    /**
+     * offsetGet
+     *
+     * @param mixed $offset
+     * @return mixed
+     */
+    public function offsetGet(mixed $offset): mixed {
         return $this->items[$offset] ?? null;
     }
 
-    public function jsonSerialize(): array
-    {
+    /**
+     * jsonSerialize
+     *
+     * @return array
+     */
+    public function jsonSerialize(): array {
         return $this->to_array(true);
     }
 }

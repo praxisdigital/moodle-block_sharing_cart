@@ -1,49 +1,95 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
+/**
+ * factory.php
+ *
+ * @package    block_sharing_cart
+ * @copyright  moxis
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace block_sharing_cart\app\backup;
 
-// @codeCoverageIgnoreStart
-defined('MOODLE_INTERNAL') || die();
+use block_sharing_cart\app\factory as basefactory;
 
-// @codeCoverageIgnoreEnd
-
-use block_sharing_cart\app\factory as base_factory;
-
+/**
+ * factory class.
+ *
+ * @package    block_sharing_cart
+ * @copyright  moxis
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 class factory
 {
-    private base_factory $base_factory;
+    /** @var basefactory $basefactory */
+    private basefactory $basefactory;
 
-    public function __construct(base_factory $base_factory)
-    {
-        $this->base_factory = $base_factory;
+    /**
+     * __construct
+     *
+     * @param basefactory $basefactory
+     */
+    public function __construct(basefactory $basefactory) {
+        $this->basefactory = $basefactory;
     }
 
-    public function backup_controller(string $type, int $instance_id, int $user_id): \backup_controller
-    {
+    /**
+     * backup_controller
+     *
+     * @param string $type
+     * @param int $instanceid
+     * @param int $userid
+     * @return \backup_controller
+     */
+    public function backup_controller(string $type, int $instanceid, int $userid): \backup_controller {
         return new \backup_controller(
             $type,
-            $instance_id,
+            $instanceid,
             \backup::FORMAT_MOODLE,
             \backup::INTERACTIVE_NO,
             \backup::MODE_ASYNC,
-            $user_id,
+            $userid,
             \backup::RELEASESESSION_YES
         );
-
     }
 
-    public function handler(): handler
-    {
-        return new handler($this->base_factory);
+    /**
+     * handler
+     *
+     * @return handler
+     */
+    public function handler(): handler {
+        return new handler($this->basefactory);
     }
 
-    public function settings_helper(): backup_settings_helper
-    {
-        return new backup_settings_helper($this->base_factory);
+    /**
+     * settings_helper
+     *
+     * @return backup_settings_helper
+     */
+    public function settings_helper(): backup_settings_helper {
+        return new backup_settings_helper($this->basefactory);
     }
 
-    public function settings_repository(): backup_settings_queries
-    {
-        return new backup_settings_queries($this->base_factory);
+    /**
+     * settings_repository
+     *
+     * @return backup_settings_queries
+     */
+    public function settings_repository(): backup_settings_queries {
+        return new backup_settings_queries($this->basefactory);
     }
 }

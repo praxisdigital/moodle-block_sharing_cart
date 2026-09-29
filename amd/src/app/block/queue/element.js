@@ -76,6 +76,7 @@ export default class QueueElement {
         if (this.#loadQueuePromise !== null) {
             this.#loadQueuePromise.then(() => {
                 this.tryReloadQueue();
+                return null;
             }).catch(() => {
                 this.tryReloadQueue();
             });
@@ -87,6 +88,7 @@ export default class QueueElement {
         this.#loadQueuePromise.then(() => {
             this.#loadQueuePromise = null;
             this.#loadQueueToken = null;
+            return null;
         }).catch(() => {
             this.#loadQueueToken = null;
             this.#loadQueuePromise = null;
@@ -100,7 +102,7 @@ export default class QueueElement {
      */
     async loadQueue(showSpinner = false, token = {}) {
         // eslint-disable-next-line no-async-promise-executor
-        return new Promise(async (resolve, reject) => {
+        return new Promise(async(resolve, reject) => {
             token.abort = () => {
                 reject();
             };
@@ -156,6 +158,9 @@ export default class QueueElement {
                             autohide: true,
                             type: 'warning'
                         });
+                        return null;
+                    }).catch(() => {
+                        // Ignore section state refresh failures.
                     });
                 }
             }
@@ -182,6 +187,7 @@ export default class QueueElement {
                     Ajax.call([{
                         methodname: 'block_sharing_cart_run_task_now',
                         args: {
+                            // eslint-disable-next-line camelcase
                             task_id: taskId
                         }
                     }]);

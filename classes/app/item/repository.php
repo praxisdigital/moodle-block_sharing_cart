@@ -1,67 +1,117 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
+/**
+ * repository.php
+ *
+ * @package    block_sharing_cart
+ * @copyright  moxis
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 namespace block_sharing_cart\app\item;
 
-// @codeCoverageIgnoreStart
 defined('MOODLE_INTERNAL') || die();
-
-// @codeCoverageIgnoreEnd
 
 use block_sharing_cart\app\collection;
 
 global $CFG;
 require_once($CFG->dirroot . '/course/format/lib.php');
 
+/**
+ * repository class.
+ *
+ * @package    block_sharing_cart
+ * @copyright  moxis
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 class repository extends \block_sharing_cart\app\repository
 {
-    public function get_table(): string
-    {
+    /**
+     * get_table
+     *
+     * @return string
+     */
+    public function get_table(): string {
         return 'block_sharing_cart_items';
     }
 
-    public function map_record_to_entity(object $record): entity
-    {
-        return $this->base_factory->item()->entity($record);
+    /**
+     * map_record_to_entity
+     *
+     * @param object $record
+     * @return entity
+     */
+    public function map_record_to_entity(object $record): entity {
+        return $this->basefactory->item()->entity($record);
     }
 
-    public function get_by_id(int $id): false|entity
-    {
-        return parent::get_by_id($id);
-    }
 
-    public function get_by_user_id(int $user_id): collection
-    {
+    /**
+     * get_by_user_id
+     *
+     * @param int $userid
+     * @return collection
+     */
+    public function get_by_user_id(int $userid): collection {
         return $this->map_records_to_collection_of_entities(
-            $this->db->get_records($this->get_table(), ['user_id' => $user_id], 'sortorder ASC, id DESC')
+            $this->db->get_records($this->get_table(), ['user_id' => $userid], 'sortorder ASC, id DESC')
         );
     }
 
-    public function get_by_file_id(int $file_id): ?entity
-    {
-        $record = $this->db->get_record($this->get_table(), ['file_id' => $file_id]);
+    /**
+     * get_by_file_id
+     *
+     * @param int $fileid
+     * @return ?entity
+     */
+    public function get_by_file_id(int $fileid): ?entity {
+        $record = $this->db->get_record($this->get_table(), ['file_id' => $fileid]);
 
         return $record ? $this->map_record_to_entity(
             $record
         ) : null;
     }
 
-    public function get_by_parent_item_id(?int $parent_item_id): collection
-    {
+    /**
+     * get_by_parent_item_id
+     *
+     * @param ?int $parentitemid
+     * @return collection
+     */
+    public function get_by_parent_item_id(?int $parentitemid): collection {
         return $this->map_records_to_collection_of_entities(
-            $this->db->get_records($this->get_table(), ['parent_item_id' => $parent_item_id])
+            $this->db->get_records($this->get_table(), ['parent_item_id' => $parentitemid])
         );
     }
 
-    public function delete_by_id(int $id): bool
-    {
+    /**
+     * delete_by_id
+     *
+     * @param int $id
+     * @return bool
+     */
+    public function delete_by_id(int $id): bool {
         $fs = get_file_storage();
         if (!$fs) {
             return false;
         }
 
-        $child_items = $this->get_by_parent_item_id($id);
-        foreach ($child_items as $child_item) {
-            if (!$this->delete_by_id($child_item->get_id())) {
+        $childitems = $this->get_by_parent_item_id($id);
+        foreach ($childitems as $childitem) {
+            if (!$this->delete_by_id($childitem->get_id())) {
                 return false;
             }
         }
@@ -78,25 +128,31 @@ class repository extends \block_sharing_cart\app\repository
         return parent::delete_by_id($id);
     }
 
-    public function insert_activity(int $course_module_id, int $user_id, ?int $parent_item_id, int $status): entity
-    {
-        $course_id = $this->db->get_field('course_modules', 'course', ['id' => $course_module_id], MUST_EXIST);
+    /**
+     * insert_activity
+     *
+     * @param int $coursemoduleid
+     * @param int $userid
+     * @param ?int $parentitemid
+     * @param int $status
+     * @return entity
+     */
+    public function insert_activity(int $coursemoduleid, int $userid, ?int $parentitemid, int $status): entity {
+        $courseid = $this->db->get_field('course_modules', 'course', ['id' => $coursemoduleid], MUST_EXIST);
 
-        /**
-         * @var \cm_info $cm_info
-         */
-        $cm_info = \cm_info::create((object)['id' => $course_module_id, 'course' => $course_id], $user_id);
+        // Type annotation.
+        $cminfo = \cm_info::create((object)['id' => $coursemoduleid, 'course' => $courseid], $userid);
 
         $time = time();
-        $item_id = $this->insert(
-            $entity = $this->base_factory->item()->entity(
+        $itemid = $this->insert(
+            $entity = $this->basefactory->item()->entity(
                 (object)[
-                    'user_id' => $user_id,
+                    'user_id' => $userid,
                     'file_id' => null,
-                    'parent_item_id' => $parent_item_id,
-                    'old_instance_id' => $cm_info->id,
-                    'type' => "mod_{$cm_info->modname}",
-                    'name' => $cm_info->get_formatted_name(),
+                    'parent_item_id' => $parentitemid,
+                    'old_instance_id' => $cminfo->id,
+                    'type' => "mod_{$cminfo->modname}",
+                    'name' => $cminfo->get_formatted_name(),
                     'status' => $status,
                     'version' => entity::CURRENT_BACKUP_VERSION,
                     'timecreated' => $time,
@@ -105,128 +161,152 @@ class repository extends \block_sharing_cart\app\repository
             )
         );
 
-        $entity->set_id($item_id);
+        $entity->set_id($itemid);
 
         return $entity;
     }
 
-    public function insert_section(object $section, int $user_id, ?int $parent_item_id, int $status): entity
-    {
+    /**
+     * insert_section
+     *
+     * @param object $section
+     * @param int $userid
+     * @param ?int $parentitemid
+     * @param int $status
+     * @return entity
+     */
+    public function insert_section(object $section, int $userid, ?int $parentitemid, int $status): entity {
 
-        $course_format = course_get_format($section->course);
+        $courseformat = course_get_format($section->course);
 
-        $entity_type = isset($section->itemid) ? entity::TYPE_MOD_SUBSECTION : entity::TYPE_SECTION;
+        $entitytype = isset($section->itemid) ? entity::TYPE_MOD_SUBSECTION : entity::TYPE_SECTION;
 
         $time = time();
-        $item_id = $this->insert(
-            $entity = $this->base_factory->item()->entity(
+        $itemid = $this->insert(
+            $entity = $this->basefactory->item()->entity(
                 (object)[
-                    'user_id' => $user_id,
+                    'user_id' => $userid,
                     'file_id' => null,
-                    'parent_item_id' => $parent_item_id,
+                    'parent_item_id' => $parentitemid,
                     'old_instance_id' => $section->id,
-                    'type' => $entity_type,
-                    'name' => $course_format->get_section_name($section),
+                    'type' => $entitytype,
+                    'name' => $courseformat->get_section_name($section),
                     'status' => $status,
                     'version' => entity::CURRENT_BACKUP_VERSION,
                     'timecreated' => $time,
-                    'timemodified' => $time
+                    'timemodified' => $time,
                 ]
             )
         );
 
-        $entity->set_id($item_id);
+        $entity->set_id($itemid);
 
         return $entity;
     }
 
-    private function insert_activities(array $activities, entity $root_item): void
-    {
+    /**
+     * insert_activities
+     *
+     * @param array $activities
+     * @param entity $rootitem
+     * @return void
+     */
+    private function insert_activities(array $activities, entity $rootitem): void {
 
-        //Handle a single subsection (with possible nested activities)
-        if($root_item->get_type() === "mod_subsection"){
-            foreach($activities[array_key_first($activities)]->subsection_activities as $subsection_activity) {
+        // Handle a single subsection (with possible nested activities).
+        if ($rootitem->get_type() === "mod_subsection") {
+            foreach ($activities[array_key_first($activities)]->subsection_activities as $subsectionactivity) {
                 $this->insert_activity(
-                    $subsection_activity->moduleid,
-                    $root_item->get_user_id(),
-                    $root_item->get_id(),
+                    $subsectionactivity->moduleid,
+                    $rootitem->get_user_id(),
+                    $rootitem->get_id(),
                     entity::STATUS_BACKEDUP
                 );
             }
             return;
         }
 
-        //Handle multiple activities
+        // Handle multiple activities.
         foreach ($activities as $activity) {
-
-                if($activity->modulename === "subsection") {
-                    $subsection_entity = $this->insert_activity(
-                        $activity->moduleid,
-                        $root_item->get_user_id(),
-                        $root_item->get_id(),
+            if ($activity->modulename === "subsection") {
+                $subsectionentity = $this->insert_activity(
+                    $activity->moduleid,
+                    $rootitem->get_user_id(),
+                    $rootitem->get_id(),
+                    entity::STATUS_BACKEDUP
+                );
+                foreach ($activity->subsection_activities as $subsectionactivity) {
+                    $this->insert_activity(
+                        $subsectionactivity->moduleid,
+                        $rootitem->get_user_id(),
+                        $subsectionentity->get_id(),
                         entity::STATUS_BACKEDUP
                     );
-                    foreach($activity->subsection_activities as $subsection_activity) {
-                        $this->insert_activity(
-                            $subsection_activity->moduleid,
-                            $root_item->get_user_id(),
-                            $subsection_entity->get_id(),
-                            entity::STATUS_BACKEDUP
-                        );
-                    }
-
-                    continue;
                 }
+
+                continue;
+            }
 
                 $this->insert_activity(
                     $activity->moduleid,
-                    $root_item->get_user_id(),
-                    $root_item->get_id(),
+                    $rootitem->get_user_id(),
+                    $rootitem->get_id(),
                     entity::STATUS_BACKEDUP
                 );
-
-            }
-
-
+        }
     }
 
-    public function update_sharing_cart_item_with_backup_file(entity $root_item, \stored_file $file): void
-    {
-        $this->db->delete_records($this->get_table(), ['parent_item_id' => $root_item->get_id()]);
+    /**
+     * update_sharing_cart_item_with_backup_file
+     *
+     * @param entity $rootitem
+     * @param \stored_file $file
+     * @return void
+     */
+    public function update_sharing_cart_item_with_backup_file(entity $rootitem, \stored_file $file): void {
+        $this->db->delete_records($this->get_table(), ['parent_item_id' => $rootitem->get_id()]);
 
-        $root_item->set_status(entity::STATUS_BACKEDUP);
-        $root_item->set_file_id($file->get_id());
-        $root_item->set_timemodified(time());
+        $rootitem->set_status(entity::STATUS_BACKEDUP);
+        $rootitem->set_file_id($file->get_id());
+        $rootitem->set_timemodified(time());
 
-        $course_info = $this->base_factory->backup()->handler()->get_backup_course_info($file);
-        $root_item->set_original_course_fullname($course_info['fullname'] ?? null);
+        $courseinfo = $this->basefactory->backup()->handler()->get_backup_course_info($file);
+        $rootitem->set_original_course_fullname($courseinfo['fullname'] ?? null);
 
-        $this->update($root_item);
+        $this->update($rootitem);
 
-        $section = $this->base_factory->backup()->handler()->get_backup_item_tree($file);
+        $section = $this->basefactory->backup()->handler()->get_backup_item_tree($file);
 
-        if(isset($section['lone_activity'])) return;
-        if(empty($section)){
+        if (isset($section['lone_activity'])) {
+            return;
+        }
+        if (empty($section)) {
             throw new \Exception("Backup file was empty.");
         }
 
-        $this->insert_activities($section[array_key_first($section)]->activities, $root_item);
+        $this->insert_activities($section[array_key_first($section)]->activities, $rootitem);
     }
 
-    public function get_recursively_by_parent_id(int $item_id, ?collection $items = null): collection
-    {
+    /**
+     * get_recursively_by_parent_id
+     *
+     * @param int $itemid
+     * @param ?collection $items
+     * @return collection
+     */
+    public function get_recursively_by_parent_id(int $itemid, ?collection $items = null): collection {
         if (!$items) {
-            $items = $this->base_factory->collection();
+            $items = $this->basefactory->collection();
 
-            $root_item = $this->get_by_id($item_id);
-            if (!$root_item) {
+            $rootitem = $this->get_by_id($itemid);
+            if (!$rootitem) {
                 return $items;
             }
 
-            $items->add($root_item);
+            $items->add($rootitem);
         }
 
-        $children = $this->get_by_parent_item_id($item_id);
+        $children = $this->get_by_parent_item_id($itemid);
         foreach ($children as $child) {
             $items->add($child);
         }
@@ -238,8 +318,13 @@ class repository extends \block_sharing_cart\app\repository
         return $items;
     }
 
-    public function get_parent_item_recursively_by_item(entity $item): entity
-    {
+    /**
+     * get_parent_item_recursively_by_item
+     *
+     * @param entity $item
+     * @return entity
+     */
+    public function get_parent_item_recursively_by_item(entity $item): entity {
         if ($item->get_parent_item_id()) {
             return $this->get_parent_item_recursively_by_item(
                 $this->get_by_id(
@@ -251,24 +336,29 @@ class repository extends \block_sharing_cart\app\repository
         return $item;
     }
 
-    public function get_stored_file_by_item(entity $item): ?\stored_file
-    {
-        /**
-         * @var \file_storage $fs
-         */
+    /**
+     * get_stored_file_by_item
+     *
+     * @param entity $item
+     * @return ?\stored_file
+     */
+    public function get_stored_file_by_item(entity $item): ?\stored_file {
+        // Type annotation.
         $fs = get_file_storage();
 
-        if ($item_file = array_values(
-            $fs->get_area_files(
-                \core\context\user::instance($item->get_user_id())->id,
-                'block_sharing_cart',
-                'backup',
-                $item->get_id(),
-                includedirs: false,
-                limitnum: 1
-            )
-        )[0] ?? null) {
-            return $item_file;
+        if (
+            $itemfile = array_values(
+                $fs->get_area_files(
+                    \core\context\user::instance($item->get_user_id())->id,
+                    'block_sharing_cart',
+                    'backup',
+                    $item->get_id(),
+                    includedirs: false,
+                    limitnum: 1
+                )
+            )[0] ?? null
+        ) {
+            return $itemfile;
         }
 
         return array_values(
@@ -283,8 +373,12 @@ class repository extends \block_sharing_cart\app\repository
         )[0] ?? null;
     }
 
-    public function get_count(): int
-    {
+    /**
+     * get_count
+     *
+     * @return int
+     */
+    public function get_count(): int {
         return $this->db->count_records($this->get_table());
     }
 }
