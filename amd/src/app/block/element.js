@@ -581,8 +581,25 @@ export default class BlockElement {
     async addSectionBackupToSharingCart(sectionId) {
         const sectionName = this.#course.getSectionName(sectionId);
 
-        // Whether there is anything to copy is decided server side: a section without activities may still
-        // hold populated subsections in a nesting course format.
+        const cms = this.#course.getSectionCourseModules(sectionId);
+
+        if (cms.length === 0) {
+            const strings = await getStrings([
+                {
+                    key: 'no_course_modules_in_section',
+                    component: 'block_sharing_cart',
+                },
+                {
+                    key: 'no_course_modules_in_section_description',
+                    component: 'block_sharing_cart',
+                },
+            ]);
+
+            await Notification.alert(strings[0], strings[1]);
+
+            return;
+        }
+
         const saver = (settings) => {
             Ajax.call([{
                 methodname: 'block_sharing_cart_backup_section_into_sharing_cart',
@@ -710,49 +727,16 @@ export default class BlockElement {
      * @param {ItemElement} item
      * @param {Number} sectionId
      * @param {HTMLElement} modal
-     * @param {Object} options {asNewSection: Boolean, courseId: Number}
      */
-    importItem(item, sectionId, modal, options = {}) {
+    importItem(item, sectionId, modal) {
         this.#course.clearClipboard();
 
-        // A nested section that is unchecked drops everything beneath it, whatever the state of the child boxes.
-        const isUnderUncheckedSection = (checkbox) => {
-            let parent = checkbox.closest('.form-check')?.parentElement?.closest('.form-check');
-            while (parent) {
-                const parentCheckbox = parent.querySelector(':scope > label > input[type="checkbox"]');
-                if (parentCheckbox && parentCheckbox.dataset.type === 'section' && !parentCheckbox.checked) {
-                    return true;
-                }
-                parent = parent.parentElement?.closest('.form-check');
-            }
-            return false;
-        };
-
-        const replaceSectionDetails = Boolean(
-            modal.querySelector('input[data-action="replace_section_details"]')?.checked
-        );
-
         const courseModuleIds = [];
-        const sectionIds = [];
         modal.querySelectorAll('input[type="checkbox"]:checked').forEach((checkbox) => {
-            // Option boxes (e.g. replace section details) are not content selections.
-            if (checkbox.dataset.type === 'option' || isUnderUncheckedSection(checkbox)) {
-                return;
-            }
-            if (checkbox.dataset.type === 'section') {
-                sectionIds.push(checkbox.dataset.id);
-            } else {
-                courseModuleIds.push(checkbox.dataset.id);
-            }
+            courseModuleIds.push(checkbox.dataset.id);
         });
 
-        // The backend treats an empty list as "all nested sections", so signal "none" explicitly.
-        const hasNestedSections = modal.querySelector('input[type="checkbox"][data-type="section"]') !== null;
-        if (hasNestedSections && sectionIds.length === 0) {
-            sectionIds.push(0);
-        }
-
-        if (item.isSection() && courseModuleIds.length === 0 && (!hasNestedSections || sectionIds[0] === 0)) {
+        if (item.isSection() && courseModuleIds.length === 0) {
             modal.querySelectorAll('.form-check-input').forEach(async(item) => {
                 item.setCustomValidity(
                     await getString('atleast_one_course_module_must_be_included', 'block_sharing_cart')
@@ -772,10 +756,6 @@ export default class BlockElement {
                 itemid: item.getItemId(),
                 sectionid: sectionId,
                 coursemodulestoinclude: courseModuleIds,
-                sectionstoinclude: sectionIds,
-                insertasnewsection: Boolean(options.asNewSection),
-                courseid: options.courseId ?? 0,
-                replacesectiondetails: replaceSectionDetails,
             },
             done: async(success) => {
                 if (success) {
@@ -791,11 +771,10 @@ export default class BlockElement {
 
     /**
      * @param {ItemElement} item
-     * @param {Number} sectionId target section, 0 = top level of the course (only with options.asNewSection)
-     * @param {Object} options {asNewSection: Boolean, courseId: Number}
+     * @param {Number} sectionId
      * @param {Event} e
      */
-    async confirmImportBackupFromSharingCart(item, sectionId, options, e) {
+    async confirmImportBackupFromSharingCart(item, sectionId, e) {
         e.preventDefault();
         e.stopPropagation();
 
@@ -815,21 +794,10 @@ export default class BlockElement {
             {
                 key: 'cancel',
                 component: 'core',
-            },
-            {
-                key: 'as_new_section_in',
-                component: 'block_sharing_cart',
-            },
-            {
-                key: 'the_course',
-                component: 'block_sharing_cart',
-            },
+            }
         ]);
 
-        options = options ?? {};
-        const asNewSection = Boolean(options.asNewSection);
-        const sectionName = sectionId > 0 ? this.#course.getSectionName(sectionId) : strings[5];
-        const intoText = asNewSection ? strings[4] : strings[1];
+        const sectionName = this.#course.getSectionName(sectionId);
         const divElement = document.getElementById('block_sharing_cart');
         const pageContextId = divElement.getAttribute('data-contextid');
 
@@ -839,15 +807,14 @@ export default class BlockElement {
             pageContextId,
             {
                 itemid: item.getItemId(),
-                clipboardtargetid: sectionId,
-                asnewsection: asNewSection ? 1 : 0,
+                clipboardtargetid: sectionId
             }
         );
 
         const modal = await ModalSaveCancel.create({
             title: strings[0] + ': ' +
                 '"' + item.getItemName().slice(0, 50).trim() + '"' +
-                ' ' + intoText + ': ' +
+                ' ' + strings[1] + ': ' +
                 '"' + sectionName.slice(0, 50).trim() + '"',
             body: html,
             buttons: {
@@ -857,7 +824,7 @@ export default class BlockElement {
             removeOnClose: true,
         });
         modal.getRoot().on(ModalEvents.shown, () => this.#baseFactory.moodle().template().runTemplateJS(js));
-        modal.getRoot().on(ModalEvents.save, this.importItem.bind(this, item, sectionId, modal.getRoot()[0], options));
+        modal.getRoot().on(ModalEvents.save, this.importItem.bind(this, item, sectionId, modal.getRoot()[0]));
         await modal.show();
     }
 

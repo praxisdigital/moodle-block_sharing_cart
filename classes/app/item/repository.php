@@ -87,7 +87,7 @@ class repository extends \block_sharing_cart\app\repository
      */
     public function get_by_parent_item_id(?int $parentitemid): collection {
         return $this->map_records_to_collection_of_entities(
-            $this->db->get_records($this->get_table(), ['parent_item_id' => $parentitemid], 'sortorder ASC, id ASC')
+            $this->db->get_records($this->get_table(), ['parent_item_id' => $parentitemid])
         );
     }
 
@@ -198,65 +198,20 @@ class repository extends \block_sharing_cart\app\repository
     }
 
     /**
-     * Insert a nested section item (a child section of a copied section, as declared by a nesting course format).
-     * The item has no file of its own; the backup file lives on the root item.
-     *
-     * @param int $oldsectionid
-     * @param string $name
-     * @param int $userid
-     * @param int $parentitemid
-     * @param int $sortorder
-     * @return entity
-     */
-    public function insert_child_section(
-        int $oldsectionid,
-        string $name,
-        int $userid,
-        int $parentitemid,
-        int $sortorder
-    ): entity {
-        $time = time();
-        $itemid = $this->insert(
-            $entity = $this->basefactory->item()->entity(
-                (object)[
-                    'user_id' => $userid,
-                    'file_id' => null,
-                    'parent_item_id' => $parentitemid,
-                    'old_instance_id' => $oldsectionid,
-                    'type' => entity::TYPE_SECTION,
-                    'name' => $name,
-                    'status' => entity::STATUS_BACKEDUP,
-                    'sortorder' => $sortorder,
-                    'version' => entity::CURRENT_BACKUP_VERSION,
-                    'timecreated' => $time,
-                    'timemodified' => $time,
-                ]
-            )
-        );
-
-        $entity->set_id($itemid);
-
-        return $entity;
-    }
-
-    /**
      * insert_activities
      *
      * @param array $activities
-     * @param entity $parentitem item the activities are inserted under
+     * @param entity $rootitem
      * @return void
      */
-    private function insert_activities(array $activities, entity $parentitem): void {
+    private function insert_activities(array $activities, entity $rootitem): void {
         // Handle a single subsection (with possible nested activities).
-        if ($parentitem->get_type() === "mod_subsection") {
-            if (empty($activities)) {
-                return;
-            }
+        if ($rootitem->get_type() === "mod_subsection") {
             foreach ($activities[array_key_first($activities)]->subsection_activities as $subsectionactivity) {
                 $this->insert_activity(
                     $subsectionactivity->moduleid,
-                    $parentitem->get_user_id(),
-                    $parentitem->get_id(),
+                    $rootitem->get_user_id(),
+                    $rootitem->get_id(),
                     entity::STATUS_BACKEDUP
                 );
             }
@@ -268,14 +223,14 @@ class repository extends \block_sharing_cart\app\repository
             if ($activity->modulename === "subsection") {
                 $subsectionentity = $this->insert_activity(
                     $activity->moduleid,
-                    $parentitem->get_user_id(),
-                    $parentitem->get_id(),
+                    $rootitem->get_user_id(),
+                    $rootitem->get_id(),
                     entity::STATUS_BACKEDUP
                 );
                 foreach ($activity->subsection_activities as $subsectionactivity) {
                     $this->insert_activity(
                         $subsectionactivity->moduleid,
-                        $parentitem->get_user_id(),
+                        $rootitem->get_user_id(),
                         $subsectionentity->get_id(),
                         entity::STATUS_BACKEDUP
                     );
@@ -286,51 +241,10 @@ class repository extends \block_sharing_cart\app\repository
 
             $this->insert_activity(
                 $activity->moduleid,
-                $parentitem->get_user_id(),
-                $parentitem->get_id(),
+                $rootitem->get_user_id(),
+                $rootitem->get_id(),
                 entity::STATUS_BACKEDUP
             );
-        }
-    }
-
-    /**
-     * Build the nested items for a copied section: its own activities under the root item, then one 'section' item
-     * per descendant section (depth-first, as stored in $sectiontree) with that section's activities beneath it.
-     *
-     * @param array $sections output of backup\handler::get_backup_item_tree()
-     * @param entity $rootitem
-     * @param array $sectiontree depth-first list of {section_id, parent_section_id, sort_order}
-     * @return void
-     */
-    private function insert_section_tree(array $sections, entity $rootitem, array $sectiontree): void {
-        $rootoldsectionid = (int)$rootitem->get_old_instance_id();
-        $rootsection = $sections[$rootoldsectionid] ?? $sections[array_key_first($sections)];
-
-        $this->insert_activities($rootsection->activities, $rootitem);
-
-        $itemsbyoldsectionid = [$rootoldsectionid => $rootitem];
-
-        foreach ($sectiontree as $node) {
-            $node = (object)$node;
-            $oldsectionid = (int)$node->section_id;
-            $section = $sections[$oldsectionid] ?? null;
-            $parentitem = $itemsbyoldsectionid[(int)$node->parent_section_id] ?? null;
-
-            // Not part of the backup (excluded) or its parent was not, so the branch is dropped.
-            if ($section === null || $parentitem === null) {
-                continue;
-            }
-
-            $sectionitem = $this->insert_child_section(
-                $oldsectionid,
-                (string)(!empty($node->name) ? $node->name : $section->title),
-                $rootitem->get_user_id(),
-                $parentitem->get_id(),
-                (int)$node->sort_order
-            );
-            $itemsbyoldsectionid[$oldsectionid] = $sectionitem;
-
-            $this->insert_activities($section->activities, $sectionitem);
         }
     }
 
@@ -339,17 +253,10 @@ class repository extends \block_sharing_cart\app\repository
      *
      * @param entity $rootitem
      * @param \stored_file $file
-     * @param array $sectiontree descendant sections captured at backup time; empty for formats that do not nest
      * @return void
      */
-    public function update_sharing_cart_item_with_backup_file(
-        entity $rootitem,
-        \stored_file $file,
-        array $sectiontree = []
-    ): void {
-        foreach ($this->get_by_parent_item_id($rootitem->get_id()) as $childitem) {
-            $this->delete_by_id($childitem->get_id());
-        }
+    public function update_sharing_cart_item_with_backup_file(entity $rootitem, \stored_file $file): void {
+        $this->db->delete_records($this->get_table(), ['parent_item_id' => $rootitem->get_id()]);
 
         $rootitem->set_status(entity::STATUS_BACKEDUP);
         $rootitem->set_file_id($file->get_id());
@@ -360,21 +267,16 @@ class repository extends \block_sharing_cart\app\repository
 
         $this->update($rootitem);
 
-        $sections = $this->basefactory->backup()->handler()->get_backup_item_tree($file, $sectiontree);
+        $section = $this->basefactory->backup()->handler()->get_backup_item_tree($file);
 
-        if (isset($sections['lone_activity'])) {
+        if (isset($section['lone_activity'])) {
             return;
         }
-        if (empty($sections)) {
+        if (empty($section)) {
             throw new \Exception("Backup file was empty.");
         }
 
-        if ($rootitem->is_subsection()) {
-            $this->insert_activities($sections[array_key_first($sections)]->activities, $rootitem);
-            return;
-        }
-
-        $this->insert_section_tree($sections, $rootitem, $sectiontree);
+        $this->insert_activities($section[array_key_first($section)]->activities, $rootitem);
     }
 
     /**
