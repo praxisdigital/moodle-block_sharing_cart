@@ -450,7 +450,7 @@ class collection implements \ArrayAccess, \Countable, \Iterator, \JsonSerializab
      * @return bool
      */
     public function valid(): bool {
-        return array_key_exists(key($this->items), $this->items);
+        return key($this->items) !== null;
     }
 
     /**
