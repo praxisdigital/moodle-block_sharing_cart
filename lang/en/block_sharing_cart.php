@@ -49,7 +49,7 @@ $string['delete_item'] = 'Delete item';
 $string['delete_items'] = 'Delete items';
 $string['delete_marked_items'] = 'Delete marked items';
 $string['deselect_all'] = 'Deselect all';
-$string['drop_here'] = 'Drop here...';
+$string['drop_here'] = 'Drop an activity or section here to add it to your Sharing Cart.';
 $string['empty_section_restore'] = 'Something went wrong trying to copy the item from the sharing cart. The item was empty.';
 $string['has_items'] = 'Click the <i class="fa fa-clone"></i> icon to copy items from the Sharing Cart to the course.';
 $string['import_subsection_into_default_named_section_warning'] = 'You are about to copy a subsection into a section' .
@@ -64,8 +64,12 @@ $string['module_is_disabled_on_site'] = 'This module have been disabled on the s
 $string['no_course_modules_in_section'] = 'No course modules in this section';
 $string['no_course_modules_in_section_description'] = 'This section does not contain any course modules' .
     ' and you are therefore not able to copy it.';
-$string['no_items'] = 'No items.<br><br>Drag & drop activities or sections into the sharing cart or click the' .
-    ' <i class="fa fa-shopping-basket"></i> icon, to add items to the Sharing Cart.';
+$string['no_items'] = 'No items.<br><br>Drag and drop activities or sections into the Sharing Cart to add them.';
+$string['basket_icons_notice'] = 'Sharing Cart basket icons are no longer shown by default.' .
+    ' Drag an activity or section into the Sharing Cart to add it.' .
+    ' An administrator can turn the icons back on in Sharing Cart settings.';
+$string['dismiss_basket_icons_notice'] = 'Dismiss this notice';
+$string['dismiss_basket_icons_notice_failed'] = 'The notice could not be dismissed. Please try again.';
 $string['no_restores'] = '<div class="no-restores fst-italic text-muted">No copies queued.</div>';
 $string['nopermissions'] = 'You do not have permission to backup or restore items in this course.' .
     ' Please contact your administrator if you think this is a mistake.';
@@ -97,9 +101,10 @@ $string['settings:show_copy_section_in_block'] = 'Show the "Copy section" in blo
 $string['settings:show_copy_section_in_block_desc'] = 'Show the "Copy section" in the sharing cart block,' .
     ' underneath all modules/activities';
 $string['settings:show_sharing_cart_basket'] = 'Show the sharing cart basket';
-$string['settings:show_sharing_cart_basket_desc'] = 'Show the sharing cart basket on the course page when in editing mode.' .
-    ' This allows users to click and copy activities & sections into the sharing cart. If you hide the basket,' .
-    ' users can still drag and drop activities & sections into the sharing cart.';
+$string['settings:show_sharing_cart_basket_desc'] = 'Show basket icons next to course activities and sections while editing.' .
+    ' Users can click an icon to copy content into the Sharing Cart.' .
+    ' The icons are hidden by default; users can still' .
+    ' drag and drop activities and sections into the cart.';
 $string['sharing_cart:addinstance'] = 'Add a new Sharing Cart block';
 $string['sharing_cart:manual_run_task'] = 'Manually run the backup/restore task';
 $string['you_do_not_have_permission_to_configure_restores'] = 'You do not have permission to configure restores.' .

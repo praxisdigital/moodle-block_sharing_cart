@@ -49,7 +49,7 @@ $string['delete_item'] = 'Slet backup';
 $string['delete_items'] = 'Slet backups';
 $string['delete_marked_items'] = 'Slet valgte elementer';
 $string['deselect_all'] = 'Fravælg alle';
-$string['drop_here'] = 'Slip her...';
+$string['drop_here'] = 'Slip en aktivitet eller sektion her for at føje den til din delingskurv.';
 $string['empty_section_restore'] = 'Noget gik galt i forsøget på at kopiere det valgte fra sharing cart. Det valgte emne er tomt.';
 $string['has_items'] = 'Klik på <i class="fa fa-clone"></i> ikonet for at kopiere elementer fra Delingskurven til kurset.';
 $string['import_subsection_into_default_named_section_warning'] = 'Du er ved at kopiere en delsektion ind til en sektion' .
@@ -64,8 +64,12 @@ $string['module_is_disabled_on_site'] = 'Dette modul er blevet deaktiveret på s
 $string['no_course_modules_in_section'] = 'Ingen kursusmoduler i denne sektion';
 $string['no_course_modules_in_section_description'] = 'Denne sektion indeholder ikke nogen kursusmoduler,' .
     ' og du kan derfor ikke kopiere den.';
-$string['no_items'] = 'Ingen backups.<br><br>Træk og slip aktiviteter eller sektioner ind i delingskurven eller klik på' .
-    ' <i class="fa fa-shopping-basket"></i> ikonet, for at tilføje elementer til Delingskurven.';
+$string['no_items'] = 'Ingen backups.<br><br>Træk og slip aktiviteter eller sektioner ind i Delingskurven for at tilføje dem.';
+$string['basket_icons_notice'] = 'Delingskurvens kurvikoner vises ikke længere som standard.' .
+    ' Træk en aktivitet eller sektion ind i Delingskurven for at tilføje den.' .
+    ' En administrator kan slå ikonerne til igen under indstillingerne for Delingskurv.';
+$string['dismiss_basket_icons_notice'] = 'Afvis denne besked';
+$string['dismiss_basket_icons_notice_failed'] = 'Beskeden kunne ikke afvises. Prøv igen.';
 $string['no_restores'] = '<div class="no-restores fst-italic text-muted">Ingen kopieringer i kø.</div>';
 $string['nopermissions'] = 'Du har ikke tilladelse til at lave backup eller gendanne elementer i dette kursus.' .
     ' Kontakt venligst din administrator, hvis du mener, dette er en fejl.';
@@ -97,9 +101,11 @@ $string['settings:show_copy_section_in_block'] = 'Vis "Kopiér sektion" knap i b
 $string['settings:show_copy_section_in_block_desc'] = 'Vis "Kopiér sektion" knap i Delingskurv blokken. Hvis du skjuler knappen,' .
     ' kan brugerne stadig kopiere sektioner ved at trække og slippe dem ind i Delingskurven.';
 $string['settings:show_sharing_cart_basket'] = 'Vis delingskurv kurv';
-$string['settings:show_sharing_cart_basket_desc'] = 'Vis delingskurv kurven på kursussiden, når du er i redigerings tilstand. ' .
-    ' Dette giver brugerne mulighed for at klikke og kopiere aktiviteter og sektioner ind i delingskurven.' .
-    ' Hvis du skjuler kurven, kan brugerne stadig trække og slippe aktiviteter og sektioner ind i delingskurven.';
+$string['settings:show_sharing_cart_basket_desc'] = 'Vis delingskurvens kurvikoner ved aktiviteter og sektioner,' .
+    ' når kurset er i redigeringstilstand.' .
+    ' Brugerne kan klikke på et ikon for at kopiere indhold til Delingskurven.' .
+    ' Ikonerne er som standard skjult;' .
+    ' aktiviteter og sektioner kan stadig trækkes og slippes i kurven.';
 $string['sharing_cart:addinstance'] = 'Tilføj en ny Delingskurv blok';
 $string['sharing_cart:manual_run_task'] = 'Kør kopiering opgaver manuelt';
 $string['you_do_not_have_permission_to_configure_restores'] = 'Du har ikke tilladelse til at konfigurere gendannelser.' .

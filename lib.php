@@ -164,3 +164,19 @@ function block_sharing_cart_pluginfile(
 
     send_file_not_found();
 }
+
+/**
+ * Define user preferences that can be changed through core_user_update_user_preferences.
+ *
+ * @return array
+ */
+function block_sharing_cart_user_preferences(): array {
+    return [
+        'block_sharing_cart_basket_notice_dismissed' => [
+            'type' => PARAM_BOOL,
+            'null' => NULL_NOT_ALLOWED,
+            'default' => false,
+            'permissioncallback' => [\core_user::class, 'is_current_user'],
+        ],
+    ];
+}

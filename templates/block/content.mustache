@@ -21,10 +21,12 @@
     {"contextid":1,"canBackup":1,"canBackupUserdata":0,"canAnonymizeUserdata":0,"showSharingCartBasket":1,"courseContextId":1}
 }}
 <div id="block_sharing_cart" data-contextid="{{courseContextId}}" data-can-backup="{{canBackup}}">
-    <div class="drop_here_text">
-        <strong class="m-auto">{{#str}}drop_here, block_sharing_cart{{/str}}</strong>
+    <div class="drop_here_text" role="status" aria-live="polite">
+        <i class="fa fa-arrow-down" aria-hidden="true"></i>
+        <strong>{{#str}}drop_here, block_sharing_cart{{/str}}</strong>
     </div>
     <div class="block-content">
+        {{{basketIconsNotice}}}
         <div class="mb-3 {{^showCopiesQueuedSegmentWhenEmpty}}d-none{{/showCopiesQueuedSegmentWhenEmpty}}">
             <h6 class="fw-bold mb-2 pb-2 border-bottom">
                 {{#str}}restores, block_sharing_cart{{/str}}

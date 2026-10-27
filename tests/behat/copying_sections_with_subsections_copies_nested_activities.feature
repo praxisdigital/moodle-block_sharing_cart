@@ -22,7 +22,9 @@ Feature: As an editing teacher, copying a section with a subsection, should auto
 
   Scenario: A course has a section with a subsection containing an activity.
     The editing teacher copies the section and inserts it into a different section.
-    Given I log in as "admin"
+    Given the following config values are set as admin:
+      | show_sharing_cart_basket | 1 | block_sharing_cart |
+    And I log in as "admin"
     And I am on "Course 1" course homepage with editing mode on
     And I click on "//a[@data-key='addblock']" "xpath_element"
     And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists

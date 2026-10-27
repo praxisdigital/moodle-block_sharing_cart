@@ -104,14 +104,28 @@ class content implements \core\output\named_templatable, \renderable {
      */
     public function export_for_template(\renderer_base $OUTPUT): array {
         $coursecontext = \core\context\course::instance($this->courseid);
+        $canbackup = has_capability('moodle/backup:backupactivity', $coursecontext);
+        $showsharingcartbasket = (bool)get_config('block_sharing_cart', 'show_sharing_cart_basket');
+        $showbasketiconsnotice = $canbackup &&
+            !$showsharingcartbasket &&
+            (bool)get_config('block_sharing_cart', 'basket_icons_notice_pending') &&
+            !get_user_preferences('block_sharing_cart_basket_notice_dismissed', false, $this->userid);
 
         return [
             'items' => $this->export_items_for_template(),
             'canBackupUserdata' => has_capability('moodle/backup:userinfo', $coursecontext),
             'canAnonymizeUserdata' => has_capability('moodle/backup:anonymise', $coursecontext),
-            'canBackup' => has_capability('moodle/backup:backupactivity', $coursecontext),
+            'canBackup' => $canbackup,
             'showCopiesQueuedSegmentWhenEmpty' => get_config('block_sharing_cart', 'show_copies_queued_segment_when_empty'),
-            'showSharingCartBasket' => get_config('block_sharing_cart', 'show_sharing_cart_basket'),
+            'showSharingCartBasket' => $showsharingcartbasket,
+            'basketIconsNotice' => $showbasketiconsnotice ? \core\output\html_writer::react_component(
+                '@moodle/lms/block_sharing_cart/BasketIconsNotice',
+                [
+                    'message' => get_string('basket_icons_notice', 'block_sharing_cart'),
+                    'dismissLabel' => get_string('dismiss_basket_icons_notice', 'block_sharing_cart'),
+                    'dismissError' => get_string('dismiss_basket_icons_notice_failed', 'block_sharing_cart'),
+                ]
+            ) : '',
             'showCopySectionInBlock' => (bool)get_config('block_sharing_cart', 'show_copy_section_in_block'),
             'courseContextId' => $coursecontext->id,
         ];
