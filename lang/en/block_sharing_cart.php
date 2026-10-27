@@ -89,6 +89,8 @@ $string['privacy:metadata:sharing_cart_items:timecreated'] = 'The time this item
 $string['privacy:metadata:sharing_cart_items:timemodified'] = 'The time this item was modified';
 $string['privacy:metadata:sharing_cart_items:type'] = 'The type of the item';
 $string['privacy:metadata:sharing_cart_items:user_id'] = 'The user ID which the item belongs to';
+$string['privacy:metadata:preference:block_sharing_cart_basket_notice_dismissed'] =
+    'Whether the user dismissed the notice about hidden Sharing Cart basket icons.';
 $string['rename_item'] = 'Rename item';
 $string['restore_failed'] = 'The restore failed (task id: {$a}). This message will disappear after a while.';
 $string['restores'] = 'Copies queued';

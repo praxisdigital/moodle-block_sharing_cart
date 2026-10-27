@@ -118,6 +118,10 @@ class content implements \core\output\named_templatable, \renderable {
             'canBackup' => $canbackup,
             'showCopiesQueuedSegmentWhenEmpty' => get_config('block_sharing_cart', 'show_copies_queued_segment_when_empty'),
             'showSharingCartBasket' => $showsharingcartbasket,
+            'dropTarget' => $canbackup ? \core\output\html_writer::react_component(
+                '@moodle/lms/block_sharing_cart/DropTarget',
+                ['message' => get_string('drop_here', 'block_sharing_cart')]
+            ) : '',
             'basketIconsNotice' => $showbasketiconsnotice ? \core\output\html_writer::react_component(
                 '@moodle/lms/block_sharing_cart/BasketIconsNotice',
                 [

@@ -27,8 +27,11 @@ Feature: Copy course activities into the Sharing Cart by dragging them
     And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists
     And I click on "//a[@data-blockname='sharing_cart']" "xpath_element"
     And I wait until ".block.block_sharing_cart" "css_element" exists
-    When I drag course element ".course-content [data-for='cmitem']" into the Sharing Cart
+    And I wait until ".block.block_sharing_cart .drop_here_text" "css_element" exists
+    When I start dragging course element ".course-content [data-for='cmitem']" over the Sharing Cart
     Then the Sharing Cart showed a full-card drop target without resizing
+    And I wait until ".block.block_sharing_cart .drop_here_text.dragging_item_over" "css_element" exists
+    When I drop the dragged course element into the Sharing Cart
     And I wait until "//div[@class='modal-footer']/button[@data-action='save']" "xpath_element" exists
     And I click on "//div[@class='modal-footer']/button[@data-action='save']" "xpath_element"
     And I wait "15" seconds
@@ -43,8 +46,11 @@ Feature: Copy course activities into the Sharing Cart by dragging them
     And I click on "//a[@data-key='addblock']" "xpath_element"
     And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists
     And I click on "//a[@data-blockname='sharing_cart']" "xpath_element"
-    When I drag course element "#section-1 [data-for='section_title']" into the Sharing Cart
+    And I wait until ".block.block_sharing_cart .drop_here_text" "css_element" exists
+    When I start dragging course element "#section-1 [data-for='section_title']" over the Sharing Cart
     Then the Sharing Cart showed a full-card drop target without resizing
+    And I wait until ".block.block_sharing_cart .drop_here_text.dragging_item_over" "css_element" exists
+    When I drop the dragged course element into the Sharing Cart
     And I wait until "//div[@class='modal-footer']/button[@data-action='save']" "xpath_element" exists
     And I click on "//div[@class='modal-footer']/button[@data-action='save']" "xpath_element"
     And I wait "15" seconds

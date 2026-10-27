@@ -36,13 +36,13 @@ class behat_block_sharing_cart extends behat_base
     }
 
     /**
-     * Simulate dragging a course element into the Sharing Cart and capture the active drop target layout.
+     * Start dragging a course element over the Sharing Cart and capture the active drop target layout.
      *
-     * @When /^I drag course element "(?P<source_selector>[^"]*)" into the Sharing Cart$/
+     * @When /^I start dragging course element "(?P<source_selector>[^"]*)" over the Sharing Cart$/
      * @param string $sourceselector CSS selector for a draggable course element.
      * @return void
      */
-    public function i_drag_course_element_into_the_sharing_cart(string $sourceselector): void {
+    public function i_start_dragging_course_element_over_the_sharing_cart(string $sourceselector): void {
         $sourceselector = json_encode($sourceselector, JSON_THROW_ON_ERROR);
         $this->getSession()->executeScript(
             <<<JS
@@ -63,6 +63,9 @@ class behat_block_sharing_cart extends behat_base
                 return event;
             };
 
+            window.sharingCartDraggedSource = source;
+            window.sharingCartDropTarget = target;
+            window.sharingCartMakeDragEvent = makeDragEvent;
             const before = target.getBoundingClientRect();
             source.dispatchEvent(makeDragEvent('dragstart'));
 
@@ -79,10 +82,32 @@ class behat_block_sharing_cart extends behat_base
 
             target.dispatchEvent(makeDragEvent('dragenter'));
             target.dispatchEvent(makeDragEvent('dragover'));
-            target.dispatchEvent(makeDragEvent('drop'));
-            source.dispatchEvent(makeDragEvent('dragend'));
         JS
         );
+        $this->wait_for_pending_js();
+    }
+
+    /**
+     * Complete the course element drag started by i_start_dragging_course_element_over_the_sharing_cart.
+     *
+     * @When /^I drop the dragged course element into the Sharing Cart$/
+     * @return void
+     */
+    public function i_drop_the_dragged_course_element_into_the_sharing_cart(): void {
+        $this->getSession()->executeScript(<<<JS
+            const source = window.sharingCartDraggedSource;
+            const target = window.sharingCartDropTarget;
+            const makeDragEvent = window.sharingCartMakeDragEvent;
+            if (!source || !target || !makeDragEvent) {
+                throw new Error('No active Sharing Cart drag was found.');
+            }
+
+            target.dispatchEvent(makeDragEvent('drop'));
+            source.dispatchEvent(makeDragEvent('dragend'));
+            delete window.sharingCartDraggedSource;
+            delete window.sharingCartDropTarget;
+            delete window.sharingCartMakeDragEvent;
+        JS);
         $this->wait_for_pending_js();
     }
 
