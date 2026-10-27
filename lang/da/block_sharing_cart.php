@@ -30,6 +30,9 @@ $string['backup_failed'] = 'Backuppen mislykkedes. Du kan slette elementet fra D
 $string['backup_item'] = 'Kopiér element';
 $string['backup_settings'] = 'Kopieringsindstillinger';
 $string['backup_without_user_data'] = 'Kopiér uden brugerdata.';
+$string['basket_icons_notice'] = 'Delingskurvens kurvikoner vises ikke længere som standard.' .
+    ' Træk en aktivitet eller sektion ind i Delingskurven for at tilføje den.' .
+    ' En administrator kan slå ikonerne til igen under indstillingerne for Delingskurv.';
 $string['bulk_delete'] = 'Slet flere';
 $string['cancel_bulk_delete'] = 'Annuller';
 $string['confirm_copy_item'] = 'Er du sikker på, at du vil kopiere denne backup?';
@@ -49,6 +52,8 @@ $string['delete_item'] = 'Slet backup';
 $string['delete_items'] = 'Slet backups';
 $string['delete_marked_items'] = 'Slet valgte elementer';
 $string['deselect_all'] = 'Fravælg alle';
+$string['dismiss_basket_icons_notice'] = 'Afvis denne besked';
+$string['dismiss_basket_icons_notice_failed'] = 'Beskeden kunne ikke afvises. Prøv igen.';
 $string['drop_here'] = 'Slip en aktivitet eller sektion her for at føje den til din delingskurv.';
 $string['empty_section_restore'] = 'Noget gik galt i forsøget på at kopiere det valgte fra sharing cart. Det valgte emne er tomt.';
 $string['has_items'] = 'Klik på <i class="fa fa-clone"></i> ikonet for at kopiere elementer fra Delingskurven til kurset.';
@@ -65,11 +70,6 @@ $string['no_course_modules_in_section'] = 'Ingen kursusmoduler i denne sektion';
 $string['no_course_modules_in_section_description'] = 'Denne sektion indeholder ikke nogen kursusmoduler,' .
     ' og du kan derfor ikke kopiere den.';
 $string['no_items'] = 'Ingen backups.<br><br>Træk og slip aktiviteter eller sektioner ind i Delingskurven for at tilføje dem.';
-$string['basket_icons_notice'] = 'Delingskurvens kurvikoner vises ikke længere som standard.' .
-    ' Træk en aktivitet eller sektion ind i Delingskurven for at tilføje den.' .
-    ' En administrator kan slå ikonerne til igen under indstillingerne for Delingskurv.';
-$string['dismiss_basket_icons_notice'] = 'Afvis denne besked';
-$string['dismiss_basket_icons_notice_failed'] = 'Beskeden kunne ikke afvises. Prøv igen.';
 $string['no_restores'] = '<div class="no-restores fst-italic text-muted">Ingen kopieringer i kø.</div>';
 $string['nopermissions'] = 'Du har ikke tilladelse til at lave backup eller gendanne elementer i dette kursus.' .
     ' Kontakt venligst din administrator, hvis du mener, dette er en fejl.';
@@ -77,6 +77,8 @@ $string['old_version_module_info'] = 'Dette element blev backup\'et med en tidli
 $string['old_version_section_info'] = 'Denne sektion blev backup\'et med en tidligere version.';
 $string['original_course'] = 'Originalt kursus:';
 $string['pluginname'] = 'Delingskurv';
+$string['privacy:metadata:preference:block_sharing_cart_basket_notice_dismissed'] =
+    'Om brugeren har afvist beskeden om skjulte kurvikoner i Delingskurven.';
 $string['privacy:metadata:sharing_cart_items:file_id'] = 'Fil-ID\'et for backuppen';
 $string['privacy:metadata:sharing_cart_items:name'] = 'Navnet på elementet';
 $string['privacy:metadata:sharing_cart_items:old_instance_id'] = 'Det gamle instans-ID for elementet';
@@ -89,8 +91,6 @@ $string['privacy:metadata:sharing_cart_items:timecreated'] = 'Tidspunktet for op
 $string['privacy:metadata:sharing_cart_items:timemodified'] = 'Tidspunktet for ændringen af elementet';
 $string['privacy:metadata:sharing_cart_items:type'] = 'Typen af elementet';
 $string['privacy:metadata:sharing_cart_items:user_id'] = 'Bruger-ID\'et, som elementet tilhører';
-$string['privacy:metadata:preference:block_sharing_cart_basket_notice_dismissed'] =
-    'Om brugeren har afvist beskeden om skjulte kurvikoner i Delingskurven.';
 $string['rename_item'] = 'Omdøb backup';
 $string['restore_failed'] = 'Gendannelsen mislykkedes (task id: {$a}). Denne besked vil forsvinde efter et stykke tid.';
 $string['restores'] = 'Kopieringer i kø';

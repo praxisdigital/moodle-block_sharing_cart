@@ -30,6 +30,9 @@ $string['backup_failed'] = 'The backup failed. You can delete the item from the 
 $string['backup_item'] = 'Copy item';
 $string['backup_settings'] = 'Copy settings';
 $string['backup_without_user_data'] = 'Copy without user data.';
+$string['basket_icons_notice'] = 'Sharing Cart basket icons are no longer shown by default.' .
+    ' Drag an activity or section into the Sharing Cart to add it.' .
+    ' An administrator can turn the icons back on in Sharing Cart settings.';
 $string['bulk_delete'] = 'Bulk delete';
 $string['cancel_bulk_delete'] = 'Cancel';
 $string['confirm_copy_item'] = 'Are you sure you want to copy this item?';
@@ -49,6 +52,8 @@ $string['delete_item'] = 'Delete item';
 $string['delete_items'] = 'Delete items';
 $string['delete_marked_items'] = 'Delete marked items';
 $string['deselect_all'] = 'Deselect all';
+$string['dismiss_basket_icons_notice'] = 'Dismiss this notice';
+$string['dismiss_basket_icons_notice_failed'] = 'The notice could not be dismissed. Please try again.';
 $string['drop_here'] = 'Drop an activity or section here to add it to your Sharing Cart.';
 $string['empty_section_restore'] = 'Something went wrong trying to copy the item from the sharing cart. The item was empty.';
 $string['has_items'] = 'Click the <i class="fa fa-clone"></i> icon to copy items from the Sharing Cart to the course.';
@@ -65,11 +70,6 @@ $string['no_course_modules_in_section'] = 'No course modules in this section';
 $string['no_course_modules_in_section_description'] = 'This section does not contain any course modules' .
     ' and you are therefore not able to copy it.';
 $string['no_items'] = 'No items.<br><br>Drag and drop activities or sections into the Sharing Cart to add them.';
-$string['basket_icons_notice'] = 'Sharing Cart basket icons are no longer shown by default.' .
-    ' Drag an activity or section into the Sharing Cart to add it.' .
-    ' An administrator can turn the icons back on in Sharing Cart settings.';
-$string['dismiss_basket_icons_notice'] = 'Dismiss this notice';
-$string['dismiss_basket_icons_notice_failed'] = 'The notice could not be dismissed. Please try again.';
 $string['no_restores'] = '<div class="no-restores fst-italic text-muted">No copies queued.</div>';
 $string['nopermissions'] = 'You do not have permission to backup or restore items in this course.' .
     ' Please contact your administrator if you think this is a mistake.';
@@ -77,6 +77,8 @@ $string['old_version_module_info'] = 'This item was backed up using a previous v
 $string['old_version_section_info'] = 'This section was backed up using a previous version.';
 $string['original_course'] = 'Original course:';
 $string['pluginname'] = 'Sharing Cart';
+$string['privacy:metadata:preference:block_sharing_cart_basket_notice_dismissed'] =
+    'Whether the user dismissed the notice about hidden Sharing Cart basket icons.';
 $string['privacy:metadata:sharing_cart_items:file_id'] = 'The file ID of the backup';
 $string['privacy:metadata:sharing_cart_items:name'] = 'The name of the item';
 $string['privacy:metadata:sharing_cart_items:old_instance_id'] = 'The old instance ID of the item';
@@ -89,8 +91,6 @@ $string['privacy:metadata:sharing_cart_items:timecreated'] = 'The time this item
 $string['privacy:metadata:sharing_cart_items:timemodified'] = 'The time this item was modified';
 $string['privacy:metadata:sharing_cart_items:type'] = 'The type of the item';
 $string['privacy:metadata:sharing_cart_items:user_id'] = 'The user ID which the item belongs to';
-$string['privacy:metadata:preference:block_sharing_cart_basket_notice_dismissed'] =
-    'Whether the user dismissed the notice about hidden Sharing Cart basket icons.';
 $string['rename_item'] = 'Rename item';
 $string['restore_failed'] = 'The restore failed (task id: {$a}). This message will disappear after a while.';
 $string['restores'] = 'Copies queued';

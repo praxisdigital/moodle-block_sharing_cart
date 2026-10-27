@@ -16,6 +16,10 @@
 
 namespace block_sharing_cart\integration\upgrade;
 
+// @codeCoverageIgnoreStart
+defined('MOODLE_INTERNAL') || die();
+// @codeCoverageIgnoreEnd
+
 require_once(__DIR__ . '/../../../db/upgrade.php');
 
 /**
@@ -25,6 +29,7 @@ require_once(__DIR__ . '/../../../db/upgrade.php');
  * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+#[\PHPUnit\Framework\Attributes\CoversFunction('xmldb_block_sharing_cart_upgrade')]
 final class basket_icons_test extends \advanced_testcase {
     /**
      * Reset plugin configuration between migration scenarios.
