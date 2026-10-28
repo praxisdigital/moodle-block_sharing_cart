@@ -245,9 +245,11 @@ class behat_block_sharing_cart extends behat_base
      */
     public function copyable_sharing_cart_items_showed_a_drag_handle_and_grab_cursor(): void {
         $valid = $this->getSession()->evaluateScript(
-            'return Boolean(document.querySelector(".sharing_cart_item[data-can-drag-to-course=\'1\']") '
-                . '&& document.querySelector(".sharing_cart_item[data-can-drag-to-course=\'1\'] .sharing_cart_item_drag_handle") '
-                . '&& window.getComputedStyle(document.querySelector(".sharing_cart_item[data-can-drag-to-course=\'1\']")).cursor === "grab");'
+            'return (() => {'
+                . 'const item = document.querySelector(".sharing_cart_item[data-can-drag-to-course=\'1\']");'
+                . 'return Boolean(item && item.querySelector(".sharing_cart_item_drag_handle") '
+                . '&& window.getComputedStyle(item).cursor === "grab");'
+                . '})();'
         );
 
         if (!$valid) {
