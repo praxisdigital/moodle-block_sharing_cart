@@ -79,8 +79,6 @@ $string['original_course'] = 'Originalt kursus:';
 $string['pluginname'] = 'Delingskurv';
 $string['privacy:metadata:preference:block_sharing_cart_basket_notice_dismissed'] =
     'Om brugeren har afvist beskeden om skjulte kurvikoner i Delingskurven.';
-$string['privacy:preference:block_sharing_cart_basket_notice_dismissed'] =
-    'Om du har afvist beskeden om skjulte kurvikoner i Delingskurven.';
 $string['privacy:metadata:sharing_cart_items:file_id'] = 'Fil-ID\'et for backuppen';
 $string['privacy:metadata:sharing_cart_items:name'] = 'Navnet på elementet';
 $string['privacy:metadata:sharing_cart_items:old_instance_id'] = 'Det gamle instans-ID for elementet';
@@ -93,6 +91,8 @@ $string['privacy:metadata:sharing_cart_items:timecreated'] = 'Tidspunktet for op
 $string['privacy:metadata:sharing_cart_items:timemodified'] = 'Tidspunktet for ændringen af elementet';
 $string['privacy:metadata:sharing_cart_items:type'] = 'Typen af elementet';
 $string['privacy:metadata:sharing_cart_items:user_id'] = 'Bruger-ID\'et, som elementet tilhører';
+$string['privacy:preference:block_sharing_cart_basket_notice_dismissed'] =
+    'Om du har afvist beskeden om skjulte kurvikoner i Delingskurven.';
 $string['rename_item'] = 'Omdøb backup';
 $string['restore_failed'] = 'Gendannelsen mislykkedes (task id: {$a}). Denne besked vil forsvinde efter et stykke tid.';
 $string['restores'] = 'Kopieringer i kø';
