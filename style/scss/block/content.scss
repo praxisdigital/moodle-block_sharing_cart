@@ -64,7 +64,7 @@
         cursor: auto;
       }
 
-      &.sharing_cart_item_copyable {
+      &[data-can-drag-to-course="1"] {
         cursor: grab;
 
         &.sortable-chosen,

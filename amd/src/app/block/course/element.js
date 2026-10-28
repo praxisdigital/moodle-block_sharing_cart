@@ -159,17 +159,16 @@ export default class CourseElement {
         });
 
         getString('drop_to_copy_here', 'block_sharing_cart').then((label) => {
-            if (this.#draggedCartItem !== item) {
-                return;
+            if (this.#draggedCartItem === item) {
+                this.#element.querySelectorAll('.sharing_cart_drop_target').forEach((section) => {
+                    const prompt = document.createElement('span');
+                    prompt.className = 'sharing_cart_drop_prompt';
+                    prompt.textContent = label;
+                    prompt.setAttribute('aria-hidden', 'true');
+                    section.append(prompt);
+                });
             }
-
-            this.#element.querySelectorAll('.sharing_cart_drop_target').forEach((section) => {
-                const prompt = document.createElement('span');
-                prompt.className = 'sharing_cart_drop_prompt';
-                prompt.textContent = label;
-                prompt.setAttribute('aria-hidden', 'true');
-                section.append(prompt);
-            });
+            return label;
         }).catch(Notification.exception);
     }
 

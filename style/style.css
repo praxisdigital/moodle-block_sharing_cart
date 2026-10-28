@@ -52,13 +52,13 @@
 .block.block_sharing_cart .sharing_cart_items .sharing_cart_item[data-status="2"], .block.block_sharing_cart .sharing_cart_items .sharing_cart_item[data-status="0"] {
   cursor: auto;
 }
-.block.block_sharing_cart .sharing_cart_items .sharing_cart_item.sharing_cart_item_copyable {
+.block.block_sharing_cart .sharing_cart_items .sharing_cart_item[data-can-drag-to-course="1"] {
   cursor: grab;
 }
-.block.block_sharing_cart .sharing_cart_items .sharing_cart_item.sharing_cart_item_copyable.sortable-chosen, .block.block_sharing_cart .sharing_cart_items .sharing_cart_item.sharing_cart_item_copyable:active {
+.block.block_sharing_cart .sharing_cart_items .sharing_cart_item[data-can-drag-to-course="1"].sortable-chosen, .block.block_sharing_cart .sharing_cart_items .sharing_cart_item[data-can-drag-to-course="1"]:active {
   cursor: grabbing;
 }
-.block.block_sharing_cart .sharing_cart_items .sharing_cart_item.sharing_cart_item_copyable .sharing_cart_item_drag_handle {
+.block.block_sharing_cart .sharing_cart_items .sharing_cart_item[data-can-drag-to-course="1"] .sharing_cart_item_drag_handle {
   display: flex;
   align-items: center;
   color: var(--bs-secondary-color);
