@@ -20,7 +20,7 @@ export default class QueueElement {
     #element;
 
     /**
-     * @type {CourseEditor}
+     * @type {CourseEditor|null}
      */
     #reactive;
 
@@ -158,7 +158,7 @@ export default class QueueElement {
                     sectionIds.push(sectionId);
                 });
 
-                if (sectionIds.length > 0) {
+                if (sectionIds.length > 0 && this.#reactive) {
                     this.#reactive.dispatch('sectionState', sectionIds).then(() => {
                         Toast.add(getString('you_may_need_to_reload_the_course_warning', 'block_sharing_cart'), {
                             closeButton: true,

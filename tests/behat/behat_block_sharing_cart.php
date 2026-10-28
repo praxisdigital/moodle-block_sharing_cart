@@ -170,6 +170,10 @@ class behat_block_sharing_cart extends behat_base
             window.sharingCartDraggedItem = source;
             window.sharingCartCourseDropTarget = target;
             window.sharingCartMakeItemDragEvent = makeDragEvent;
+            window.sharingCartDocumentReceivedDragOver = false;
+            document.addEventListener('dragover', () => {
+                window.sharingCartDocumentReceivedDragOver = true;
+            }, {once: true});
             source.dispatchEvent(makeDragEvent('dragstart', false));
             target.dispatchEvent(makeDragEvent('dragover'));
             JS
@@ -189,7 +193,8 @@ class behat_block_sharing_cart extends behat_base
                 . 'const section = window.sharingCartCourseDropTarget.closest("[data-for=section]");'
                 . 'return Boolean(section && section.classList.contains("sharing_cart_drop_target") '
                 . '&& section.classList.contains("sharing_cart_drop_target_active") '
-                . '&& section.querySelector(".sharing_cart_drop_prompt"));'
+                . '&& section.querySelector(".sharing_cart_drop_prompt") '
+                . '&& window.sharingCartDocumentReceivedDragOver);'
                 . '})();'
         );
 

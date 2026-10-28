@@ -214,7 +214,6 @@ export default class CourseElement {
             return;
         }
 
-        event.stopPropagation();
         const dropTarget = this.#getCartDropTarget(event.target, this.#draggedCartItem);
         if (!dropTarget) {
             if (event.dataTransfer) {

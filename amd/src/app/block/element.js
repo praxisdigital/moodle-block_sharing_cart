@@ -24,7 +24,7 @@ export default class BlockElement {
     #element;
 
     /**
-     * @type {CourseElement}
+     * @type {CourseElement|null}
      */
     #course;
 
@@ -116,7 +116,7 @@ export default class BlockElement {
     }
 
     /**
-     * @return {{course: CourseElement, block: BlockElement, queue: QueueElement}}
+     * @return {{course: CourseElement|null, block: BlockElement, queue: QueueElement}}
      */
     addEventListeners() {
         this.setupCourse();
@@ -130,8 +130,7 @@ export default class BlockElement {
 
     setupCourse() {
         const course = document.querySelector('.course-content');
-
-        this.#course = this.#baseFactory.block().course().element(this, course);
+        this.#course = course ? this.#baseFactory.block().course().element(this, course) : null;
     }
 
     setupQueue() {
@@ -144,23 +143,25 @@ export default class BlockElement {
         const items = this.#element.querySelectorAll('.sharing_cart_item');
         const itemsContainer = this.#element.querySelector('.sharing_cart_items');
 
-        itemsContainer.addEventListener('dragstart', (event) => {
-            const draggedElement = event.target instanceof Element ? event.target.closest('.sharing_cart_item') : null;
-            const item = this.#items.find((cartItem) => cartItem.getItemElement() === draggedElement);
-            if (!item || draggedElement.dataset.canDragToCourse !== '1') {
-                return;
-            }
+        if (this.#course) {
+            itemsContainer.addEventListener('dragstart', (event) => {
+                const draggedElement = event.target instanceof Element ? event.target.closest('.sharing_cart_item') : null;
+                const item = this.#items.find((cartItem) => cartItem.getItemElement() === draggedElement);
+                if (!item || draggedElement.dataset.canDragToCourse !== '1') {
+                    return;
+                }
 
-            this.#course.startCartItemDrag(item);
-        }, true);
-        itemsContainer.addEventListener('dragend', (event) => {
-            const draggedElement = event.target instanceof Element ? event.target.closest('.sharing_cart_item') : null;
-            if (!draggedElement) {
-                return;
-            }
+                this.#course.startCartItemDrag(item);
+            }, true);
+            itemsContainer.addEventListener('dragend', (event) => {
+                const draggedElement = event.target instanceof Element ? event.target.closest('.sharing_cart_item') : null;
+                if (!draggedElement) {
+                    return;
+                }
 
-            this.#course.endCartItemDrag();
-        }, true);
+                this.#course.endCartItemDrag();
+            }, true);
+        }
 
         for (const element of items) {
             await this.setupItem(element);
@@ -187,10 +188,36 @@ export default class BlockElement {
             }
         });
         this.#element.querySelector('.sharing_cart_items').dataset.sortableInitialized = 'true';
+        this.#updateCourseDragAffordances();
+    }
+
+    /**
+     * Show course-copy drag cues only when the course target and native dragging are available.
+     */
+    #updateCourseDragAffordances() {
+        const supportsCourseDrag = Boolean(this.#course && this.#sortable?.nativeDraggable);
+        const guidance = this.#element.querySelector('.has-items');
+
+        guidance?.classList.toggle('d-none', !this.#course);
+        if (this.#course && !supportsCourseDrag && guidance) {
+            getString('has_items_click_to_copy', 'block_sharing_cart').then((text) => {
+                guidance.textContent = text;
+                return text;
+            }).catch(Notification.exception);
+        }
+
+        if (!supportsCourseDrag) {
+            this.#element.querySelectorAll('.sharing_cart_items .sharing_cart_item').forEach((item) => {
+                item.dataset.canDragToCourse = '0';
+                item.querySelectorAll(':scope > .item-body .sharing_cart_item_drag_handle').forEach((handle) => {
+                    handle.remove();
+                });
+            });
+        }
     }
 
     setupDragAndDrop() {
-        if (!this.#canBackup) {
+        if (!this.#canBackup || !this.#course) {
             return;
         }
 
@@ -305,6 +332,16 @@ export default class BlockElement {
      * @param {HTMLElement} element
      */
     async setupItem(element) {
+        if (!this.#course) {
+            element.querySelectorAll('[data-action="copy_to_course"]').forEach((action) => action.remove());
+        }
+        if (!this.#course || (this.#sortable && !this.#sortable.nativeDraggable)) {
+            element.dataset.canDragToCourse = '0';
+            element.querySelectorAll(':scope > .item-body .sharing_cart_item_drag_handle').forEach((handle) => {
+                handle.remove();
+            });
+        }
+
         const itemElement = this.#baseFactory.block().item().element(this, element);
 
         if (itemElement.getStatus() !== '0' && this.isBulkDeleteEnabled()) {
@@ -313,7 +350,7 @@ export default class BlockElement {
         }
 
         this.#element.querySelector('.no-items').classList.add('d-none');
-        this.#element.querySelector('.has-items').classList.remove('d-none');
+        this.#element.querySelector('.has-items').classList.toggle('d-none', !this.#course);
 
         const rootItems = this.#element.querySelectorAll('.sharing_cart_items > .sharing_cart_item');
         if (this.#bulkDeleteEnabled === false && rootItems.length > 1) {
@@ -369,6 +406,10 @@ export default class BlockElement {
      * @param {ItemElement} item
      */
     async setClipboard(item) {
+        if (!this.#course) {
+            return;
+        }
+
         this.#clipboardItem = item;
 
         await this.#course.setClipboard(item);
@@ -404,7 +445,7 @@ export default class BlockElement {
             }
 
             if (this.#items[index].getItemId() === this.#clipboardItem?.getItemId()) {
-                this.#course.clearClipboard();
+                this.#course?.clearClipboard();
             }
 
             this.#items.splice(index, 1);
@@ -413,7 +454,7 @@ export default class BlockElement {
 
         const index = this.#items.findIndex((i) => i.getItemId() === item.getItemId());
         if (this.#items[index].getItemId() === this.#clipboardItem?.getItemId()) {
-            this.#course.clearClipboard();
+            this.#course?.clearClipboard();
         }
 
         this.#items.splice(index, 1);
@@ -754,7 +795,7 @@ export default class BlockElement {
      * @param {HTMLElement} modal
      */
     importItem(item, sectionId, modal) {
-        this.#course.clearClipboard();
+        this.#course?.clearClipboard();
 
         const courseModuleIds = [];
         modal.querySelectorAll('input[type="checkbox"]:checked').forEach((checkbox) => {
