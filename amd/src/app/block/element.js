@@ -147,7 +147,7 @@ export default class BlockElement {
         itemsContainer.addEventListener('dragstart', (event) => {
             const draggedElement = event.target instanceof Element ? event.target.closest('.sharing_cart_item') : null;
             const item = this.#items.find((cartItem) => cartItem.getItemElement() === draggedElement);
-            if (!item || !draggedElement.querySelector('[data-action="copy_to_course"]')) {
+            if (!item || draggedElement.dataset.canDragToCourse !== '1') {
                 return;
             }
 
@@ -170,7 +170,7 @@ export default class BlockElement {
             dataIdAttr: 'data-itemid',
             draggable: '.sharing_cart_item',
             setData: (dataTransfer, dragElement) => {
-                dataTransfer.effectAllowed = dragElement.querySelector('[data-action="copy_to_course"]') ?
+                dataTransfer.effectAllowed = dragElement.dataset.canDragToCourse === '1' ?
                     'copyMove' : 'move';
                 dataTransfer.setData('Text', dragElement.textContent);
             },

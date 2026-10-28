@@ -185,10 +185,12 @@ class behat_block_sharing_cart extends behat_base
      */
     public function the_course_section_showed_a_highlighted_sharing_cart_drop_target(): void {
         $valid = $this->getSession()->evaluateScript(
-            'return window.sharingCartCourseDropTarget '
-                . '&& window.sharingCartCourseDropTarget.classList.contains("sharing_cart_drop_target") '
-                . '&& window.sharingCartCourseDropTarget.classList.contains("sharing_cart_drop_target_active") '
-                . '&& window.sharingCartCourseDropTarget.querySelector(".sharing_cart_drop_prompt");'
+            'return (() => {'
+                . 'const section = window.sharingCartCourseDropTarget.closest("[data-for=section]");'
+                . 'return Boolean(section && section.classList.contains("sharing_cart_drop_target") '
+                . '&& section.classList.contains("sharing_cart_drop_target_active") '
+                . '&& section.querySelector(".sharing_cart_drop_prompt"));'
+                . '})();'
         );
 
         if (!$valid) {
@@ -255,6 +257,26 @@ class behat_block_sharing_cart extends behat_base
         if (!$valid) {
             throw new \Behat\Mink\Exception\ExpectationException(
                 'Copyable Sharing Cart items did not show a drag handle and grab cursor.',
+                $this->getSession()
+            );
+        }
+    }
+
+    /**
+     * Assert that nested saved-cart items do not advertise drag-to-course when only roots can be dragged.
+     *
+     * @Then /^nested Sharing Cart items did not show drag handles$/
+     * @return void
+     */
+    public function nested_sharing_cart_items_did_not_show_drag_handles(): void {
+        $valid = $this->getSession()->evaluateScript(
+            'return !document.querySelector(".sharing_cart_items > .sharing_cart_item '
+                . '.sharing_cart_item_children .sharing_cart_item_drag_handle");'
+        );
+
+        if (!$valid) {
+            throw new \Behat\Mink\Exception\ExpectationException(
+                'Nested Sharing Cart items showed drag handles.',
                 $this->getSession()
             );
         }

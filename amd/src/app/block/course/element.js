@@ -150,12 +150,12 @@ export default class CourseElement {
 
         const sections = this.#element.querySelectorAll('[data-for="section"]');
         sections.forEach((section) => {
-            const target = section.querySelector('[data-for="cmlist"]') ?? section;
-            if (!this.isSectionClipboardTargetEligible(target, item)) {
+            const dropTarget = this.#getCartDropTarget(section, item);
+            if (!dropTarget) {
                 return;
             }
 
-            section.classList.add('sharing_cart_drop_target');
+            dropTarget.section.classList.add('sharing_cart_drop_target');
         });
 
         getString('drop_to_copy_here', 'block_sharing_cart').then((label) => {
@@ -181,6 +181,31 @@ export default class CourseElement {
     }
 
     /**
+     * Resolve the nearest course section and its own activity list as a drop destination.
+     * @param {EventTarget|null} target
+     * @param {ItemElement} item
+     * @returns {{section: HTMLElement, sectionId: string}|null}
+     */
+    #getCartDropTarget(target, item) {
+        if (!(target instanceof Element)) {
+            return null;
+        }
+
+        const section = target.closest('[data-for="section"]');
+        if (!section || !this.#element.contains(section)) {
+            return null;
+        }
+
+        const sectionContent = section.querySelector('[data-for="cmlist"]') ?? section;
+        const sectionId = section.dataset.id;
+        if (!sectionId || !this.isSectionClipboardTargetEligible(sectionContent, item)) {
+            return null;
+        }
+
+        return {section, sectionId};
+    }
+
+    /**
      * Handle a drag over an eligible course section.
      * @param {DragEvent} event
      */
@@ -190,12 +215,8 @@ export default class CourseElement {
         }
 
         event.stopPropagation();
-        const target = event.target instanceof Element ? event.target : null;
-        const courseSection = target?.closest('[data-for="section"]');
-        const sectionContent = target?.closest('[data-for="cmlist"]');
-        const dropTarget = sectionContent ?? courseSection;
-        if (!courseSection || !dropTarget || !this.#element.contains(courseSection) ||
-                !this.isSectionClipboardTargetEligible(dropTarget, this.#draggedCartItem)) {
+        const dropTarget = this.#getCartDropTarget(event.target, this.#draggedCartItem);
+        if (!dropTarget) {
             if (event.dataTransfer) {
                 event.dataTransfer.dropEffect = 'none';
             }
@@ -207,7 +228,7 @@ export default class CourseElement {
         if (event.dataTransfer) {
             event.dataTransfer.dropEffect = 'copy';
         }
-        this.#setActiveCartDropTarget(courseSection);
+        this.#setActiveCartDropTarget(dropTarget.section);
     }
 
     /**
@@ -241,13 +262,8 @@ export default class CourseElement {
         }
 
         event.stopPropagation();
-        const target = event.target instanceof Element ? event.target : null;
-        const courseSection = target?.closest('[data-for="section"]');
-        const sectionContent = target?.closest('[data-for="cmlist"]');
-        const dropTarget = sectionContent ?? courseSection;
-        const sectionId = dropTarget?.closest('[data-for="section"]')?.dataset.id;
-        if (!courseSection || !sectionId || !this.#element.contains(courseSection) ||
-                !this.isSectionClipboardTargetEligible(dropTarget, this.#draggedCartItem)) {
+        const dropTarget = this.#getCartDropTarget(event.target, this.#draggedCartItem);
+        if (!dropTarget) {
             return;
         }
 
@@ -255,7 +271,7 @@ export default class CourseElement {
 
         const item = this.#draggedCartItem;
         this.endCartItemDrag();
-        this.#blockElement.confirmImportBackupFromSharingCart(item, Number.parseInt(sectionId), event)
+        this.#blockElement.confirmImportBackupFromSharingCart(item, Number.parseInt(dropTarget.sectionId), event)
             .catch(Notification.exception);
     }
 

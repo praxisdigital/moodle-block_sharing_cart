@@ -104,7 +104,8 @@ class item implements \core\output\named_templatable, \renderable {
             'name' => str_replace('mod_', '', $item->get_type()),
             'visible' => false,
         ]);
-        $itemcontext->can_drag_to_course = $itemcontext->status_finished &&
+        $itemcontext->can_drag_to_course = $itemcontext->is_root &&
+            $itemcontext->status_finished &&
             $itemcontext->has_file_id &&
             !$itemcontext->module_is_disabled_on_site &&
             $itemcontext->can_copy_to_course;

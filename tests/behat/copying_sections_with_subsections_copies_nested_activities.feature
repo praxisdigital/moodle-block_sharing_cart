@@ -40,6 +40,7 @@ Feature: As an editing teacher, copying a section with a subsection, should auto
     And I run all adhoc tasks
     And I wait "2" seconds
     And I wait until "(//div[@class='sharing_cart_item' and @data-type='section']//i[@class='fa fa-clone'])[1]" "xpath_element" exists
+    Then nested Sharing Cart items did not show drag handles
     And I click on "(//div[@class='sharing_cart_item' and @data-type='section']//i[@class='fa fa-clone'])[1]" "xpath_element"
     And I click on "//li[@id='section-2']//*[@class='clipboard_target']" "xpath_element"
     And I wait until "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element" exists
