@@ -65,10 +65,12 @@ final class provider_test extends \core_privacy\tests\provider_testcase {
         $writer = writer::with_context(\context_system::instance());
         $preferences = $writer->get_user_preferences('block_sharing_cart');
         self::assertSame('1', $preferences->block_sharing_cart_basket_notice_dismissed->value);
+        $description = $preferences->block_sharing_cart_basket_notice_dismissed->description;
         self::assertSame(
-            get_string('privacy:metadata:preference:block_sharing_cart_basket_notice_dismissed', 'block_sharing_cart'),
-            $preferences->block_sharing_cart_basket_notice_dismissed->description
+            get_string('privacy:preference:block_sharing_cart_basket_notice_dismissed', 'block_sharing_cart'),
+            $description
         );
+        self::assertStringNotContainsString('[[', $description);
     }
 
     /**

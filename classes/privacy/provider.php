@@ -216,7 +216,7 @@ class provider implements
             'block_sharing_cart',
             'block_sharing_cart_basket_notice_dismissed',
             $preference,
-            get_string('privacy:metadata:preference:block_sharing_cart_basket_notice_dismissed', 'block_sharing_cart')
+            get_string('privacy:preference:block_sharing_cart_basket_notice_dismissed', 'block_sharing_cart')
         );
     }
 }

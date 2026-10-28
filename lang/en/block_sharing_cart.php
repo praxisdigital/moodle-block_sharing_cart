@@ -79,6 +79,8 @@ $string['original_course'] = 'Original course:';
 $string['pluginname'] = 'Sharing Cart';
 $string['privacy:metadata:preference:block_sharing_cart_basket_notice_dismissed'] =
     'Whether the user dismissed the notice about hidden Sharing Cart basket icons.';
+$string['privacy:preference:block_sharing_cart_basket_notice_dismissed'] =
+    'Whether you dismissed the notice about hidden Sharing Cart basket icons.';
 $string['privacy:metadata:sharing_cart_items:file_id'] = 'The file ID of the backup';
 $string['privacy:metadata:sharing_cart_items:name'] = 'The name of the item';
 $string['privacy:metadata:sharing_cart_items:old_instance_id'] = 'The old instance ID of the item';

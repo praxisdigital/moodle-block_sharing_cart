@@ -79,6 +79,8 @@ $string['original_course'] = 'Originalt kursus:';
 $string['pluginname'] = 'Delingskurv';
 $string['privacy:metadata:preference:block_sharing_cart_basket_notice_dismissed'] =
     'Om brugeren har afvist beskeden om skjulte kurvikoner i Delingskurven.';
+$string['privacy:preference:block_sharing_cart_basket_notice_dismissed'] =
+    'Om du har afvist beskeden om skjulte kurvikoner i Delingskurven.';
 $string['privacy:metadata:sharing_cart_items:file_id'] = 'Fil-ID\'et for backuppen';
 $string['privacy:metadata:sharing_cart_items:name'] = 'Navnet på elementet';
 $string['privacy:metadata:sharing_cart_items:old_instance_id'] = 'Det gamle instans-ID for elementet';
