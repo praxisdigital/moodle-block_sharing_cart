@@ -52,6 +52,18 @@
 .block.block_sharing_cart .sharing_cart_items .sharing_cart_item[data-status="2"], .block.block_sharing_cart .sharing_cart_items .sharing_cart_item[data-status="0"] {
   cursor: auto;
 }
+.block.block_sharing_cart .sharing_cart_items .sharing_cart_item.sharing_cart_item_copyable {
+  cursor: grab;
+}
+.block.block_sharing_cart .sharing_cart_items .sharing_cart_item.sharing_cart_item_copyable.sortable-chosen, .block.block_sharing_cart .sharing_cart_items .sharing_cart_item.sharing_cart_item_copyable:active {
+  cursor: grabbing;
+}
+.block.block_sharing_cart .sharing_cart_items .sharing_cart_item.sharing_cart_item_copyable .sharing_cart_item_drag_handle {
+  display: flex;
+  align-items: center;
+  color: var(--bs-secondary-color);
+  cursor: grab;
+}
 .block.block_sharing_cart .sharing_cart_items .sharing_cart_item[data-status="0"]:not(.alert.alert-info) .item-body .info, .block.block_sharing_cart .sharing_cart_items .sharing_cart_item[data-module_is_disabled_on_site="1"]:not(.alert.alert-info) .item-body .info {
   color: rgba(0, 0, 0, 0.5);
 }
@@ -145,6 +157,28 @@
   margin-bottom: 0.5%;
 }
 
+body:has(.block.block_sharing_cart) .course-content .course-section.sharing_cart_drop_target {
+  position: relative;
+  outline: 2px dashed var(--bs-primary);
+  outline-offset: -2px;
+  cursor: copy;
+}
+body:has(.block.block_sharing_cart) .course-content .course-section.sharing_cart_drop_target_active {
+  outline-style: solid;
+  background-color: rgba(var(--bs-primary-rgb), 0.08);
+}
+body:has(.block.block_sharing_cart) .course-content .sharing_cart_drop_prompt {
+  position: absolute;
+  inset-block-start: 0.5rem;
+  inset-inline-end: 0.5rem;
+  z-index: 20;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  background-color: var(--bs-primary);
+  color: var(--bs-white);
+  font-weight: bold;
+  pointer-events: none;
+}
 body:has(.block.block_sharing_cart) .course-content .clipboard {
   display: flex;
   border: 2px dashed #999;

@@ -4,6 +4,31 @@
 }
 
 body:has(.block.block_sharing_cart) .course-content {
+  .course-section.sharing_cart_drop_target {
+    position: relative;
+    outline: 2px dashed var(--bs-primary);
+    outline-offset: -2px;
+    cursor: copy;
+  }
+
+  .course-section.sharing_cart_drop_target_active {
+    outline-style: solid;
+    background-color: rgba(var(--bs-primary-rgb), 0.08);
+  }
+
+  .sharing_cart_drop_prompt {
+    position: absolute;
+    inset-block-start: 0.5rem;
+    inset-inline-end: 0.5rem;
+    z-index: 20;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    background-color: var(--bs-primary);
+    color: var(--bs-white);
+    font-weight: bold;
+    pointer-events: none;
+  }
+
   .clipboard {
     display: flex;
     border: 2px dashed #999;

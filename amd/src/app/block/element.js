@@ -142,6 +142,25 @@ export default class BlockElement {
 
     async setupItems() {
         const items = this.#element.querySelectorAll('.sharing_cart_item');
+        const itemsContainer = this.#element.querySelector('.sharing_cart_items');
+
+        itemsContainer.addEventListener('dragstart', (event) => {
+            const draggedElement = event.target instanceof Element ? event.target.closest('.sharing_cart_item') : null;
+            const item = this.#items.find((cartItem) => cartItem.getItemElement() === draggedElement);
+            if (!item || !draggedElement.querySelector('[data-action="copy_to_course"]')) {
+                return;
+            }
+
+            this.#course.startCartItemDrag(item);
+        }, true);
+        itemsContainer.addEventListener('dragend', (event) => {
+            const draggedElement = event.target instanceof Element ? event.target.closest('.sharing_cart_item') : null;
+            if (!draggedElement) {
+                return;
+            }
+
+            this.#course.endCartItemDrag();
+        }, true);
 
         for (const element of items) {
             await this.setupItem(element);
@@ -150,6 +169,11 @@ export default class BlockElement {
         this.#sortable = new Sortable(this.#element.querySelector('.sharing_cart_items'), {
             dataIdAttr: 'data-itemid',
             draggable: '.sharing_cart_item',
+            setData: (dataTransfer, dragElement) => {
+                dataTransfer.effectAllowed = dragElement.querySelector('[data-action="copy_to_course"]') ?
+                    'copyMove' : 'move';
+                dataTransfer.setData('Text', dragElement.textContent);
+            },
             onUpdate: () => {
                 Ajax.call([{
                     methodname: 'block_sharing_cart_reorder_sharing_cart_items',
@@ -162,6 +186,7 @@ export default class BlockElement {
                 }]);
             }
         });
+        this.#element.querySelector('.sharing_cart_items').dataset.sortableInitialized = 'true';
     }
 
     setupDragAndDrop() {

@@ -64,6 +64,22 @@
         cursor: auto;
       }
 
+      &.sharing_cart_item_copyable {
+        cursor: grab;
+
+        &.sortable-chosen,
+        &:active {
+          cursor: grabbing;
+        }
+
+        .sharing_cart_item_drag_handle {
+          display: flex;
+          align-items: center;
+          color: var(--bs-secondary-color);
+          cursor: grab;
+        }
+      }
+
       &[data-status="0"]:not(.alert.alert-info), &[data-module_is_disabled_on_site="1"]:not(.alert.alert-info) {
         .item-body {
           .info {

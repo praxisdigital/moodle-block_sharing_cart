@@ -56,8 +56,9 @@ $string['deselect_all'] = 'Fravælg alle';
 $string['dismiss_basket_icons_notice'] = 'Skjul denne besked';
 $string['dismiss_basket_icons_notice_failed'] = 'Beskeden kunne ikke skjules. Prøv igen.';
 $string['drop_here'] = 'Slip en aktivitet eller sektion her for at føje den til din delingskurv.';
+$string['drop_to_copy_here'] = 'Slip her for at kopiere til denne sektion.';
 $string['empty_section_restore'] = 'Noget gik galt i forsøget på at kopiere det valgte fra sharing cart. Det valgte emne er tomt.';
-$string['has_items'] = 'Klik på <i class="fa fa-clone"></i> ikonet for at kopiere elementer fra Delingskurven til kurset.';
+$string['has_items'] = 'Træk et element til en kursussektion eller klik på ikonet <i class="fa fa-clone"></i> for at kopiere det til kurset.';
 $string['import_subsection_into_default_named_section_warning'] = 'Du er ved at kopiere en delsektion ind til en sektion' .
     ' uden et navn. Dette vil overskrive navnet på sektionen.';
 $string['into_section'] = 'ind i sektion';

@@ -1,4 +1,6 @@
 import {getCurrentCourseEditor} from "core_courseformat/courseeditor";
+import {get_string as getString} from 'core/str';
+import Notification from 'core/notification';
 
 /**
  * @typedef {import("core_courseformat/factory").BaseFactory} BaseFactory
@@ -70,6 +72,16 @@ export default class CourseElement {
     #clipboard = null;
 
     /**
+     * @type {ItemElement|null}
+     */
+    #draggedCartItem = null;
+
+    /**
+     * @type {HTMLElement|null}
+     */
+    #activeCartDropTarget = null;
+
+    /**
      * @type {AbortController}
      */
     #clipboardTargetListenerAbortController = new AbortController();
@@ -89,6 +101,10 @@ export default class CourseElement {
         this.#blockElement = blockElement;
         this.#element = element;
         this.reactive = getCurrentCourseEditor();
+
+        this.#element.addEventListener('dragover', (event) => this.#onCartItemDragOver(event), true);
+        this.#element.addEventListener('dragleave', (event) => this.#onCartItemDragLeave(event), true);
+        this.#element.addEventListener('drop', (event) => this.#onCartItemDrop(event), true);
     }
 
     async renderClipboard() {
@@ -117,10 +133,152 @@ export default class CourseElement {
     }
 
     clearClipboard() {
-        this.#clipboard.classList.add('d-none');
+        this.#clipboard?.classList.add('d-none');
         this.clearClipboardTargets();
 
         this.#blockElement.clearClipboard();
+    }
+
+    /**
+     * Show eligible course sections while a restorable Sharing Cart item is dragged.
+     * @param {ItemElement} item
+     */
+    startCartItemDrag(item) {
+        this.#clearCartDropTargets();
+        this.clearClipboard();
+        this.#draggedCartItem = item;
+
+        const sections = this.#element.querySelectorAll('[data-for="section"]');
+        sections.forEach((section) => {
+            const target = section.querySelector('[data-for="cmlist"]') ?? section;
+            if (!this.isSectionClipboardTargetEligible(target, item)) {
+                return;
+            }
+
+            section.classList.add('sharing_cart_drop_target');
+        });
+
+        getString('drop_to_copy_here', 'block_sharing_cart').then((label) => {
+            if (this.#draggedCartItem !== item) {
+                return;
+            }
+
+            this.#element.querySelectorAll('.sharing_cart_drop_target').forEach((section) => {
+                const prompt = document.createElement('span');
+                prompt.className = 'sharing_cart_drop_prompt';
+                prompt.textContent = label;
+                prompt.setAttribute('aria-hidden', 'true');
+                section.append(prompt);
+            });
+        }).catch(Notification.exception);
+    }
+
+    /**
+     * Clear target feedback when a Sharing Cart item drag ends or is cancelled.
+     */
+    endCartItemDrag() {
+        this.#clearCartDropTargets();
+        this.#draggedCartItem = null;
+    }
+
+    /**
+     * Handle a drag over an eligible course section.
+     * @param {DragEvent} event
+     */
+    #onCartItemDragOver(event) {
+        if (!this.#draggedCartItem) {
+            return;
+        }
+
+        event.stopPropagation();
+        const target = event.target instanceof Element ? event.target : null;
+        const courseSection = target?.closest('[data-for="section"]');
+        const sectionContent = target?.closest('[data-for="cmlist"]');
+        const dropTarget = sectionContent ?? courseSection;
+        if (!courseSection || !dropTarget || !this.#element.contains(courseSection) ||
+                !this.isSectionClipboardTargetEligible(dropTarget, this.#draggedCartItem)) {
+            if (event.dataTransfer) {
+                event.dataTransfer.dropEffect = 'none';
+            }
+            this.#setActiveCartDropTarget(null);
+            return;
+        }
+
+        event.preventDefault();
+        if (event.dataTransfer) {
+            event.dataTransfer.dropEffect = 'copy';
+        }
+        this.#setActiveCartDropTarget(courseSection);
+    }
+
+    /**
+     * Remove hover feedback when leaving a course section.
+     * @param {DragEvent} event
+     */
+    #onCartItemDragLeave(event) {
+        if (!this.#draggedCartItem || !this.#activeCartDropTarget) {
+            return;
+        }
+
+        const target = event.target instanceof Element ? event.target.closest('[data-for="section"]') : null;
+        if (target !== this.#activeCartDropTarget) {
+            return;
+        }
+
+        if (event.relatedTarget instanceof Node && target.contains(event.relatedTarget)) {
+            return;
+        }
+
+        this.#setActiveCartDropTarget(null);
+    }
+
+    /**
+     * Copy the dragged cart item into the valid course section after drop.
+     * @param {DragEvent} event
+     */
+    #onCartItemDrop(event) {
+        if (!this.#draggedCartItem) {
+            return;
+        }
+
+        event.stopPropagation();
+        const target = event.target instanceof Element ? event.target : null;
+        const courseSection = target?.closest('[data-for="section"]');
+        const sectionContent = target?.closest('[data-for="cmlist"]');
+        const dropTarget = sectionContent ?? courseSection;
+        const sectionId = dropTarget?.closest('[data-for="section"]')?.dataset.id;
+        if (!courseSection || !sectionId || !this.#element.contains(courseSection) ||
+                !this.isSectionClipboardTargetEligible(dropTarget, this.#draggedCartItem)) {
+            return;
+        }
+
+        event.preventDefault();
+
+        const item = this.#draggedCartItem;
+        this.endCartItemDrag();
+        this.#blockElement.confirmImportBackupFromSharingCart(item, Number.parseInt(sectionId), event)
+            .catch(Notification.exception);
+    }
+
+    /**
+     * Set or clear the currently hovered course-section target.
+     * @param {HTMLElement|null} section
+     */
+    #setActiveCartDropTarget(section) {
+        this.#activeCartDropTarget?.classList.remove('sharing_cart_drop_target_active');
+        this.#activeCartDropTarget = section;
+        this.#activeCartDropTarget?.classList.add('sharing_cart_drop_target_active');
+    }
+
+    /**
+     * Remove cart drag target styling and prompt elements.
+     */
+    #clearCartDropTargets() {
+        this.#element.querySelectorAll('.sharing_cart_drop_target').forEach((section) => {
+            section.classList.remove('sharing_cart_drop_target', 'sharing_cart_drop_target_active');
+            section.querySelectorAll(':scope > .sharing_cart_drop_prompt').forEach((prompt) => prompt.remove());
+        });
+        this.#activeCartDropTarget = null;
     }
 
     async reRenderClipboard() {
