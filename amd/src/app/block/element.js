@@ -198,7 +198,7 @@ export default class BlockElement {
         const supportsCourseDrag = Boolean(this.#course && this.#sortable?.nativeDraggable);
         const guidance = this.#element.querySelector('.has-items');
 
-        guidance?.classList.toggle('d-none', !this.#course);
+        guidance?.classList.toggle('d-none', !this.#course || this.#items.length === 0);
         if (this.#course && !supportsCourseDrag && guidance) {
             getString('has_items_click_to_copy', 'block_sharing_cart').then((text) => {
                 guidance.textContent = text;
