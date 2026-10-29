@@ -24,6 +24,4 @@ jobs:
     uses: praxisdigital/moodle-test-action/.github/workflows/ci.yml@master
     secrets: inherit
     with:
-      automatic: 'false'
-      moodle_versions: '["MOODLE_503_STABLE"]'
-      moodle_repositories: '["moodle/moodle"]'
+      moodle_versions: '["MOODLE_503_STABLE","WORKPLACE_503_LATEST"]'
