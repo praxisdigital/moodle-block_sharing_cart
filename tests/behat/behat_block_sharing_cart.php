@@ -26,6 +26,66 @@ require_once(__DIR__ . '/../../../../lib/behat/behat_base.php');
 class behat_block_sharing_cart extends behat_base
 {
     /**
+     * Simulate a course-format DOM replacement without reloading the page.
+     * @When /^I replace course module "(?P<selector>[^"]*)" without reloading$/
+     * @param string $selector CSS selector for the course module to replace.
+     */
+    public function replace_course_module_without_reloading(string $selector): void {
+        $selector = json_encode($selector, JSON_THROW_ON_ERROR);
+        $script = str_replace('SELECTOR_PLACEHOLDER', $selector, <<<'JS'
+            const courseModule = document.querySelector(SELECTOR_PLACEHOLDER);
+            if (!courseModule) {
+                throw new Error('Could not find the course-module node to replace.');
+            }
+            const replacement = courseModule.cloneNode(true);
+            replacement.querySelectorAll('.add_to_sharing_cart').forEach((button) => button.remove());
+            courseModule.replaceWith(replacement);
+        JS);
+        $this->getSession()->executeScript($script);
+        $this->wait_for_pending_js();
+    }
+
+    /**
+     * Assert an exact number of basket icons matched by a CSS selector.
+     * @Then /^there are exactly (?P<count>\d+) Sharing Cart baskets matching "(?P<selector>[^"]*)"$/
+     * @param int $count Expected number of baskets.
+     * @param string $selector CSS selector for the baskets.
+     */
+    public function there_are_exactly_sharing_cart_baskets(int $count, string $selector): void {
+        $selector = json_encode($selector, JSON_THROW_ON_ERROR);
+        $actual = (int)$this->getSession()->evaluateScript(
+            'return document.querySelectorAll(' . $selector . ').length;'
+        );
+
+        if ($actual !== $count) {
+            throw new \Behat\Mink\Exception\ExpectationException(
+                'Found ' . $actual . ' Sharing Cart baskets; expected ' . $count . '.',
+                $this->getSession()
+            );
+        }
+    }
+
+    /**
+     * Assert a basket uses inline-flex layout.
+     * @Then /^the Sharing Cart basket matching "(?P<selector>[^"]*)" is displayed inline$/
+     * @param string $selector CSS selector for the basket.
+     */
+    public function sharing_cart_basket_is_displayed_inline(string $selector): void {
+        $selector = json_encode($selector, JSON_THROW_ON_ERROR);
+        $display = $this->getSession()->evaluateScript(
+            'const basket = document.querySelector(' . $selector . ');'
+            . 'return basket ? window.getComputedStyle(basket).display : null;'
+        );
+
+        if ($display !== 'inline-flex') {
+            throw new \Behat\Mink\Exception\ExpectationException(
+                'The Sharing Cart basket display value was ' . var_export($display, true) . '; expected inline-flex.',
+                $this->getSession()
+            );
+        }
+    }
+
+    /**
      *
      * @Given /^I enable the sharing cart plugin$/
      */

@@ -19,6 +19,7 @@ Feature: As an editing teacher, copying a section with a subsection, should auto
     | activity   | name        | course | idnumber    | section |
     | subsection | Subsection1 | C1     | Subsection1 | 1       |
     | book       | Subactivity | C1     | book1       | 3       |
+    | choice     | Subchoice   | C1     | choice1     | 3       |
 
   Scenario: A course has a section with a subsection containing an activity.
     The editing teacher copies the section and inserts it into a different section.
@@ -53,5 +54,12 @@ Feature: As an editing teacher, copying a section with a subsection, should auto
     And I reload the page
     # Subsection should be visible.
     Then "//li[@id='section-2']//div[@data-activityname='Subsection1']" "xpath_element" should be visible
+    # A subsection containing content can be copied on its own.
+    And "//li[@id='section-2']//li[contains(@class, 'modtype_subsection')]//i[contains(@class, 'add_to_sharing_cart') and not(contains(@class, 'disabled'))]" "xpath_element" should exist
+    # Nested activities get one basket each, even if course-format refreshes their DOM.
+    And I wait until "//li[@id='section-2']//li[contains(@class, 'modtype_choice')]//i[contains(@class, 'add_to_sharing_cart')]" "xpath_element" exists
+    And there are exactly 1 Sharing Cart baskets matching "#section-2 li[data-for='cmitem'].modtype_choice .add_to_sharing_cart"
+    When I replace course module "#section-2 li[data-for='cmitem'].modtype_choice" without reloading
+    And there are exactly 1 Sharing Cart baskets matching "#section-2 li[data-for='cmitem'].modtype_choice .add_to_sharing_cart"
     # Nested activity should be visible.
     And "//li[@id='section-2']//div[@data-activityname='Subactivity']" "xpath_element" should be visible
