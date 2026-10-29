@@ -667,5 +667,16 @@ function xmldb_block_sharing_cart_upgrade($oldversion = 0): bool {
         upgrade_block_savepoint(true, 2025042202, 'sharing_cart');
     }
 
+    if ($oldversion < 2026110603) {
+        // The basket icons were enabled by default before this upgrade.
+        $showbasketicons = get_config('block_sharing_cart', 'show_sharing_cart_basket');
+        if ($showbasketicons === false || (int)$showbasketicons === 1) {
+            set_config('show_sharing_cart_basket', 0, 'block_sharing_cart');
+            set_config('basket_icons_notice_pending', 1, 'block_sharing_cart');
+        }
+
+        upgrade_block_savepoint(true, 2026110603, 'sharing_cart');
+    }
+
     return true;
 }

@@ -34,4 +34,103 @@ class behat_block_sharing_cart extends behat_base
         // Wait until the add block menu is ready.
         $this->get_selected_node("xpath_element", "//a[@data-blockname='sharing_cart']")->click();
     }
+
+    /**
+     * Start dragging a course element over the Sharing Cart and capture the active drop target layout.
+     *
+     * @When /^I start dragging course element "(?P<source_selector>[^"]*)" over the Sharing Cart$/
+     * @param string $sourceselector CSS selector for a draggable course element.
+     * @return void
+     */
+    public function i_start_dragging_course_element_over_the_sharing_cart(string $sourceselector): void {
+        $sourceselector = json_encode($sourceselector, JSON_THROW_ON_ERROR);
+        $this->getSession()->executeScript(
+            <<<JS
+            const source = document.querySelector($sourceselector)
+            const target = document.querySelector('.block.block_sharing_cart');
+            if (!source || !target) {
+                throw new Error('Could not find the draggable source or Sharing Cart block.');
+            }
+
+            const makeDragEvent = (type) => {
+                const event = new DragEvent(type, {bubbles: true, cancelable: true});
+                Object.defineProperty(event, 'dataTransfer', {
+                    value: {
+                        setDragImage: () => {},
+                        types: {includes: () => false},
+                    },
+                });
+                return event;
+            };
+
+            window.sharingCartDraggedSource = source;
+            window.sharingCartDropTarget = target;
+            window.sharingCartMakeDragEvent = makeDragEvent;
+            const before = target.getBoundingClientRect();
+            source.dispatchEvent(makeDragEvent('dragstart'));
+
+            const dropPrompt = target.querySelector('.drop_here_text');
+            const blockContent = target.querySelector('#block_sharing_cart .block-content');
+            const active = target.getBoundingClientRect();
+            const prompt = dropPrompt.getBoundingClientRect();
+            window.sharingCartDropTargetMetrics = {
+                promptVisible: window.getComputedStyle(dropPrompt).display !== 'none',
+                contentHidden: window.getComputedStyle(blockContent).visibility === 'hidden',
+                blockStable: Math.abs(before.width - active.width) < 1 && Math.abs(before.height - active.height) < 1,
+                promptFillsBlock: Math.abs(active.width - prompt.width) <= 4 && Math.abs(active.height - prompt.height) <= 4,
+            };
+
+            target.dispatchEvent(makeDragEvent('dragenter'));
+            target.dispatchEvent(makeDragEvent('dragover'));
+        JS
+        );
+        $this->wait_for_pending_js();
+    }
+
+    /**
+     * Complete the course element drag started by i_start_dragging_course_element_over_the_sharing_cart.
+     *
+     * @When /^I drop the dragged course element into the Sharing Cart$/
+     * @return void
+     */
+    public function i_drop_the_dragged_course_element_into_the_sharing_cart(): void {
+        $this->getSession()->executeScript(<<<JS
+            const source = window.sharingCartDraggedSource;
+            const target = window.sharingCartDropTarget;
+            const makeDragEvent = window.sharingCartMakeDragEvent;
+            if (!source || !target || !makeDragEvent) {
+                throw new Error('No active Sharing Cart drag was found.');
+            }
+
+            target.dispatchEvent(makeDragEvent('drop'));
+            source.dispatchEvent(makeDragEvent('dragend'));
+            delete window.sharingCartDraggedSource;
+            delete window.sharingCartDropTarget;
+            delete window.sharingCartMakeDragEvent;
+        JS);
+        $this->wait_for_pending_js();
+    }
+
+    /**
+     * Assert that the target replaced the cart content without changing the block dimensions.
+     *
+     * @Then /^the Sharing Cart showed a full-card drop target without resizing$/
+     * @return void
+     */
+    public function the_sharing_cart_showed_a_full_card_drop_target_without_resizing(): void {
+        $valid = $this->getSession()->evaluateScript(
+            'return window.sharingCartDropTargetMetrics && '
+                . 'window.sharingCartDropTargetMetrics.promptVisible && '
+                . 'window.sharingCartDropTargetMetrics.contentHidden && '
+                . 'window.sharingCartDropTargetMetrics.blockStable && '
+                . 'window.sharingCartDropTargetMetrics.promptFillsBlock;'
+        );
+
+        if (!$valid) {
+            throw new \Behat\Mink\Exception\ExpectationException(
+                'The Sharing Cart drop target was not visible at the original block dimensions.',
+                $this->getSession()
+            );
+        }
+    }
 }
