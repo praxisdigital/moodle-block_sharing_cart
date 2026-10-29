@@ -26,6 +26,14 @@ require_once(__DIR__ . '/../../../../lib/behat/behat_base.php');
 class behat_block_sharing_cart extends behat_base
 {
     /**
+     * Simulate the pxgrid body class for Sharing Cart layout tests.
+     * @Given /^I add the pxgrid body class for Sharing Cart$/
+     */
+    public function add_pxgrid_body_class_for_sharing_cart(): void {
+        $this->getSession()->executeScript("document.body.classList.add('format-pxgrid');");
+    }
+
+    /**
      * Simulate a course-format DOM replacement without reloading the page.
      * @When /^I replace course module "(?P<selector>[^"]*)" without reloading$/
      * @param string $selector CSS selector for the course module to replace.
@@ -66,20 +74,27 @@ class behat_block_sharing_cart extends behat_base
     }
 
     /**
-     * Assert a basket uses inline-flex layout.
-     * @Then /^the Sharing Cart basket matching "(?P<selector>[^"]*)" is displayed inline$/
+     * Assert a basket is aligned on the same line as its editable title.
+     * @Then /^the Sharing Cart basket matching "(?P<selector>[^"]*)" is inline with its title$/
      * @param string $selector CSS selector for the basket.
      */
-    public function sharing_cart_basket_is_displayed_inline(string $selector): void {
+    public function sharing_cart_basket_is_inline_with_title(string $selector): void {
         $selector = json_encode($selector, JSON_THROW_ON_ERROR);
-        $display = $this->getSession()->evaluateScript(
-            'const basket = document.querySelector(' . $selector . ');'
-            . 'return basket ? window.getComputedStyle(basket).display : null;'
+        $aligned = $this->getSession()->evaluateScript(
+            'return (() => {'
+            . 'const basket = document.querySelector(' . $selector . ');'
+            . 'const container = basket?.closest(".activity-name-area") || basket?.closest("[data-for=section_title]") || basket?.parentElement;'
+            . 'const title = container?.querySelector(".inplaceeditable");'
+            . 'if (!basket || !title) { return false; }'
+            . 'const basketRect = basket.getBoundingClientRect();'
+            . 'const titleRect = title.getBoundingClientRect();'
+            . 'return Math.abs((basketRect.top + basketRect.height / 2) - (titleRect.top + titleRect.height / 2)) <= 8;'
+            . '})();'
         );
 
-        if ($display !== 'inline-flex') {
+        if (!$aligned) {
             throw new \Behat\Mink\Exception\ExpectationException(
-                'The Sharing Cart basket display value was ' . var_export($display, true) . '; expected inline-flex.',
+                'The Sharing Cart basket is not aligned with its editable title.',
                 $this->getSession()
             );
         }
