@@ -31,8 +31,9 @@ $string['backup_item'] = 'Copy item';
 $string['backup_settings'] = 'Copy settings';
 $string['backup_without_user_data'] = 'Copy without user data.';
 $string['basket_icons_notice'] = 'Sharing Cart basket icons are no longer shown by default.' .
+    ' Starting with Moodle 6.0, the Sharing Cart basket icons will be deprecated.' .
     ' Drag an activity or section into the Sharing Cart to add it.' .
-    ' An administrator can turn the icons back on in Sharing Cart settings.';
+    ' Until then, an administrator can turn the icons back on in Sharing Cart settings.';
 $string['bulk_delete'] = 'Bulk delete';
 $string['cancel_bulk_delete'] = 'Cancel';
 $string['confirm_copy_item'] = 'Are you sure you want to copy this item?';

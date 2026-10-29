@@ -31,8 +31,9 @@ $string['backup_item'] = 'Kopiér element';
 $string['backup_settings'] = 'Kopieringsindstillinger';
 $string['backup_without_user_data'] = 'Kopiér uden brugerdata.';
 $string['basket_icons_notice'] = 'Delingskurvens kurvikoner vises ikke længere som standard.' .
+    ' Fra Moodle 6.0 bliver Delingskurvens kurvikoner udfaset.' .
     ' Træk en aktivitet eller sektion ind i Delingskurven for at tilføje den.' .
-    ' En administrator kan slå ikonerne til igen under indstillingerne for Delingskurv.';
+    ' Indtil da kan en administrator slå ikonerne til igen under indstillingerne for Delingskurv.';
 $string['bulk_delete'] = 'Slet flere';
 $string['cancel_bulk_delete'] = 'Annuller';
 $string['confirm_copy_item'] = 'Er du sikker på, at du vil kopiere denne backup?';

@@ -108,7 +108,6 @@ class content implements \core\output\named_templatable, \renderable {
         $showsharingcartbasket = (bool)get_config('block_sharing_cart', 'show_sharing_cart_basket');
         $showbasketiconsnotice = $canbackup &&
             !$showsharingcartbasket &&
-            (bool)get_config('block_sharing_cart', 'basket_icons_notice_pending') &&
             !get_user_preferences('block_sharing_cart_basket_notice_dismissed', false, $this->userid);
 
         return [

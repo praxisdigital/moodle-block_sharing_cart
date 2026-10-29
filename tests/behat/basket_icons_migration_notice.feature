@@ -26,14 +26,14 @@ Feature: Explain the Sharing Cart basket icon migration
     And I click on "//a[@data-key='addblock']" "xpath_element"
     And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists
     And I click on "//a[@data-blockname='sharing_cart']" "xpath_element"
-    Then I should see "Sharing Cart basket icons are no longer shown by default." in the ".block.block_sharing_cart" "css_element"
+    Then I should see "Starting with Moodle 6.0, the Sharing Cart basket icons will be deprecated." in the ".block.block_sharing_cart" "css_element"
     And I should see "Drag and drop activities or sections into the Sharing Cart to add them." in the ".block.block_sharing_cart .no-items" "css_element"
     When I click on ".block.block_sharing_cart .sharing-cart-basket-notice button" "css_element"
     And I wait until ".block.block_sharing_cart .sharing-cart-basket-notice" "css_element" does not exist
     And I reload the page
     Then ".block.block_sharing_cart .sharing-cart-basket-notice" "css_element" should not exist
 
-  Scenario: Do not show the migration notice when no migration is pending
+  Scenario: Show the notice when basket icons are disabled without a migration pending
     Given the following config values are set as admin:
       | show_sharing_cart_basket | 0 | block_sharing_cart |
     And I log in as "teacher1"
@@ -41,4 +41,4 @@ Feature: Explain the Sharing Cart basket icon migration
     And I click on "//a[@data-key='addblock']" "xpath_element"
     And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists
     And I click on "//a[@data-blockname='sharing_cart']" "xpath_element"
-    Then ".block.block_sharing_cart .sharing-cart-basket-notice" "css_element" should not exist
+    Then I should see "Starting with Moodle 6.0, the Sharing Cart basket icons will be deprecated." in the ".block.block_sharing_cart" "css_element"
