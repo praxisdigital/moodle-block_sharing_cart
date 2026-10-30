@@ -83,7 +83,8 @@ class behat_block_sharing_cart extends behat_base
         $aligned = $this->getSession()->evaluateScript(
             'return (() => {'
             . 'const basket = document.querySelector(' . $selector . ');'
-            . 'const container = basket?.closest(".activity-name-area") || basket?.closest("[data-for=section_title]") || basket?.parentElement;'
+            . 'const container = basket?.closest(".activity-name-area") || basket?.closest("[data-for=section_title]")
+             || basket?.parentElement;'
             . 'const title = container?.querySelector(".inplaceeditable");'
             . 'if (!basket || !title) { return false; }'
             . 'const basketRect = basket.getBoundingClientRect();'
@@ -152,7 +153,8 @@ class behat_block_sharing_cart extends behat_base
                 promptVisible: window.getComputedStyle(dropPrompt).display !== 'none',
                 contentHidden: window.getComputedStyle(blockContent).visibility === 'hidden',
                 blockStable: Math.abs(before.width - active.width) < 1 && Math.abs(before.height - active.height) < 1,
-                promptFillsBlock: Math.abs(active.width - prompt.width) <= 4 && Math.abs(active.height - prompt.height) <= 4,
+                promptFillsBlock: Math.abs(active.width - prompt.width) 
+                <= 4 && Math.abs(active.height - prompt.height) <= 4,
             };
 
             target.dispatchEvent(makeDragEvent('dragenter'));
@@ -217,13 +219,16 @@ class behat_block_sharing_cart extends behat_base
      * @param string $targetselector CSS selector for a course section.
      * @return void
      */
-    public function i_start_dragging_sharing_cart_item_over_course_section(string $sourceselector, string $targetselector): void {
+    public function i_start_dragging_sharing_cart_item_over_course_section(
+        string $sourceselector,
+        string $targetselector
+    ): void {
         $sourceselector = json_encode($sourceselector, JSON_THROW_ON_ERROR);
         $targetselector = json_encode($targetselector, JSON_THROW_ON_ERROR);
         $this->getSession()->executeScript(
             <<<JS
-            const source = document.querySelector($sourceselector);
-            const target = document.querySelector($targetselector);
+            const source = document.querySelector($sourceselector)
+            const target = document.querySelector($targetselector)
             if (!source || !target) {
                 throw new Error('Could not find the Sharing Cart item or course section.');
             }

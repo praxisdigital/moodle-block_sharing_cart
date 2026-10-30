@@ -55,7 +55,7 @@ Feature: As an editing teacher, copying a section with a subsection, should auto
     # Subsection should be visible.
     Then "//li[@id='section-2']//div[@data-activityname='Subsection1']" "xpath_element" should be visible
     # A subsection containing content can be copied on its own.
-    And "//li[@id='section-2']//li[contains(@class, 'modtype_subsection')]//i[contains(@class, 'add_to_sharing_cart') and not(contains(@class, 'disabled'))]" "xpath_element" should exist
+    And "//li[@id='section-2']//li[contains(@class, 'modtype_subsection')]//i[contains(@class, 'add_to_sharing_cart') and not(contains(@class, 'disabled')) and ancestor::li[@data-for='cmitem'][1][contains(@class, 'modtype_subsection')]]" "xpath_element" should exist
     # Nested activities get one basket each, even if course-format refreshes their DOM.
     And I wait until "//li[@id='section-2']//li[contains(@class, 'modtype_choice')]//i[contains(@class, 'add_to_sharing_cart')]" "xpath_element" exists
     And there are exactly 1 Sharing Cart baskets matching "#section-2 li[data-for='cmitem'].modtype_choice .add_to_sharing_cart"
