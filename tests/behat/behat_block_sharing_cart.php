@@ -26,6 +26,82 @@ require_once(__DIR__ . '/../../../../lib/behat/behat_base.php');
 class behat_block_sharing_cart extends behat_base
 {
     /**
+     * Simulate the pxgrid body class for Sharing Cart layout tests.
+     * @Given /^I add the pxgrid body class for Sharing Cart$/
+     */
+    public function add_pxgrid_body_class_for_sharing_cart(): void {
+        $this->getSession()->executeScript("document.body.classList.add('format-pxgrid');");
+    }
+
+    /**
+     * Simulate a course-format DOM replacement without reloading the page.
+     * @When /^I replace course module "(?P<selector>[^"]*)" without reloading$/
+     * @param string $selector CSS selector for the course module to replace.
+     */
+    public function replace_course_module_without_reloading(string $selector): void {
+        $selector = json_encode($selector, JSON_THROW_ON_ERROR);
+        $script = str_replace('SELECTOR_PLACEHOLDER', $selector, <<<'JS'
+            const courseModule = document.querySelector(SELECTOR_PLACEHOLDER);
+            if (!courseModule) {
+                throw new Error('Could not find the course-module node to replace.');
+            }
+            const replacement = courseModule.cloneNode(true);
+            replacement.querySelectorAll('.add_to_sharing_cart').forEach((button) => button.remove());
+            courseModule.replaceWith(replacement);
+        JS);
+        $this->getSession()->executeScript($script);
+        $this->wait_for_pending_js();
+    }
+
+    /**
+     * Assert an exact number of basket icons matched by a CSS selector.
+     * @Then /^there are exactly (?P<count>\d+) Sharing Cart baskets matching "(?P<selector>[^"]*)"$/
+     * @param int $count Expected number of baskets.
+     * @param string $selector CSS selector for the baskets.
+     */
+    public function there_are_exactly_sharing_cart_baskets(int $count, string $selector): void {
+        $selector = json_encode($selector, JSON_THROW_ON_ERROR);
+        $actual = (int)$this->getSession()->evaluateScript(
+            'return document.querySelectorAll(' . $selector . ').length;'
+        );
+
+        if ($actual !== $count) {
+            throw new \Behat\Mink\Exception\ExpectationException(
+                'Found ' . $actual . ' Sharing Cart baskets; expected ' . $count . '.',
+                $this->getSession()
+            );
+        }
+    }
+
+    /**
+     * Assert a basket is aligned on the same line as its editable title.
+     * @Then /^the Sharing Cart basket matching "(?P<selector>[^"]*)" is inline with its title$/
+     * @param string $selector CSS selector for the basket.
+     */
+    public function sharing_cart_basket_is_inline_with_title(string $selector): void {
+        $selector = json_encode($selector, JSON_THROW_ON_ERROR);
+        $aligned = $this->getSession()->evaluateScript(
+            'return (() => {'
+            . 'const basket = document.querySelector(' . $selector . ');'
+            . 'const container = basket?.closest(".activity-name-area") || basket?.closest("[data-for=section_title]")
+             || basket?.parentElement;'
+            . 'const title = container?.querySelector(".inplaceeditable");'
+            . 'if (!basket || !title) { return false; }'
+            . 'const basketRect = basket.getBoundingClientRect();'
+            . 'const titleRect = title.getBoundingClientRect();'
+            . 'return Math.abs((basketRect.top + basketRect.height / 2) - (titleRect.top + titleRect.height / 2)) <= 8;'
+            . '})();'
+        );
+
+        if (!$aligned) {
+            throw new \Behat\Mink\Exception\ExpectationException(
+                'The Sharing Cart basket is not aligned with its editable title.',
+                $this->getSession()
+            );
+        }
+    }
+
+    /**
      *
      * @Given /^I enable the sharing cart plugin$/
      */
@@ -77,7 +153,8 @@ class behat_block_sharing_cart extends behat_base
                 promptVisible: window.getComputedStyle(dropPrompt).display !== 'none',
                 contentHidden: window.getComputedStyle(blockContent).visibility === 'hidden',
                 blockStable: Math.abs(before.width - active.width) < 1 && Math.abs(before.height - active.height) < 1,
-                promptFillsBlock: Math.abs(active.width - prompt.width) <= 4 && Math.abs(active.height - prompt.height) <= 4,
+                promptFillsBlock: Math.abs(active.width - prompt.width)
+                <= 4 && Math.abs(active.height - prompt.height) <= 4,
             };
 
             target.dispatchEvent(makeDragEvent('dragenter'));
@@ -142,13 +219,16 @@ class behat_block_sharing_cart extends behat_base
      * @param string $targetselector CSS selector for a course section.
      * @return void
      */
-    public function i_start_dragging_sharing_cart_item_over_course_section(string $sourceselector, string $targetselector): void {
+    public function i_start_dragging_sharing_cart_item_over_course_section(
+        string $sourceselector,
+        string $targetselector
+    ): void {
         $sourceselector = json_encode($sourceselector, JSON_THROW_ON_ERROR);
         $targetselector = json_encode($targetselector, JSON_THROW_ON_ERROR);
         $this->getSession()->executeScript(
             <<<JS
-            const source = document.querySelector($sourceselector);
-            const target = document.querySelector($targetselector);
+            const source = document.querySelector($sourceselector)
+            const target = document.querySelector($targetselector)
             if (!source || !target) {
                 throw new Error('Could not find the Sharing Cart item or course section.');
             }
