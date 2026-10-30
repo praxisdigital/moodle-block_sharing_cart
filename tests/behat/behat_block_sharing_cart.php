@@ -153,7 +153,7 @@ class behat_block_sharing_cart extends behat_base
                 promptVisible: window.getComputedStyle(dropPrompt).display !== 'none',
                 contentHidden: window.getComputedStyle(blockContent).visibility === 'hidden',
                 blockStable: Math.abs(before.width - active.width) < 1 && Math.abs(before.height - active.height) < 1,
-                promptFillsBlock: Math.abs(active.width - prompt.width) 
+                promptFillsBlock: Math.abs(active.width - prompt.width)
                 <= 4 && Math.abs(active.height - prompt.height) <= 4,
             };
 
