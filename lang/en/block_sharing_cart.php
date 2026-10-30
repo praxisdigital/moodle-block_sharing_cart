@@ -56,8 +56,10 @@ $string['deselect_all'] = 'Deselect all';
 $string['dismiss_basket_icons_notice'] = 'Dismiss this notice';
 $string['dismiss_basket_icons_notice_failed'] = 'The notice could not be dismissed. Please try again.';
 $string['drop_here'] = 'Drop an activity or section here to add it to your Sharing Cart.';
+$string['drop_to_copy_here'] = 'Drop here to copy into this section.';
 $string['empty_section_restore'] = 'Something went wrong trying to copy the item from the sharing cart. The item was empty.';
-$string['has_items'] = 'Click the <i class="fa fa-clone"></i> icon to copy items from the Sharing Cart to the course.';
+$string['has_items'] = 'Drag an item to a course section or click the <i class="fa fa-clone"></i> icon to copy it into the course.';
+$string['has_items_click_to_copy'] = 'Click the copy icon to copy an item into the course.';
 $string['import_subsection_into_default_named_section_warning'] = 'You are about to copy a subsection into a section' .
     ' without a name. This will overwrite the section name.';
 $string['into_section'] = 'into section';

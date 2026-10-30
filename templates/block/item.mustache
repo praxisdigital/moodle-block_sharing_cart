@@ -21,6 +21,7 @@
     {"id":1,"type":"section","old_instance_id":0,"name":"Section 1"}
 }}
 <div class="sharing_cart_item{{#status_awaiting}} alert alert-info mb-0{{/status_awaiting}}" data-type="{{type}}" data-itemid="{{id}}" data-oldinstanceid="{{old_instance_id}}"
+     data-can-drag-to-course="{{#can_drag_to_course}}1{{/can_drag_to_course}}{{^can_drag_to_course}}0{{/can_drag_to_course}}"
 
      {{#module_is_disabled_on_site}}title="{{#str}}module_is_disabled_on_site, block_sharing_cart{{/str}}"{{/module_is_disabled_on_site}}
      data-module_is_disabled_on_site="{{#module_is_disabled_on_site}}1{{/module_is_disabled_on_site}}{{^module_is_disabled_on_site}}0{{/module_is_disabled_on_site}}"
@@ -34,6 +35,11 @@
             {{#is_root}}
                 <input class="d-none me-1" type="checkbox" data-action="bulk_select" value="{{id}}"/>
             {{/is_root}}
+            {{#can_drag_to_course}}
+                <span class="sharing_cart_item_drag_handle" aria-hidden="true">
+                    <i class="fa fa-grip-vertical"></i>
+                </span>
+            {{/can_drag_to_course}}
             <div class="info">
                 {{> block_sharing_cart/block/item/icon }}
                 <span class="name">{{{name}}}</span>

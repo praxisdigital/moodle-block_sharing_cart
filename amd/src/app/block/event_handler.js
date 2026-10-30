@@ -34,7 +34,7 @@ export default class EventHandler {
      * @param {Boolean} canBackup
      * @param {Boolean} showSharingCartBasket
      * @param {Boolean} showCopiesQueuedSegmentWhenEmpty
-     * @returns {{course: CourseElement, block: BlockElement, queue: QueueElement}}
+     * @returns {{course: CourseElement|null, block: BlockElement, queue: QueueElement}}
      */
     setupBlock(canBackupUserdata, canAnonymizeUserdata, canBackup, showSharingCartBasket, showCopiesQueuedSegmentWhenEmpty) {
         const block = document.querySelector('.block.block_sharing_cart');

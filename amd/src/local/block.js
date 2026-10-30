@@ -5,7 +5,7 @@ import BaseFactory from "../app/factory";
 
 export default class Block extends BaseComponent {
     /**
-     * @type {CourseElement}
+     * @type {CourseElement|null}
      */
     course;
 
@@ -109,7 +109,7 @@ export default class Block extends BaseComponent {
         }
 
         const showCopySectionInBlockSegment = this.getElement(this.selectors.COPY_SECTION_CONTAINER);
-        if (showCopySectionInBlockSegment) {
+        if (showCopySectionInBlockSegment && course) {
             this._refreshCopySectionOptions();
 
             const select = showCopySectionInBlockSegment.querySelector('select');
@@ -117,6 +117,8 @@ export default class Block extends BaseComponent {
             copySectionButton.addEventListener('click', async() => {
                 await this.block.addSectionBackupToSharingCart(select.value);
             });
+        } else {
+            showCopySectionInBlockSegment?.classList.add('d-none');
         }
 
         this._initCourseContentObserver();
