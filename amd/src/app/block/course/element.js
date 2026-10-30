@@ -181,7 +181,7 @@ export default class CourseElement {
     }
 
     /**
-     * Resolve the nearest course section and its own activity list as a drop destination.
+     * Resolve the nearest eligible course section and its own activity list as a drop destination.
      * @param {EventTarget|null} target
      * @param {ItemElement} item
      * @returns {{section: HTMLElement, sectionId: string}|null}
@@ -191,18 +191,18 @@ export default class CourseElement {
             return null;
         }
 
-        const section = target.closest('[data-for="section"]');
-        if (!section || !this.#element.contains(section)) {
-            return null;
+        let section = target.closest('[data-for="section"]');
+        while (section && this.#element.contains(section)) {
+            const sectionContent = section.querySelector('[data-for="cmlist"]') ?? section;
+            const sectionId = section.dataset.id;
+            if (sectionId && this.isSectionClipboardTargetEligible(sectionContent, item)) {
+                return {section, sectionId};
+            }
+
+            section = section.parentElement?.closest('[data-for="section"]') ?? null;
         }
 
-        const sectionContent = section.querySelector('[data-for="cmlist"]') ?? section;
-        const sectionId = section.dataset.id;
-        if (!sectionId || !this.isSectionClipboardTargetEligible(sectionContent, item)) {
-            return null;
-        }
-
-        return {section, sectionId};
+        return null;
     }
 
     /**
@@ -239,12 +239,12 @@ export default class CourseElement {
             return;
         }
 
-        const target = event.target instanceof Element ? event.target.closest('[data-for="section"]') : null;
-        if (target !== this.#activeCartDropTarget) {
+        const dropTarget = this.#getCartDropTarget(event.target, this.#draggedCartItem);
+        if (dropTarget?.section !== this.#activeCartDropTarget) {
             return;
         }
 
-        if (event.relatedTarget instanceof Node && target.contains(event.relatedTarget)) {
+        if (event.relatedTarget instanceof Node && this.#activeCartDropTarget.contains(event.relatedTarget)) {
             return;
         }
 

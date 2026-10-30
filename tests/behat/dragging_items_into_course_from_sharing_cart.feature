@@ -89,7 +89,7 @@ Feature: Copy Sharing Cart items into course sections by dragging
     Then no Sharing Cart copy confirmation was shown
     And ".block_sharing_cart .sharing_cart_items > .sharing_cart_item" "css_element" should exist
 
-  Scenario: Cancelling confirmation after a valid cart drop does not copy the item
+  Scenario: Cancelling confirmation after a native cart drag does not copy the item
     Given I log in as "admin"
     And I am on "Course 1" course homepage with editing mode on
     And I click on "//a[@data-key='addblock']" "xpath_element"
@@ -100,11 +100,12 @@ Feature: Copy Sharing Cart items into course sections by dragging
     And I reload the page
     And I wait until ".block_sharing_cart .sharing_cart_items > .sharing_cart_item [data-action='copy_to_course']" "css_element" exists
     And I wait until ".block_sharing_cart .sharing_cart_items[data-sortable-initialized='true']" "css_element" exists
-    When I start dragging Sharing Cart item ".block_sharing_cart .sharing_cart_items > .sharing_cart_item" over course section "#section-2"
-    Then the course section showed a highlighted Sharing Cart drop target
-    When I drop the dragged Sharing Cart item into the course section
+    When I drag ".block_sharing_cart .sharing_cart_items > .sharing_cart_item" "css_element" and I drop it in "#section-2" "css_element"
     And I wait until "//div[contains(@class, 'modal-footer')]//button[@data-action='cancel']" "xpath_element" exists
+    And ".sharing_cart_drop_target" "css_element" should not exist
     And I click on "//div[contains(@class, 'modal-footer')]//button[@data-action='cancel']" "xpath_element"
+    And I run all adhoc tasks
+    And I reload the page
     Then "#section-2 [data-activityname='Book 1']" "css_element" should not exist
     And ".block_sharing_cart .sharing_cart_items > .sharing_cart_item" "css_element" should exist
 
