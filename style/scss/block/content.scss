@@ -52,6 +52,16 @@
         cursor: auto;
       }
 
+      // Only the item's own row, so a child item that cannot be dragged does not inherit it.
+      &[data-can-copy-to-course="1"] > .item-body {
+        cursor: crosshair;
+
+        .sharing_cart_item_actions,
+        input[type="checkbox"] {
+          cursor: auto;
+        }
+      }
+
       &[data-status="0"]:not(.alert.alert-info), &[data-module_is_disabled_on_site="1"]:not(.alert.alert-info) {
         .item-body {
           .info {
@@ -133,6 +143,13 @@
 
             i {
               cursor: pointer;
+            }
+
+            // Drop zones are turned off: only touch screens, which cannot drag items to the course, keep the copy icon.
+            @media (hover: hover) and (pointer: fine) {
+              .copy-to-course-touch-only {
+                display: none;
+              }
             }
           }
         }

@@ -33,6 +33,9 @@ require_once($CFG->dirroot . '/backup/util/includes/restore_includes.php');
  */
 class asynchronous_restore_task extends \core\task\adhoc_task
 {
+    /** @var int|null Section created by this task for a section dropped between two sections. */
+    private ?int $createdsectionid = null;
+
     /**
      * Should always resemble
      * @see \core\task\asynchronous_restore_task::execute
@@ -136,6 +139,9 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 $finished
             );
         } catch (\Exception $e) {
+            // Before set_status(), which can fail on its own after execute_plan() has run.
+            $this->delete_created_section_if_empty($courseid);
+
             // If an exception is thrown, mark the restore as failed.
             $rc->set_status(\backup::STATUS_FINISHED_ERR);
 
@@ -172,6 +178,13 @@ class asynchronous_restore_task extends \core\task\adhoc_task
         try {
             mtrace('Executing after_restore_finished_hook...');
 
+            $backupsettings = $this->get_custom_data()->backup_settings ?? null;
+            $beforecmid = (int)($backupsettings->before_cm_id ?? 0);
+            $movetosectionid = (int)($backupsettings->move_to_section_id ?? 0);
+            if ($beforecmid && $movetosectionid) {
+                $this->move_restored_course_modules_before($restorecontroller, $movetosectionid, $beforecmid);
+            }
+
             mtrace('Executing after_restore_finished_hook completed...');
         } catch (\Exception $e) {
             mtrace("An error occurred: " . $e->getMessage());
@@ -197,6 +210,10 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             $backupsettings = $customdata->backup_settings ?? null;
 
             $movetosectionid = $backupsettings->move_to_section_id ?? null;
+            $insertaftersectionid = (int)($backupsettings->insert_after_section_id ?? 0);
+            if ($insertaftersectionid) {
+                $movetosectionid = $this->create_section_after($restorecontroller->get_courseid(), $insertaftersectionid);
+            }
             if ($movetosectionid) {
                 $this->update_section_number($restorecontroller, $movetosectionid);
             }
@@ -228,6 +245,105 @@ class asynchronous_restore_task extends \core\task\adhoc_task
 
             // Uh uhh, something went wrong.
             throw $e;
+        }
+    }
+
+    /**
+     * Creates the empty section a section item dropped between two sections is restored into.
+     *
+     * The position is taken from the anchor section when the task runs, not when it was queued, so sections added,
+     * moved or deleted in the meantime are respected. If the anchor is gone the section is added at the end.
+     *
+     * @param int $courseid
+     * @param int $aftersectionid
+     * @return int The new section id.
+     */
+    private function create_section_after(int $courseid, int $aftersectionid): int {
+        $db = basefactory::make()->moodle()->db();
+
+        $anchor = $db->get_record(
+            'course_sections',
+            ['id' => $aftersectionid, 'course' => $courseid],
+            'id, section, component'
+        );
+        $position = ($anchor && empty($anchor->component)) ? (int)$anchor->section + 1 : 0;
+
+        $section = \core_courseformat\formatactions::section($courseid)->create($position);
+        $this->createdsectionid = (int)$section->id;
+
+        mtrace("Created section (id: {$section->id}) at position {$section->section}");
+
+        return $this->createdsectionid;
+    }
+
+    /**
+     * Removes the section create_section_after made when the restore failed and left it empty.
+     *
+     * @param int $courseid
+     * @return void
+     */
+    private function delete_created_section_if_empty(int $courseid): void {
+        if (!$this->createdsectionid) {
+            return;
+        }
+
+        try {
+            rebuild_course_cache($courseid, true);
+            $sectioninfo = get_fast_modinfo($courseid)->get_section_info_by_id($this->createdsectionid);
+            if ($sectioninfo && empty($sectioninfo->sequence)) {
+                \core_courseformat\formatactions::section($courseid)->delete($sectioninfo, false);
+                mtrace("Deleted the empty section (id: {$this->createdsectionid}) created for the failed restore");
+            }
+        } catch (\Exception $e) {
+            mtrace('Could not delete the section created for the failed restore: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Moves the restored activities before the course module the item was dropped in front of.
+     *
+     * Only activities that ended up directly in the target section are moved; the content of a restored subsection
+     * stays inside it. Positioning is cosmetic, so a failure is logged without failing the finished restore.
+     *
+     * @param \restore_controller $restorecontroller
+     * @param int $sectionid
+     * @param int $beforecmid
+     * @return void
+     */
+    private function move_restored_course_modules_before(
+        \restore_controller $restorecontroller,
+        int $sectionid,
+        int $beforecmid
+    ): void {
+        $courseid = $restorecontroller->get_courseid();
+
+        try {
+            rebuild_course_cache($courseid, true);
+            $cms = get_fast_modinfo($courseid)->get_cms();
+
+            // The course module may have been moved or deleted while the restore was queued.
+            if (!isset($cms[$beforecmid]) || (int)$cms[$beforecmid]->section !== $sectionid) {
+                mtrace("Course module (id: $beforecmid) is no longer in the target section; leaving activities at the end");
+                return;
+            }
+
+            $cmactions = \core_courseformat\formatactions::cm($courseid);
+            foreach ($restorecontroller->get_plan()->get_tasks() as $task) {
+                if (!($task instanceof \restore_activity_task) || !$task->get_setting('included')->get_value()) {
+                    continue;
+                }
+
+                $cmid = (int)$task->get_moduleid();
+                if (!isset($cms[$cmid]) || (int)$cms[$cmid]->section !== $sectionid) {
+                    continue;
+                }
+
+                // Moving each one before the same course module keeps their original order.
+                $cmactions->move_before($cmid, $beforecmid);
+                mtrace("Moved course module (id: $cmid) before course module (id: $beforecmid)");
+            }
+        } catch (\Exception $e) {
+            mtrace('Could not position the restored activities: ' . $e->getMessage());
         }
     }
 

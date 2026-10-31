@@ -113,6 +113,7 @@ class content implements \core\output\named_templatable, \renderable {
             'showCopiesQueuedSegmentWhenEmpty' => get_config('block_sharing_cart', 'show_copies_queued_segment_when_empty'),
             'showSharingCartBasket' => get_config('block_sharing_cart', 'show_sharing_cart_basket'),
             'showCopySectionInBlock' => (bool)get_config('block_sharing_cart', 'show_copy_section_in_block'),
+            'dropZonesEnabled' => (bool)get_config('block_sharing_cart', 'enable_drop_zones'),
             'courseContextId' => $coursecontext->id,
         ];
     }
