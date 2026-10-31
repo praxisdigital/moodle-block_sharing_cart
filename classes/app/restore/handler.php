@@ -99,7 +99,7 @@ class handler
     private function restore_is_valid(int $itemid, int $targetsectionid, bool $asnewsection = false): bool {
         global $DB;
 
-        $targetsection = $DB->get_record('course_sections', ['id' => $targetsectionid], MUST_EXIST);
+        $targetsection = $DB->get_record('course_sections', ['id' => $targetsectionid], 'id, component, itemid', MUST_EXIST);
 
         $sql = "SELECT
                 I1.type AS own_type

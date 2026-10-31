@@ -48,10 +48,10 @@
                 {{#status_finished}}
                     {{#has_file_id}}
                         {{^module_is_disabled_on_site}}
-                            {{#show_copy_to_course_button}}
-                                <i class="fa fa-clone" data-action="copy_to_course"
-                                   title="{{#str}}copy_item, block_sharing_cart{{/str}}"></i>
-                            {{/show_copy_to_course_button}}
+                            {{#can_copy_to_course}}
+                                <i class="fa fa-clone{{#copy_to_course_touch_only}} copy-to-course-touch-only{{/copy_to_course_touch_only}}"
+                                   data-action="copy_to_course" title="{{#str}}copy_item, block_sharing_cart{{/str}}"></i>
+                            {{/can_copy_to_course}}
                         {{/module_is_disabled_on_site}}
                     {{/has_file_id}}
                 {{/status_finished}}

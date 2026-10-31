@@ -332,6 +332,46 @@ final class restore_drop_position_test extends \advanced_testcase {
         self::assertNull($task);
     }
 
+    public function test_new_section_cannot_be_anchored_on_a_subsection(): void {
+        global $DB;
+
+        self::setAdminUser();
+        $course = $this->create_target_course();
+        $subsection = self::getDataGenerator()->create_module('subsection', ['course' => $course->id, 'section' => 1]);
+        $delegatedid = (int)$DB->get_field('course_sections', 'id', ['component' => 'mod_subsection', 'itemid' => $subsection->id]);
+        [$item, $labelcmid] = $this->section_in_cart();
+
+        $task = $this->factory->restore()->handler()->restore_item_into_section(
+            $item,
+            $delegatedid,
+            $item->get_id(),
+            ['course_modules_to_include' => [$labelcmid]],
+            0,
+            true
+        );
+
+        self::assertNull($task);
+    }
+
+    public function test_section_cannot_be_restored_into_a_subsection(): void {
+        global $DB;
+
+        self::setAdminUser();
+        $course = $this->create_target_course();
+        $subsection = self::getDataGenerator()->create_module('subsection', ['course' => $course->id, 'section' => 1]);
+        $delegatedid = (int)$DB->get_field('course_sections', 'id', ['component' => 'mod_subsection', 'itemid' => $subsection->id]);
+        [$item, $labelcmid] = $this->section_in_cart();
+
+        $task = $this->factory->restore()->handler()->restore_item_into_section(
+            $item,
+            $delegatedid,
+            $item->get_id(),
+            ['course_modules_to_include' => [$labelcmid]]
+        );
+
+        self::assertNull($task);
+    }
+
     public function test_service_requires_restore_capability_in_the_target_course(): void {
         $generator = self::getDataGenerator();
         $user = $generator->create_user();

@@ -95,7 +95,7 @@ $string['select_all'] = 'Vælg alle';
 $string['settings:enable_drop_zones'] = 'Aktivér slipzoner';
 $string['settings:enable_drop_zones_desc'] = 'Vis kopiér-ikonet på elementer i Delingskurven, som markerer slipzoner i kurset' .
     ' man kan klikke på. Elementer kan altid trækkes direkte hen til en placering i kurset; slå dette fra for kun at tilbyde det.' .
-    ' Bemærk at træk kræver mus eller touchskærm, slipzonerne kan også bruges med tastaturet.';
+    ' På touchskærme forbliver kopiér-ikonet tilgængeligt. Bemærk at slipzonerne også er måden at kopiere på med tastaturet.';
 $string['settings:show_copies_queued_segment_when_empty'] = 'Vis "Kopieringer i kø" segment, når det er tomt.';
 $string['settings:show_copies_queued_segment_when_empty_desc'] = 'Vis "Kopieringer i kø" segmentet i delingskurven, ' .
     ' selv når der ikke er nogen kopieringer i kø.';

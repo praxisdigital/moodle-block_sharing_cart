@@ -95,7 +95,7 @@ $string['select_all'] = 'Select all';
 $string['settings:enable_drop_zones'] = 'Enable drop zones';
 $string['settings:enable_drop_zones_desc'] = 'Show the copy icon on Sharing Cart items, which marks drop zones in the course' .
     ' to click on. Items can always be dragged straight to a position in the course; turn this off to offer only that.' .
-    ' Note that dragging needs a mouse or touch screen, the drop zones also work with a keyboard.';
+    ' On touch screens the copy icon stays available. Note that the drop zones are also the way to copy with a keyboard.';
 $string['settings:show_copies_queued_segment_when_empty'] = 'Show "Copies queued" segment when it\'s empty';
 $string['settings:show_copies_queued_segment_when_empty_desc'] = 'Show the "Copies queued" segment in the sharing cart,' .
     ' even when there are no copies queued.';

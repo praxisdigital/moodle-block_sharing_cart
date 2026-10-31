@@ -233,9 +233,10 @@ export default class BlockElement {
 
             this.#course.startItemDrag(item);
         });
+        // Capture phase: Sortable stops dragend propagation after reordering an item inside the cart.
         this.#element.addEventListener('dragend', () => {
             this.#course.endItemDrag();
-        });
+        }, true);
     }
 
     setupBulkDelete() {
@@ -317,11 +318,8 @@ export default class BlockElement {
     async setupItem(element) {
         const itemElement = this.#baseFactory.block().item().element(this, element);
 
-        if (itemElement.canCopyToCourse()) {
-            element.classList.add('can-drag-to-course');
-            if (!element.matches('.sharing_cart_items > .sharing_cart_item')) {
-                element.setAttribute('draggable', 'true');
-            }
+        if (itemElement.canCopyToCourse() && !element.matches('.sharing_cart_items > .sharing_cart_item')) {
+            element.setAttribute('draggable', 'true');
         }
 
         if (itemElement.getStatus() !== '0' && this.isBulkDeleteEnabled()) {
