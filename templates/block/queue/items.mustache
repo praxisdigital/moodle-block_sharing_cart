@@ -27,7 +27,7 @@
         {{^is_running}}
             {{^is_failed}}alert-info{{/is_failed}}
         {{/is_running}}"
-         data-id="{{id}}" data-to-section-id="{{to_section_id}}"
+         data-id="{{id}}" data-to-section-id="{{to_section_id}}"{{#refresh_course}} data-refresh-course="1"{{/refresh_course}}
     >
         <div class="d-flex align-items-center mb-1">
             <i class="fa m-0

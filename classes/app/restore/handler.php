@@ -48,19 +48,31 @@ class handler
      * @param int $sectionid
      * @param int $itemid
      * @param array $settings
+     * @param int $beforecmid Place the restored activities before this course module (0 = end of the section).
+     * @param bool $asnewsection Restore into a new section created after $sectionid instead of into $sectionid.
      * @return asynchronous_restore_task|null
      */
     public function restore_item_into_section(
         entity $item,
         int $sectionid,
         int $itemid,
-        array $settings = []
+        array $settings = [],
+        int $beforecmid = 0,
+        bool $asnewsection = false
     ): asynchronous_restore_task|null {
         global $USER, $DB;
 
         $courseid = (int)$DB->get_field('course_sections', 'course', ['id' => $sectionid], MUST_EXIST);
 
-        $settings['move_to_section_id'] = $sectionid;
+        // The new section is created by the restore task, so its position is worked out when the restore runs.
+        if ($asnewsection) {
+            $settings['insert_after_section_id'] = $sectionid;
+        } else {
+            $settings['move_to_section_id'] = $sectionid;
+        }
+        if ($beforecmid && !$asnewsection) {
+            $settings['before_cm_id'] = $beforecmid;
+        }
 
         $backupfile = $this->basefactory->item()->repository()->get_stored_file_by_item($item);
         if (!$backupfile) {
@@ -69,7 +81,7 @@ class handler
 
         $this->basefactory->restore()->assert_backup_file_looks_valid($backupfile);
 
-        if (!$this->restore_is_valid($itemid, $sectionid)) {
+        if (!$this->restore_is_valid($itemid, $sectionid, $asnewsection)) {
             return null;
         }
 
@@ -82,8 +94,9 @@ class handler
      * This function is the backend check of that logic.
      * @param int $itemid
      * @param int $targetsectionid
+     * @param bool $asnewsection
      */
-    private function restore_is_valid(int $itemid, int $targetsectionid): bool {
+    private function restore_is_valid(int $itemid, int $targetsectionid, bool $asnewsection = false): bool {
         global $DB;
 
         $targetsection = $DB->get_record('course_sections', ['id' => $targetsectionid], MUST_EXIST);
@@ -102,6 +115,11 @@ class handler
 
         $istargetasection = empty($targetsection->component) && empty($targetsection->itemid);
         $istargetasubsection = !empty($targetsection->component) && $targetsection->component == 'mod_subsection';
+
+        // Only sections can become a new section, and only between top level sections.
+        if ($asnewsection) {
+            return $subjectitem->own_type === 'section' && $istargetasection;
+        }
 
         // Attempt to restore a section into a non-section?
         if (!$istargetasection) {

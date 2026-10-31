@@ -144,6 +144,8 @@ export default class QueueElement {
                 });
 
                 const sectionIds = [];
+                // A restore into a new section changes the section list, which only a full course state refresh picks up.
+                const refreshCourse = removedElements.some((element) => element.dataset.refreshCourse === '1');
                 removedElements.forEach((element) => {
                     const sectionId = element.dataset.toSectionId;
 
@@ -158,8 +160,11 @@ export default class QueueElement {
                     sectionIds.push(sectionId);
                 });
 
-                if (sectionIds.length > 0) {
-                    this.#reactive.dispatch('sectionState', sectionIds).then(() => {
+                if (refreshCourse || sectionIds.length > 0) {
+                    const refresh = refreshCourse ?
+                        this.#reactive.dispatch('courseState') :
+                        this.#reactive.dispatch('sectionState', sectionIds);
+                    refresh.then(() => {
                         Toast.add(getString('you_may_need_to_reload_the_course_warning', 'block_sharing_cart'), {
                             closeButton: true,
                             autohide: true,

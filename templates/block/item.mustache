@@ -25,6 +25,7 @@
      {{#module_is_disabled_on_site}}title="{{#str}}module_is_disabled_on_site, block_sharing_cart{{/str}}"{{/module_is_disabled_on_site}}
      data-module_is_disabled_on_site="{{#module_is_disabled_on_site}}1{{/module_is_disabled_on_site}}{{^module_is_disabled_on_site}}0{{/module_is_disabled_on_site}}"
      data-status="{{status}}"
+     {{#status_finished}}{{#has_file_id}}{{^module_is_disabled_on_site}}{{#can_copy_to_course}}data-can-copy-to-course="1"{{/can_copy_to_course}}{{/module_is_disabled_on_site}}{{/has_file_id}}{{/status_finished}}
      {{#is_section}}data-collapsed="true"{{/is_section}}
      {{#is_subsection}}data-collapsed="true"{{/is_subsection}}
     {{#original_course_fullname}}title="{{#str}}original_course, block_sharing_cart{{/str}} {{.}}"{{/original_course_fullname}}
@@ -47,10 +48,10 @@
                 {{#status_finished}}
                     {{#has_file_id}}
                         {{^module_is_disabled_on_site}}
-                            {{#can_copy_to_course}}
+                            {{#show_copy_to_course_button}}
                                 <i class="fa fa-clone" data-action="copy_to_course"
                                    title="{{#str}}copy_item, block_sharing_cart{{/str}}"></i>
-                            {{/can_copy_to_course}}
+                            {{/show_copy_to_course_button}}
                         {{/module_is_disabled_on_site}}
                     {{/has_file_id}}
                 {{/status_finished}}

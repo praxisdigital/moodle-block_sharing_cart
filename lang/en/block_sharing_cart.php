@@ -23,6 +23,7 @@
  */
 
 $string['anonymize_user_data'] = 'Do you want to anonymize the user data?';
+$string['as_new_section_after'] = 'as a new section after';
 $string['atleast_one_course_module_must_be_included'] = 'At least one course module must be included,' .
     ' please select at least one course module to include.';
 $string['backup_a_section'] = 'Copy a section';
@@ -52,6 +53,7 @@ $string['deselect_all'] = 'Deselect all';
 $string['drop_here'] = 'Drop here...';
 $string['empty_section_restore'] = 'Something went wrong trying to copy the item from the sharing cart. The item was empty.';
 $string['has_items'] = 'Click the <i class="fa fa-clone"></i> icon to copy items from the Sharing Cart to the course.';
+$string['has_items_drag'] = 'Drag items from the Sharing Cart to the place in the course where you want them copied.';
 $string['import_subsection_into_default_named_section_warning'] = 'You are about to copy a subsection into a section' .
     ' without a name. This will overwrite the section name.';
 $string['into_section'] = 'into section';
@@ -90,6 +92,10 @@ $string['restore_failed'] = 'The restore failed (task id: {$a}). This message wi
 $string['restores'] = 'Copies queued';
 $string['run_now'] = 'Run now';
 $string['select_all'] = 'Select all';
+$string['settings:enable_drop_zones'] = 'Enable drop zones';
+$string['settings:enable_drop_zones_desc'] = 'Show the copy icon on Sharing Cart items, which marks drop zones in the course' .
+    ' to click on. Items can always be dragged straight to a position in the course; turn this off to offer only that.' .
+    ' Note that dragging needs a mouse or touch screen, the drop zones also work with a keyboard.';
 $string['settings:show_copies_queued_segment_when_empty'] = 'Show "Copies queued" segment when it\'s empty';
 $string['settings:show_copies_queued_segment_when_empty_desc'] = 'Show the "Copies queued" segment in the sharing cart,' .
     ' even when there are no copies queued.';

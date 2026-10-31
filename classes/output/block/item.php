@@ -90,6 +90,8 @@ class item implements \core\output\named_templatable, \renderable {
 
         $itemcontext->mod_icon = self::get_mod_icon($item);
         $itemcontext->can_copy_to_course = has_capability('moodle/restore:restoreactivity', $PAGE->context, $USER);
+        $itemcontext->show_copy_to_course_button = $itemcontext->can_copy_to_course &&
+            (bool)get_config('block_sharing_cart', 'enable_drop_zones');
 
         $itemcontext->show_run_now = $allowtorunnow && !$isrunning && !$isfailed && $haswaited5seconds;
         $itemcontext->task_id = $itemcontext->show_run_now ? $backuptask->id : null;
