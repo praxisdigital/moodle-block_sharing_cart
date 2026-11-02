@@ -100,6 +100,7 @@ Change Log
     * Disabled course basket icons by default; when basket icons are disabled, users with backup permission see a
       dismissible, per-user notice with drag-and-drop guidance.
     * Updated the empty-cart and setting help text to reflect the hidden icons.
+    * Fixed subsection basket icons after restore
 * 5.2, release 2 2026.09.21
     * Fixed async restore failing with `error/missing_roles_xml_file` on multi-frontend
       sites when web and cron do not share `backuptempdir`: queue no longer extracts the
