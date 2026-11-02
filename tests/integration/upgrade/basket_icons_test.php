@@ -50,29 +50,25 @@ final class basket_icons_test extends \advanced_testcase {
     }
 
     /**
-     * Previously enabled icons are disabled and trigger the explanatory notice.
+     * Previously enabled icons are disabled during the upgrade.
      */
-    public function test_enabled_icons_are_disabled_and_notice_is_marked_pending(): void {
+    public function test_enabled_icons_are_disabled(): void {
         set_config('show_sharing_cart_basket', 1, 'block_sharing_cart');
-        unset_config('basket_icons_notice_pending', 'block_sharing_cart');
 
         $this->run_upgrade();
 
         self::assertEquals(0, get_config('block_sharing_cart', 'show_sharing_cart_basket'));
-        self::assertEquals(1, get_config('block_sharing_cart', 'basket_icons_notice_pending'));
     }
 
     /**
-     * An explicitly disabled setting stays disabled without showing a migration notice.
+     * An explicitly disabled setting stays disabled.
      */
-    public function test_disabled_icons_remain_disabled_without_notice(): void {
+    public function test_disabled_icons_remain_disabled(): void {
         set_config('show_sharing_cart_basket', 0, 'block_sharing_cart');
-        unset_config('basket_icons_notice_pending', 'block_sharing_cart');
 
         $this->run_upgrade();
 
         self::assertEquals(0, get_config('block_sharing_cart', 'show_sharing_cart_basket'));
-        self::assertFalse(get_config('block_sharing_cart', 'basket_icons_notice_pending'));
     }
 
     /**
@@ -80,11 +76,9 @@ final class basket_icons_test extends \advanced_testcase {
      */
     public function test_unset_setting_is_treated_as_previously_enabled(): void {
         unset_config('show_sharing_cart_basket', 'block_sharing_cart');
-        unset_config('basket_icons_notice_pending', 'block_sharing_cart');
 
         $this->run_upgrade();
 
         self::assertEquals(0, get_config('block_sharing_cart', 'show_sharing_cart_basket'));
-        self::assertEquals(1, get_config('block_sharing_cart', 'basket_icons_notice_pending'));
     }
 }

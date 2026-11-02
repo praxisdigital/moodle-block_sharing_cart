@@ -95,10 +95,10 @@ GPL v3
 Change Log
 ----------
 
-* 5.3, release 1
+* 5.3, release 1 2026.11.02
     * Replaced the full Sharing Cart block with a stable drop target during course-item dragging.
-    * Disabled course basket icons by default; upgrading sites that previously showed them now display a dismissible,
-      per-user notice with drag-and-drop guidance.
+    * Disabled course basket icons by default; when basket icons are disabled, users with backup permission see a
+      dismissible, per-user notice with drag-and-drop guidance.
     * Updated the empty-cart and setting help text to reflect the hidden icons.
 * 5.2, release 2 2026.09.21
     * Fixed async restore failing with `error/missing_roles_xml_file` on multi-frontend

@@ -1,7 +1,7 @@
 @block @block_sharing_cart
 @javascript
 
-Feature: Explain the Sharing Cart basket icon migration
+Feature: Explain the Sharing Cart notice when basket icons are disabled
   As an editing teacher who used the basket icons
   I want to know how to add items after the icons are disabled
   So I can continue using the Sharing Cart
@@ -17,7 +17,7 @@ Feature: Explain the Sharing Cart basket icon migration
       | user     | course | role           |
       | teacher1 | C1     | editingteacher |
 
-  Scenario: Dismiss the migration notice for the current user
+  Scenario: Dismiss the hidden-basket-icons notice for the current user
     Given the following config values are set as admin:
       | show_sharing_cart_basket    | 0 | block_sharing_cart |
       | basket_icons_notice_pending | 1 | block_sharing_cart |
@@ -33,9 +33,10 @@ Feature: Explain the Sharing Cart basket icon migration
     And I reload the page
     Then ".block.block_sharing_cart .sharing-cart-basket-notice" "css_element" should not exist
 
-  Scenario: Show the notice when basket icons are disabled without a migration pending
+  Scenario: Show the notice when icons are disabled without a migration marker
     Given the following config values are set as admin:
-      | show_sharing_cart_basket | 0 | block_sharing_cart |
+      | show_sharing_cart_basket    | 0 | block_sharing_cart |
+      | basket_icons_notice_pending | 0 | block_sharing_cart |
     And I log in as "teacher1"
     And I am on "Course 1" course homepage with editing mode on
     And I click on "//a[@data-key='addblock']" "xpath_element"
