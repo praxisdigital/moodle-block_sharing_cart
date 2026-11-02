@@ -83,7 +83,8 @@ class behat_block_sharing_cart extends behat_base
         $aligned = $this->getSession()->evaluateScript(
             'return (() => {'
             . 'const basket = document.querySelector(' . $selector . ');'
-            . 'const container = basket?.closest(".activity-name-area") || basket?.closest("[data-for=section_title]") || basket?.parentElement;'
+            . 'const container = basket?.closest(".activity-name-area") 
+            || basket?.closest("[data-for=section_title]") || basket?.parentElement;'
             . 'const title = container?.querySelector(".inplaceeditable");'
             . 'if (!basket || !title) { return false; }'
             . 'const basketRect = basket.getBoundingClientRect();'
