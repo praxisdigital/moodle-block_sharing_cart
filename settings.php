@@ -32,7 +32,7 @@ if ($ADMIN->fulltree) {
             'block_sharing_cart/show_sharing_cart_basket',
             get_string('settings:show_sharing_cart_basket', 'block_sharing_cart'),
             get_string('settings:show_sharing_cart_basket_desc', 'block_sharing_cart'),
-            1,
+            0,
         )
     );
 

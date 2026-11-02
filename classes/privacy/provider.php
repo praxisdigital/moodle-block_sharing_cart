@@ -34,7 +34,8 @@ use core_privacy\local\request\writer;
 class provider implements
     \core_privacy\local\metadata\provider,
     \core_privacy\local\request\core_userlist_provider,
-    \core_privacy\local\request\plugin\provider {
+    \core_privacy\local\request\plugin\provider,
+    \core_privacy\local\request\user_preference_provider {
     /**
      * get_metadata
      *
@@ -55,6 +56,11 @@ class provider implements
             'timecreated' => 'privacy:metadata:sharing_cart_items:timecreated',
             'timemodified' => 'privacy:metadata:sharing_cart_items:timemodified',
         ], 'privacy:metadata:sharing_cart_items:tabledesc');
+
+        $collection->add_user_preference(
+            'block_sharing_cart_basket_notice_dismissed',
+            'privacy:metadata:preference:block_sharing_cart_basket_notice_dismissed'
+        );
 
         return $collection;
     }
@@ -192,5 +198,25 @@ class provider implements
         }
 
         $DB->delete_records('block_sharing_cart_items', ['user_id' => $context->instanceid]);
+    }
+
+    /**
+     * Export user preferences for the Sharing Cart block.
+     *
+     * @param int $userid The user whose preferences are to be exported.
+     * @return void
+     */
+    public static function export_user_preferences(int $userid): void {
+        $preference = get_user_preferences('block_sharing_cart_basket_notice_dismissed', null, $userid);
+        if ($preference === null) {
+            return;
+        }
+
+        writer::export_user_preference(
+            'block_sharing_cart',
+            'block_sharing_cart_basket_notice_dismissed',
+            $preference,
+            get_string('privacy:preference:block_sharing_cart_basket_notice_dismissed', 'block_sharing_cart')
+        );
     }
 }
