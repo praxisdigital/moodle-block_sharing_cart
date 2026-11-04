@@ -315,6 +315,27 @@ final class restore_drop_position_test extends \advanced_testcase {
         self::assertGreaterThan(4, (int)$delegated->section);
     }
 
+    public function test_new_section_is_removed_again_when_the_restore_fails(): void {
+        self::setAdminUser();
+        $course = $this->create_target_course();
+        [$item] = $this->section_in_cart();
+
+        // No course module in the backup matches, so the restore fails after the new section was created.
+        $task = $this->factory->restore()->handler()->restore_item_into_section(
+            $item,
+            $this->section_id($course->id, 1),
+            $item->get_id(),
+            ['course_modules_to_include' => [-1]],
+            0,
+            true
+        );
+        $this->execute_restore_task($task);
+
+        self::assertTrue($task->get_custom_data()->noretry);
+        self::assertSame(['', 'S1', 'S2', 'S3'], array_map('strval', $this->section_names($course->id)));
+        self::assertSame(['S2a', 'S2b'], $this->section_cm_names($course->id, 2));
+    }
+
     public function test_activity_cannot_be_inserted_as_a_new_section(): void {
         self::setAdminUser();
         $course = $this->create_target_course();

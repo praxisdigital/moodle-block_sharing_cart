@@ -54,7 +54,7 @@
 
       // Only the item's own row, so a child item that cannot be dragged does not inherit it.
       &[data-can-copy-to-course="1"] > .item-body {
-        cursor: crosshair;
+        cursor: move;
 
         .sharing_cart_item_actions,
         input[type="checkbox"] {
