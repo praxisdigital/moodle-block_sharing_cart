@@ -282,6 +282,29 @@ export default class ItemElement {
         }
     }
 
+    /**
+     * Whether the item has a finished backup the user may copy into this course.
+     * @returns {boolean}
+     */
+    canCopyToCourse() {
+        return this.#element.dataset.canCopyToCourse === '1';
+    }
+
+    /**
+     * The module name of an activity item, e.g. "url" for "mod_url".
+     * @returns {string}
+     */
+    getModuleName() {
+        return this.#element.dataset.type.replace(/^mod_/, '');
+    }
+
+    /**
+     * @returns {HTMLElement|null}
+     */
+    getItemIcon() {
+        return this.#element.querySelector(':scope > .item-body .info > img, :scope > .item-body .info > i');
+    }
+
     isModule() {
         return !this.isSection();
     }

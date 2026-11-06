@@ -435,7 +435,7 @@ class asynchronous_backup_task extends \core\task\adhoc_task {
             $modinfo = get_fast_modinfo($courseid);
             $cms = [];
 
-            if ($item->get_type() === 'section') {
+            if ($item->get_type() === 'section' || $item->get_type() === 'mod_subsection') {
                 $section = $modinfo->get_section_info_by_id($itemid);
                 if (empty($section->sequence)) {
                     return [];

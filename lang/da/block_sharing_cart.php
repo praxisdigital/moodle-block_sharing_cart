@@ -23,6 +23,7 @@
  */
 
 $string['anonymize_user_data'] = 'Vil du anonymisere brugerdata?';
+$string['as_new_section_after'] = 'som en ny sektion efter';
 $string['atleast_one_course_module_must_be_included'] = 'Mindst et kursusmodul skal inkluderes,' .
     ' vælg venligst mindst et kursusmodul at inkludere.';
 $string['backup_a_section'] = 'Kopier en sektion';
@@ -52,6 +53,7 @@ $string['deselect_all'] = 'Fravælg alle';
 $string['drop_here'] = 'Slip her...';
 $string['empty_section_restore'] = 'Noget gik galt i forsøget på at kopiere det valgte fra sharing cart. Det valgte emne er tomt.';
 $string['has_items'] = 'Klik på <i class="fa fa-clone"></i> ikonet for at kopiere elementer fra Delingskurven til kurset.';
+$string['has_items_drag'] = 'Træk elementer fra Delingskurven hen til det sted i kurset, hvor de skal kopieres til.';
 $string['import_subsection_into_default_named_section_warning'] = 'Du er ved at kopiere en delsektion ind til en sektion' .
     ' uden et navn. Dette vil overskrive navnet på sektionen.';
 $string['into_section'] = 'ind i sektion';
@@ -90,6 +92,10 @@ $string['restore_failed'] = 'Gendannelsen mislykkedes (task id: {$a}). Denne bes
 $string['restores'] = 'Kopieringer i kø';
 $string['run_now'] = 'Kør nu';
 $string['select_all'] = 'Vælg alle';
+$string['settings:enable_drop_zones'] = 'Aktivér slipzoner';
+$string['settings:enable_drop_zones_desc'] = 'Vis kopiér-ikonet på elementer i Delingskurven, som markerer slipzoner i kurset' .
+    ' man kan klikke på. Elementer kan altid trækkes direkte hen til en placering i kurset; slå dette fra for kun at tilbyde det.' .
+    ' På touchskærme forbliver kopiér-ikonet tilgængeligt. Bemærk at slipzonerne også er måden at kopiere på med tastaturet.';
 $string['settings:show_copies_queued_segment_when_empty'] = 'Vis "Kopieringer i kø" segment, når det er tomt.';
 $string['settings:show_copies_queued_segment_when_empty_desc'] = 'Vis "Kopieringer i kø" segmentet i delingskurven, ' .
     ' selv når der ikke er nogen kopieringer i kø.';

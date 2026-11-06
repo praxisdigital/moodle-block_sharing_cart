@@ -12,6 +12,10 @@ import Notification from "core/notification";
  * @property {boolean} anonymize - Whether to anonymize user data.
  */
 
+/**
+ * @typedef {import("./course/element").DropTarget} DropTarget
+ */
+
 export default class BlockElement {
     /**
      * @type {BaseFactory}
@@ -123,6 +127,7 @@ export default class BlockElement {
         this.setupQueue();
         this.setupItems();
         this.setupDragAndDrop();
+        this.setupDragToCourse();
         this.setupBulkDelete();
 
         return {course: this.#course, queue: this.#queue, block: this};
@@ -203,6 +208,37 @@ export default class BlockElement {
         });
     }
 
+    /**
+     * Lets items be dragged from the sharing cart straight to a position in the course.
+     * Root items are already draggable through Sortable (which reorders them inside the cart), child items are made
+     * draggable in setupItem. The listener sits on the block so it runs after Sortable's own dragstart handler.
+     */
+    setupDragToCourse() {
+        this.#element.addEventListener('dragstart', (e) => {
+            const itemElement = e.target instanceof Element ? e.target.closest('.sharing_cart_item') : null;
+            const item = this.#items.find((i) => i.getItemElement() === itemElement);
+            if (!item || !item.canCopyToCourse()) {
+                return;
+            }
+
+            // Sortable only allows "move", which would forbid the copy drop effect over the course.
+            e.dataTransfer.effectAllowed = 'copyMove';
+
+            // Look like an activity being moved in the course, not like a sharing cart row.
+            const dragImage = this.#course.createDragImage(item);
+            if (dragImage) {
+                e.dataTransfer.setDragImage(dragImage, 0, 0);
+                setTimeout(() => dragImage.remove(), 0);
+            }
+
+            this.#course.startItemDrag(item);
+        });
+        // Capture phase: Sortable stops dragend propagation after reordering an item inside the cart.
+        this.#element.addEventListener('dragend', () => {
+            this.#course.endItemDrag();
+        }, true);
+    }
+
     setupBulkDelete() {
         const enableBulkDeleteButton = this.#element.querySelector('#block_sharing_cart_bulk_delete');
         const disableBulkDeleteButton = this.#element.querySelector('#block_sharing_cart_cancel_bulk_delete');
@@ -281,6 +317,10 @@ export default class BlockElement {
      */
     async setupItem(element) {
         const itemElement = this.#baseFactory.block().item().element(this, element);
+
+        if (itemElement.canCopyToCourse() && !element.matches('.sharing_cart_items > .sharing_cart_item')) {
+            element.setAttribute('draggable', 'true');
+        }
 
         if (itemElement.getStatus() !== '0' && this.isBulkDeleteEnabled()) {
             const checkbox = element.querySelector('input[data-action="bulk_select"][type="checkbox"]');
@@ -727,8 +767,9 @@ export default class BlockElement {
      * @param {ItemElement} item
      * @param {Number} sectionId
      * @param {HTMLElement} modal
+     * @param {DropTarget|null} dropTarget Set when the item was dragged to a position in the course.
      */
-    importItem(item, sectionId, modal) {
+    importItem(item, sectionId, modal, dropTarget = null) {
         this.#course.clearClipboard();
 
         const courseModuleIds = [];
@@ -756,6 +797,8 @@ export default class BlockElement {
                 itemid: item.getItemId(),
                 sectionid: sectionId,
                 coursemodulestoinclude: courseModuleIds,
+                beforecmid: dropTarget?.beforeCourseModuleId ?? 0,
+                asnewsection: dropTarget?.asNewSection ?? false,
             },
             done: async(success) => {
                 if (success) {
@@ -773,8 +816,9 @@ export default class BlockElement {
      * @param {ItemElement} item
      * @param {Number} sectionId
      * @param {Event} e
+     * @param {DropTarget|null} dropTarget Set when the item was dragged to a position in the course.
      */
-    async confirmImportBackupFromSharingCart(item, sectionId, e) {
+    async confirmImportBackupFromSharingCart(item, sectionId, e, dropTarget = null) {
         e.preventDefault();
         e.stopPropagation();
 
@@ -784,7 +828,7 @@ export default class BlockElement {
                 component: 'block_sharing_cart',
             },
             {
-                key: 'into_section',
+                key: dropTarget?.asNewSection ? 'as_new_section_after' : 'into_section',
                 component: 'block_sharing_cart',
             },
             {
@@ -824,7 +868,7 @@ export default class BlockElement {
             removeOnClose: true,
         });
         modal.getRoot().on(ModalEvents.shown, () => this.#baseFactory.moodle().template().runTemplateJS(js));
-        modal.getRoot().on(ModalEvents.save, this.importItem.bind(this, item, sectionId, modal.getRoot()[0]));
+        modal.getRoot().on(ModalEvents.save, this.importItem.bind(this, item, sectionId, modal.getRoot()[0], dropTarget));
         await modal.show();
     }
 

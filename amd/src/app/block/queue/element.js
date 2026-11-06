@@ -114,8 +114,8 @@ export default class QueueElement {
                 reject();
             };
 
-            const oldChildren = this.#element.children;
-            const oldQueueItemsCount = this.getQueueItems().length;
+            // Snapshot before the spinner replaces them, so a restore that finishes meanwhile is still detected.
+            const oldQueueItems = Array.from(this.getQueueItems());
 
             if (showSpinner) {
                 this.#element.innerHTML = '<i class="fa fa-spinner"></i>';
@@ -136,14 +136,17 @@ export default class QueueElement {
                 return element.classList.contains('queue-item');
             });
 
-            if (oldQueueItemsCount > queueItems.length) {
-                const removedElements = Array.from(oldChildren).filter((element) => {
-                    const correspondingElement = queueItems.find((el) => el.dataset.id === element.dataset.id);
+            // Compare task ids rather than counts: a restore can finish while another one is queued.
+            const removedElements = oldQueueItems.filter((element) => {
+                const correspondingElement = queueItems.find((el) => el.dataset.id === element.dataset.id);
 
-                    return correspondingElement === undefined;
-                });
+                return correspondingElement === undefined;
+            });
 
+            if (removedElements.length > 0) {
                 const sectionIds = [];
+                // A restore into a new section changes the section list, which only a full course state refresh picks up.
+                const refreshCourse = removedElements.some((element) => element.dataset.refreshCourse === '1');
                 removedElements.forEach((element) => {
                     const sectionId = element.dataset.toSectionId;
 
@@ -158,8 +161,11 @@ export default class QueueElement {
                     sectionIds.push(sectionId);
                 });
 
-                if (sectionIds.length > 0) {
-                    this.#reactive.dispatch('sectionState', sectionIds).then(() => {
+                if (refreshCourse || sectionIds.length > 0) {
+                    const refresh = refreshCourse ?
+                        this.#reactive.dispatch('courseState') :
+                        this.#reactive.dispatch('sectionState', sectionIds);
+                    refresh.then(() => {
                         Toast.add(getString('you_may_need_to_reload_the_course_warning', 'block_sharing_cart'), {
                             closeButton: true,
                             autohide: true,

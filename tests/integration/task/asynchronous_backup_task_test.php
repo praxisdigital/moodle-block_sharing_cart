@@ -308,6 +308,103 @@ final class asynchronous_backup_task_test extends \advanced_testcase
     }
 
     /**
+     * A subsection backup includes its quiz question bank and completes successfully.
+     *
+     * @return void
+     */
+    public function test_backup_subsection_with_quiz_executes_and_includes_questionbank(): void {
+        global $DB, $USER;
+        self::setAdminUser();
+
+        if (!$DB->record_exists('modules', ['name' => 'subsection'])) {
+            self::markTestSkipped('Subsections are not supported on this Moodle version.');
+        }
+
+        $generator = self::getDataGenerator();
+        $course = $generator->create_course();
+        $subsection = $generator->create_module('subsection', [
+            'course' => $course->id,
+            'section' => 1,
+        ]);
+        $subsectioncm = $DB->get_record(
+            'course_modules',
+            ['id' => $subsection->cmid],
+            'id, instance',
+            MUST_EXIST
+        );
+        $delegatedsection = $DB->get_record(
+            'course_sections',
+            [
+                'course' => $course->id,
+                'component' => 'mod_subsection',
+                'itemid' => $subsectioncm->instance,
+            ],
+            '*',
+            MUST_EXIST
+        );
+
+        $quiz = $generator->create_module('quiz', [
+            'course' => $course->id,
+            'section' => $delegatedsection->section,
+            'name' => 'Quiz in subsection',
+        ]);
+        $questiongenerator = $generator->get_plugin_generator('core_question');
+        $category = $questiongenerator->create_question_category([
+            'contextid' => \context_course::instance($course->id)->id,
+        ]);
+        $question = $questiongenerator->create_question(
+            'shortanswer',
+            null,
+            ['category' => $category->id]
+        );
+        quiz_add_quiz_question($question->id, $quiz);
+
+        $generator->enrol_user($USER->id, $course->id, 'editingteacher');
+        $item = $this->factory->item()->repository()->insert_section(
+            $delegatedsection,
+            $USER->id,
+            null,
+            entity::STATUS_AWAITING_BACKUP
+        );
+
+        // Subsection backup uses a course backup with the delegated section selected.
+        $handler = $this->factory->backup()->handler();
+        $backup = $handler->backup_section(
+            $delegatedsection,
+            $item,
+            [
+                'users' => false,
+                'anonymize' => false,
+            ]
+        );
+        $task = $this->create_task($backup['task']);
+
+        $controller = $backup['controller'];
+        self::assertNotEmpty($controller);
+        $plan = $controller->get_plan();
+        $hasquestionbanksetting = $plan->setting_exists('questionbank');
+
+        $task->call('before_backup_started_hook', $controller);
+        if ($hasquestionbanksetting) {
+            self::assertTrue(
+                (bool)$plan->get_setting('questionbank')->get_value(),
+                'Expected the quiz question bank to be included for a subsection backup'
+            );
+        }
+
+        // Exercise the real asynchronous backup, including creation of the Sharing Cart backup file.
+        $task->execute();
+
+        $backedupitem = $this->factory->item()->repository()->get_by_id($item->get_id());
+        self::assertSame(entity::STATUS_BACKEDUP, $backedupitem->get_status());
+        self::assertNotEmpty($backedupitem->get_file_id());
+
+        $childitems = $this->factory->item()->repository()->get_by_parent_item_id($item->get_id());
+        self::assertCount(1, $childitems);
+        self::assertSame('mod_quiz', $childitems->first()->get_type());
+    }
+
+    /**
      * test_backup_quiz_activity_expected_questionbank_setting_value_returns_true
      *
      * @return void

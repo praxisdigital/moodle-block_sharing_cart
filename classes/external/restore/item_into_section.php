@@ -43,6 +43,18 @@ class item_into_section extends external_api
             'coursemodulestoinclude' => new external_multiple_structure(
                 new external_value(PARAM_INT, '', VALUE_REQUIRED)
             ),
+            'beforecmid' => new external_value(
+                PARAM_INT,
+                'Place the restored activities before this course module in the section (0 = end of the section)',
+                VALUE_DEFAULT,
+                0
+            ),
+            'asnewsection' => new external_value(
+                PARAM_BOOL,
+                'Restore a section item into a new section created after sectionid',
+                VALUE_DEFAULT,
+                false
+            ),
         ]);
     }
 
@@ -51,11 +63,15 @@ class item_into_section extends external_api
      * @param int $itemid
      * @param int $sectionid
      * @param array $coursemodulestoinclude
+     * @param int $beforecmid
+     * @param bool $asnewsection
      */
     public static function execute(
         int $itemid,
         int $sectionid,
-        array $coursemodulestoinclude
+        array $coursemodulestoinclude,
+        int $beforecmid = 0,
+        bool $asnewsection = false
     ): bool {
         global $USER, $DB;
 
@@ -65,11 +81,26 @@ class item_into_section extends external_api
             'itemid' => $itemid,
             'sectionid' => $sectionid,
             'coursemodulestoinclude' => $coursemodulestoinclude,
+            'beforecmid' => $beforecmid,
+            'asnewsection' => $asnewsection,
         ]);
 
-        self::validate_context(
-            \context_user::instance($USER->id)
-        );
+        $courseid = (int)$DB->get_field('course_sections', 'course', ['id' => $params['sectionid']], MUST_EXIST);
+        $context = \core\context\course::instance($courseid);
+
+        self::validate_context($context);
+        require_capability('moodle/restore:restoreactivity', $context);
+        if ($params['asnewsection']) {
+            // Same capability core requires for adding a section.
+            require_capability('moodle/course:update', $context);
+        }
+
+        if (
+            $params['beforecmid'] &&
+            !$DB->record_exists('course_modules', ['id' => $params['beforecmid'], 'section' => $params['sectionid']])
+        ) {
+            throw new \invalid_parameter_exception('beforecmid is not a course module in the target section');
+        }
 
         $item = $basefactory->item()->repository()->get_by_id($params['itemid']);
         if (!$item) {
@@ -79,9 +110,6 @@ class item_into_section extends external_api
         if ($item->get_user_id() !== (int)$USER->id) {
             return false;
         }
-
-        $courseid = (int)$DB->get_field('course_sections', 'course', ['id' => $params['sectionid']], MUST_EXIST);
-        $context = \core\context\course::instance($courseid);
 
         $settings = [];
 
@@ -94,7 +122,9 @@ class item_into_section extends external_api
             $item,
             $params['sectionid'],
             $params['itemid'],
-            $settings
+            $settings,
+            $params['beforecmid'],
+            $params['asnewsection']
         );
 
         return $result !== null;

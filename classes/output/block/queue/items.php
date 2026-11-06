@@ -92,6 +92,7 @@ class items implements \core\output\named_templatable, \renderable {
                     $item->type
                 ) : null,
                 'to_section_id' => $backupsettings->move_to_section_id ?? null,
+                'refresh_course' => !empty($backupsettings->insert_after_section_id),
                 'is_running' => $isrunning,
                 'is_failed' => $isfailed,
                 'show_run_now' => $this->allow_to_run_now() && !$isrunning && !$isfailed && $haswaited5seconds,
