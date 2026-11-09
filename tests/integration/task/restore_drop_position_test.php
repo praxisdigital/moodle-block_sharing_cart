@@ -231,15 +231,36 @@ final class restore_drop_position_test extends \advanced_testcase {
         $item = $this->label_in_cart();
 
         $task = $this->factory->restore()->handler()->restore_item_into_section(
-            $item,
-            $this->section_id($course->id, 2),
-            $item->get_id(),
-            [],
-            $this->cm_id($course->id, 'S2b')
+            item: $item,
+            sectionid: $this->section_id($course->id, 2),
+            itemid: $item->get_id(),
+            beforecmid: $this->cm_id($course->id, 'S2b')
         );
         $this->execute_restore_task($task);
 
         self::assertSame(['S2a', 'Cart label', 'S2b'], $this->section_cm_names($course->id, 2));
+    }
+
+    /**
+     * The old positional course id remains the fifth handler argument for top-level restores.
+     *
+     * @return void
+     */
+    public function test_legacy_positional_course_id_is_preserved_for_top_level_restore(): void {
+        self::setAdminUser();
+        $course = $this->create_target_course();
+        [$item] = $this->section_in_cart();
+
+        $task = $this->factory->restore()->handler()->restore_item_into_section(
+            $item,
+            0,
+            $item->get_id(),
+            ['insert_as_new_section' => true],
+            $course->id
+        );
+
+        self::assertInstanceOf(asynchronous_restore_task::class, $task);
+        self::assertSame((int)$course->id, (int)$task->get_custom_data()->courseid);
     }
 
     public function test_activity_goes_to_the_end_when_the_anchor_left_the_section_before_the_restore_ran(): void {
@@ -249,11 +270,10 @@ final class restore_drop_position_test extends \advanced_testcase {
         $anchorcmid = $this->cm_id($course->id, 'S2a');
 
         $task = $this->factory->restore()->handler()->restore_item_into_section(
-            $item,
-            $this->section_id($course->id, 2),
-            $item->get_id(),
-            [],
-            $anchorcmid
+            item: $item,
+            sectionid: $this->section_id($course->id, 2),
+            itemid: $item->get_id(),
+            beforecmid: $anchorcmid
         );
         \core_courseformat\formatactions::cm($course->id)->move_end_section($anchorcmid, $this->section_id($course->id, 3));
         $this->execute_restore_task($task);
@@ -267,12 +287,11 @@ final class restore_drop_position_test extends \advanced_testcase {
         [$item, $labelcmid] = $this->section_in_cart();
 
         $task = $this->factory->restore()->handler()->restore_item_into_section(
-            $item,
-            $this->section_id($course->id, 1),
-            $item->get_id(),
-            ['course_modules_to_include' => [$labelcmid]],
-            0,
-            true
+            item: $item,
+            sectionid: $this->section_id($course->id, 1),
+            itemid: $item->get_id(),
+            settings: ['course_modules_to_include' => [$labelcmid]],
+            asnewsection: true
         );
         self::assertSame(
             $this->section_id($course->id, 1),
@@ -294,12 +313,11 @@ final class restore_drop_position_test extends \advanced_testcase {
         [$item, $labelcmid] = $this->section_in_cart();
 
         $task = $this->factory->restore()->handler()->restore_item_into_section(
-            $item,
-            $this->section_id($course->id, 3),
-            $item->get_id(),
-            ['course_modules_to_include' => [$labelcmid]],
-            0,
-            true
+            item: $item,
+            sectionid: $this->section_id($course->id, 3),
+            itemid: $item->get_id(),
+            settings: ['course_modules_to_include' => [$labelcmid]],
+            asnewsection: true
         );
         $this->execute_restore_task($task);
 
@@ -322,12 +340,11 @@ final class restore_drop_position_test extends \advanced_testcase {
 
         // No course module in the backup matches, so the restore fails after the new section was created.
         $task = $this->factory->restore()->handler()->restore_item_into_section(
-            $item,
-            $this->section_id($course->id, 1),
-            $item->get_id(),
-            ['course_modules_to_include' => [-1]],
-            0,
-            true
+            item: $item,
+            sectionid: $this->section_id($course->id, 1),
+            itemid: $item->get_id(),
+            settings: ['course_modules_to_include' => [-1]],
+            asnewsection: true
         );
         $this->execute_restore_task($task);
 
@@ -342,12 +359,10 @@ final class restore_drop_position_test extends \advanced_testcase {
         $item = $this->label_in_cart();
 
         $task = $this->factory->restore()->handler()->restore_item_into_section(
-            $item,
-            $this->section_id($course->id, 1),
-            $item->get_id(),
-            [],
-            0,
-            true
+            item: $item,
+            sectionid: $this->section_id($course->id, 1),
+            itemid: $item->get_id(),
+            asnewsection: true
         );
 
         self::assertNull($task);
@@ -363,12 +378,11 @@ final class restore_drop_position_test extends \advanced_testcase {
         [$item, $labelcmid] = $this->section_in_cart();
 
         $task = $this->factory->restore()->handler()->restore_item_into_section(
-            $item,
-            $delegatedid,
-            $item->get_id(),
-            ['course_modules_to_include' => [$labelcmid]],
-            0,
-            true
+            item: $item,
+            sectionid: $delegatedid,
+            itemid: $item->get_id(),
+            settings: ['course_modules_to_include' => [$labelcmid]],
+            asnewsection: true
         );
 
         self::assertNull($task);
@@ -403,7 +417,13 @@ final class restore_drop_position_test extends \advanced_testcase {
         $generator->enrol_user($user->id, $course->id, 'student');
 
         $this->expectException(\required_capability_exception::class);
-        item_into_section::execute($item->get_id(), $this->section_id($course->id, 1), [], 0, false);
+        item_into_section::execute(
+            itemid: $item->get_id(),
+            sectionid: $this->section_id($course->id, 1),
+            coursemodulestoinclude: [],
+            beforecmid: 0,
+            asnewsection: false
+        );
     }
 
     public function test_service_rejects_a_course_module_from_another_section(): void {
@@ -413,11 +433,10 @@ final class restore_drop_position_test extends \advanced_testcase {
 
         $this->expectException(\invalid_parameter_exception::class);
         item_into_section::execute(
-            $item->get_id(),
-            $this->section_id($course->id, 1),
-            [],
-            $this->cm_id($course->id, 'S2a'),
-            false
+            itemid: $item->get_id(),
+            sectionid: $this->section_id($course->id, 1),
+            coursemodulestoinclude: [],
+            beforecmid: $this->cm_id($course->id, 'S2a')
         );
     }
 }

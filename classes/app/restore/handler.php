@@ -48,9 +48,9 @@ class handler
      * @param int $sectionid target section; 0 means the top level of $courseid (only with insert_as_new_section)
      * @param int $itemid
      * @param array $settings restore selections and nested-section options
+     * @param int $courseid required when $sectionid is 0
      * @param int $beforecmid Place the restored activities before this course module (0 = end of the section).
      * @param bool $asnewsection Create a new drop-target section after $sectionid.
-     * @param int $courseid required when $sectionid is 0
      * @return asynchronous_restore_task|null
      */
     public function restore_item_into_section(
@@ -58,9 +58,9 @@ class handler
         int $sectionid,
         int $itemid,
         array $settings = [],
+        int $courseid = 0,
         int $beforecmid = 0,
-        bool $asnewsection = false,
-        int $courseid = 0
+        bool $asnewsection = false
     ): asynchronous_restore_task|null {
         global $USER, $DB;
 

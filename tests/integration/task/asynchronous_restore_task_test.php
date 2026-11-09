@@ -150,14 +150,15 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         int $courseid = 0,
         bool $replacesectiondetails = false
     ): void {
+        // Keep this legacy positional call: optional external parameters must remain backwards compatible.
         $this->assertTrue(item_into_section::execute(
-            itemid: $itemid,
-            sectionid: $sectionid,
-            coursemodulestoinclude: [],
-            sectionstoinclude: [],
-            insertasnewsection: $insertasnewsection,
-            courseid: $courseid,
-            replacesectiondetails: $replacesectiondetails
+            $itemid,
+            $sectionid,
+            [],
+            [],
+            $insertasnewsection,
+            $courseid,
+            $replacesectiondetails
         ));
         $this->runAdhocTasks(asynchronous_restore_task::class);
     }

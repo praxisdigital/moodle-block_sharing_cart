@@ -43,18 +43,6 @@ class item_into_section extends external_api
             'coursemodulestoinclude' => new external_multiple_structure(
                 new external_value(PARAM_INT, '', VALUE_REQUIRED)
             ),
-            'beforecmid' => new external_value(
-                PARAM_INT,
-                'Place the restored activities before this course module in the section (0 = end of the section)',
-                VALUE_DEFAULT,
-                0
-            ),
-            'asnewsection' => new external_value(
-                PARAM_BOOL,
-                'Restore a section item into a new section created after sectionid',
-                VALUE_DEFAULT,
-                false
-            ),
             'sectionstoinclude' => new external_multiple_structure(
                 new external_value(PARAM_INT, 'Original ids of nested sections to restore; empty means all', VALUE_REQUIRED),
                 '',
@@ -75,6 +63,18 @@ class item_into_section extends external_api
                 VALUE_DEFAULT,
                 false
             ),
+            'beforecmid' => new external_value(
+                PARAM_INT,
+                'Place the restored activities before this course module in the section (0 = end of the section)',
+                VALUE_DEFAULT,
+                0
+            ),
+            'asnewsection' => new external_value(
+                PARAM_BOOL,
+                'Restore a section item into a new section created after sectionid',
+                VALUE_DEFAULT,
+                false
+            ),
         ]);
     }
 
@@ -83,23 +83,23 @@ class item_into_section extends external_api
      * @param int $itemid
      * @param int $sectionid
      * @param array $coursemodulestoinclude
-     * @param int $beforecmid
-     * @param bool $asnewsection whether to create a section after the target for drag/drop
      * @param array $sectionstoinclude
      * @param bool $insertasnewsection whether the copied section itself becomes a new section
      * @param int $courseid
      * @param bool $replacesectiondetails
+     * @param int $beforecmid
+     * @param bool $asnewsection whether to create a section after the target for drag/drop
      */
     public static function execute(
         int $itemid,
         int $sectionid,
         array $coursemodulestoinclude,
-        int $beforecmid = 0,
-        bool $asnewsection = false,
         array $sectionstoinclude = [],
         bool $insertasnewsection = false,
         int $courseid = 0,
-        bool $replacesectiondetails = false
+        bool $replacesectiondetails = false,
+        int $beforecmid = 0,
+        bool $asnewsection = false
     ): bool {
         global $USER, $DB;
 
@@ -167,13 +167,13 @@ class item_into_section extends external_api
         }
 
         $result = $basefactory->restore()->handler()->restore_item_into_section(
-            $item,
-            $params['sectionid'],
-            $params['itemid'],
-            $settings,
-            $params['beforecmid'],
-            $params['asnewsection'],
-            $courseid
+            item: $item,
+            sectionid: $params['sectionid'],
+            itemid: $params['itemid'],
+            settings: $settings,
+            courseid: $courseid,
+            beforecmid: $params['beforecmid'],
+            asnewsection: $params['asnewsection']
         );
 
         return $result !== null;
