@@ -90,12 +90,14 @@ class handler
 
         $this->basefactory->restore()->assert_backup_file_looks_valid($backupfile);
 
-        if (!$this->restore_is_valid(
-            $itemid,
-            $sectionid,
-            $asnewsection,
-            !empty($settings['insert_as_new_section'])
-        )) {
+        if (
+            !$this->restore_is_valid(
+                $itemid,
+                $sectionid,
+                $asnewsection,
+                !empty($settings['insert_as_new_section'])
+            )
+        ) {
             return null;
         }
 
