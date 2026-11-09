@@ -39,7 +39,7 @@ class behat_block_sharing_cart extends behat_base
      * @param string $selector CSS selector for the course module to replace.
      */
     public function replace_course_module_without_reloading(string $selector): void {
-        $this->replace_course_module_node($selector, true);
+        $this->replace_course_content_node($selector, true);
     }
 
     /**
@@ -49,31 +49,96 @@ class behat_block_sharing_cart extends behat_base
      * @param string $selector CSS selector for the course module to replace.
      */
     public function replace_course_module_preserving_basket_without_reloading(string $selector): void {
-        $this->replace_course_module_node($selector, false);
+        $this->replace_course_content_node($selector, false);
     }
 
     /**
-     * Clone and replace a course-module node, optionally removing its basket.
+     * Simulate a course-section DOM replacement while retaining its basket markup.
      *
-     * @param string $selector CSS selector for the course module to replace.
+     * @When /^I replace section "(?P<selector>[^"]*)" preserving its Sharing Cart basket without reloading$/
+     * @param string $selector CSS selector for the course section.
+     */
+    public function replace_section_preserving_basket_without_reloading(string $selector): void {
+        $this->replace_course_content_node($selector, false);
+    }
+
+    /**
+     * Simulate a delegated section's content state changing without reloading.
+     *
+     * @When /^I set delegated section contents for subsection "(?P<selector>[^"]*)" to "(?P<state>empty|non-empty)"$/
+     * @param string $selector CSS selector for the subsection course module.
+     * @param string $state Whether the delegated section should be empty.
+     */
+    public function set_delegated_section_contents(string $selector, string $state): void {
+        $selector = json_encode($selector, JSON_THROW_ON_ERROR);
+        $hascontent = $state === 'non-empty' ? 'true' : 'false';
+        $script = str_replace(
+            ['SELECTOR_PLACEHOLDER', 'HAS_CONTENT_PLACEHOLDER'],
+            [$selector, $hascontent],
+            <<<'JS'
+            const subsection = document.querySelector(SELECTOR_PLACEHOLDER);
+            if (!subsection) {
+                throw new Error('Could not find the subsection course module.');
+            }
+            const delegatedSection = [...subsection.querySelectorAll('[data-for="section"]')].find((section) =>
+                section.closest('[data-for="cmitem"]') === subsection
+            );
+            if (!delegatedSection) {
+                throw new Error('Could not find the subsection delegated section.');
+            }
+
+            const courseModuleId = subsection.dataset.id;
+            const sectionId = delegatedSection.dataset.id;
+            const courseEditor = require('core_courseformat/courseeditor').getCurrentCourseEditor();
+            const courseModule = courseEditor.state.cm.get(courseModuleId);
+            if (!courseModule) {
+                throw new Error('Could not find the subsection course-module state.');
+            }
+
+            if (courseModule.delegatesectionid !== null) {
+                courseEditor.stateManager.processUpdates([{
+                    name: 'cm',
+                    action: 'update',
+                    fields: {id: courseModuleId, delegatesectionid: null},
+                }]);
+            }
+            courseEditor.stateManager.processUpdates([{
+                name: 'section',
+                action: 'update',
+                fields: {
+                    id: sectionId,
+                    cmlist: HAS_CONTENT_PLACEHOLDER ? [courseModuleId] : [],
+                },
+            }]);
+        JS
+        );
+        $this->getSession()->executeScript($script);
+    }
+
+    /**
+     * Clone and replace a course-content node, optionally removing its baskets.
+     *
+     * @param string $selector CSS selector for the node to replace.
      * @param bool $removebaskets Whether to remove basket icons from the clone.
      */
-    private function replace_course_module_node(string $selector, bool $removebaskets): void {
+    private function replace_course_content_node(string $selector, bool $removebaskets): void
+    {
         $selector = json_encode($selector, JSON_THROW_ON_ERROR);
         $script = str_replace(
             ['SELECTOR_PLACEHOLDER', 'REMOVE_BASKETS_PLACEHOLDER'],
             [$selector, $removebaskets ? 'true' : 'false'],
             <<<'JS'
-            const courseModule = document.querySelector(SELECTOR_PLACEHOLDER);
-            if (!courseModule) {
-                throw new Error('Could not find the course-module node to replace.');
+            const courseContentNode = document.querySelector(SELECTOR_PLACEHOLDER);
+            if (!courseContentNode) {
+                throw new Error('Could not find the course-content node to replace.');
             }
-            const replacement = courseModule.cloneNode(true);
+            const replacement = courseContentNode.cloneNode(true);
             if (REMOVE_BASKETS_PLACEHOLDER) {
                 replacement.querySelectorAll('.add_to_sharing_cart').forEach((button) => button.remove());
             }
-            courseModule.replaceWith(replacement);
-        JS);
+            courseContentNode.replaceWith(replacement);
+        JS
+        );
         $this->getSession()->executeScript($script);
         $this->wait_for_pending_js();
     }

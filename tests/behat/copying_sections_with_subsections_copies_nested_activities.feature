@@ -73,3 +73,18 @@ Feature: As an editing teacher, copying a section with a subsection, should auto
     And there are exactly 1 Sharing Cart baskets matching "#section-2 li[data-for='cmitem'].modtype_choice .add_to_sharing_cart"
     # Nested activity should be visible.
     And "//li[@id='section-2']//div[@data-activityname='Subactivity']" "xpath_element" should be visible
+
+  Scenario: A section basket remains clickable after its section is cloned
+    Given the following config values are set as admin:
+      | show_sharing_cart_basket | 1 | block_sharing_cart |
+    And I log in as "admin"
+    And I am on "Course 1" course homepage with editing mode on
+    And I click on "//a[@data-key='addblock']" "xpath_element"
+    And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists
+    And I click on "//a[@data-blockname='sharing_cart']" "xpath_element"
+    And I wait until ".course-content #section-1 [data-for='section_title'] .add_to_sharing_cart" "css_element" exists
+    When I replace section "#section-1" preserving its Sharing Cart basket without reloading
+    And I wait "1" seconds
+    And I click on ".course-content #section-1 [data-for='section_title'] .add_to_sharing_cart" "css_element"
+    Then I wait until "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element" exists
+    And I click on "//div[@class='modal-footer']//button[@data-action='cancel']" "xpath_element"

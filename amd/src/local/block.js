@@ -60,6 +60,12 @@ export default class Block extends BaseComponent {
     #boundCourseModuleBaskets = new WeakSet();
 
     /**
+     * Tracks live section baskets that already have a click handler.
+     * @type {WeakSet<HTMLElement>}
+     */
+    #boundSectionBaskets = new WeakSet();
+
+    /**
      * Section basket refreshes deferred until a course-item drag ends.
      * @type {Set<String>}
      */
@@ -382,18 +388,22 @@ export default class Block extends BaseComponent {
                 const hasBackupButton = sectionTitle.parentElement.querySelector('.add_to_sharing_cart');
                 if (!hasBackupButton) {
                     sectionTitle.after(backupButton);
+                }
 
+                backupButton = sectionTitle.parentElement.querySelector('.add_to_sharing_cart');
+                if (!this.#boundSectionBaskets.has(backupButton)) {
                     backupButton.addEventListener(
                         'click',
-                        (e) => {
-                            if (e.currentTarget.classList.contains('disabled')) {
+                        (event) => {
+                            const clickedButton = event.currentTarget;
+                            if (clickedButton.classList.contains('disabled')) {
                                 return;
                             }
                             this.block.addSectionBackupToSharingCart(element.id);
                         }
                     );
+                    this.#boundSectionBaskets.add(backupButton);
                 }
-                backupButton = sectionTitle.parentElement.querySelector('.add_to_sharing_cart');
 
                 const disabled = element.cmlist.length === 0;
                 backupButton.classList.toggle('disabled', disabled);
@@ -406,8 +416,13 @@ export default class Block extends BaseComponent {
         if (this.showSharingCartBasket && this.canBackup) {
             // A subsection's copyability depends on its delegated section contents,
             // which can change without the subsection course-module state changing.
+            const delegatedSectionElement = document.querySelector(
+                '.course-content [data-for="section"][data-id="' + element.id + '"]'
+            );
+            const ownerCourseModuleId = delegatedSectionElement?.closest('[data-for="cmitem"]')?.dataset.id;
             this.reactive.state.cm.forEach((courseModule) => {
-                if (String(courseModule.delegatesectionid) === String(element.id)) {
+                if (String(courseModule.delegatesectionid) === String(element.id) ||
+                        String(courseModule.id) === ownerCourseModuleId) {
                     this._refreshCourseModule({element: courseModule});
                 }
             });
@@ -480,17 +495,50 @@ export default class Block extends BaseComponent {
     }
 
     /**
-     * Find the course-module basket and its container, removing duplicate baskets.
+     * Find the exact course-module item from its state ID.
+     * @param {Object} element
+     * @returns {HTMLElement|null}
+     */
+    _getCourseModuleItem(element) {
+        // Walking up from its action menu can land on an ancestor subsection and
+        // misclassify nested activities (for example, a choice inside a subsection).
+        return document.querySelector(
+            '.course-content [data-for="cmitem"][data-id="' + element.id + '"]'
+        ) ?? document.querySelector('[data-for="cmitem"][data-id="' + element.id + '"]');
+    }
+
+    /**
+     * Find the existing basket button for a course module and remove duplicates.
+     * @param {Object} element
+     * @param {HTMLElement|null} courseModuleItem
+     * @returns {HTMLElement|null}
+     */
+    _getExistingCourseModuleBasket(element, courseModuleItem) {
+        // Subsections can also get their basket from the delegated-section
+        // renderer. Only count buttons owned by this CM, not nested CMs.
+        const courseModuleButtons = courseModuleItem ?
+            [...courseModuleItem.querySelectorAll('.add_to_sharing_cart')].filter((button) =>
+                button.closest('[data-for="cmitem"]') === courseModuleItem
+            ) : [];
+        const registeredButtons = [...document.querySelectorAll(
+            '.course-content .add_to_sharing_cart[data-cmid="' + element.id + '"]'
+        )];
+        const existingButton = courseModuleButtons[0] ?? registeredButtons[0] ?? null;
+        new Set([...courseModuleButtons, ...registeredButtons]).forEach((button) => {
+            if (button !== existingButton) {
+                button.remove();
+            }
+        });
+        return existingButton;
+    }
+
+    /**
+     * Find the course-module basket and its container.
      * @param {Object} element
      * @returns {Object}
      */
     _getCourseModuleBasketElements(element) {
-        // Always resolve the exact CM from its state ID. Walking up from its
-        // action menu can land on an ancestor subsection and misclassify nested
-        // activities (for example, a choice inside a subsection).
-        const courseModuleItem = document.querySelector(
-            '.course-content [data-for="cmitem"][data-id="' + element.id + '"]'
-        ) ?? document.querySelector('[data-for="cmitem"][data-id="' + element.id + '"]');
+        const courseModuleItem = this._getCourseModuleItem(element);
         const delegatedSectionElement = courseModuleItem ?
             [...courseModuleItem.querySelectorAll('[data-for="section"]')].find((section) =>
                 section.closest('[data-for="cmitem"]') === courseModuleItem
@@ -515,21 +563,7 @@ export default class Block extends BaseComponent {
             ) : null;
         const basketContainer = activityTitle ?? delegatedSectionTitle?.parentElement ?? null;
 
-        // Subsections can also get their basket from the delegated-section
-        // renderer. Only count buttons owned by this CM, not nested CMs.
-        const courseModuleButtons = courseModuleItem ?
-            [...courseModuleItem.querySelectorAll('.add_to_sharing_cart')].filter((button) =>
-                button.closest('[data-for="cmitem"]') === courseModuleItem
-            ) : [];
-        const registeredButtons = [...document.querySelectorAll(
-            '.course-content .add_to_sharing_cart[data-cmid="' + element.id + '"]'
-        )];
-        const existingButton = courseModuleButtons[0] ?? registeredButtons[0] ?? null;
-        new Set([...courseModuleButtons, ...registeredButtons]).forEach((button) => {
-            if (button !== existingButton) {
-                button.remove();
-            }
-        });
+        const existingButton = this._getExistingCourseModuleBasket(element, courseModuleItem);
 
         return {
             courseModuleItem,
