@@ -121,8 +121,7 @@ class behat_block_sharing_cart extends behat_base
      * @param string $selector CSS selector for the node to replace.
      * @param bool $removebaskets Whether to remove basket icons from the clone.
      */
-    private function replace_course_content_node(string $selector, bool $removebaskets): void
-    {
+    private function replace_course_content_node(string $selector, bool $removebaskets): void {
         $selector = json_encode($selector, JSON_THROW_ON_ERROR);
         $script = str_replace(
             ['SELECTOR_PLACEHOLDER', 'REMOVE_BASKETS_PLACEHOLDER'],
