@@ -38,6 +38,8 @@ body:has(.block.block_sharing_cart) .course-content {
   }
 
   .add_to_sharing_cart {
+    position: relative;
+    z-index: 2;
     vertical-align: middle;
     cursor: pointer;
     margin-left: 0.5rem;
