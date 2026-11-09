@@ -55,6 +55,26 @@ class item_into_section extends external_api
                 VALUE_DEFAULT,
                 false
             ),
+            'sectionstoinclude' => new external_multiple_structure(
+                new external_value(PARAM_INT, 'Original ids of nested sections to restore; empty means all', VALUE_REQUIRED),
+                '',
+                VALUE_DEFAULT,
+                []
+            ),
+            'insertasnewsection' => new external_value(
+                PARAM_BOOL,
+                'Create the copied section as a new section under sectionid (0 = top level of courseid)' .
+                    ' instead of merging into it',
+                VALUE_DEFAULT,
+                false
+            ),
+            'courseid' => new external_value(PARAM_INT, 'Required when sectionid is 0', VALUE_DEFAULT, 0),
+            'replacesectiondetails' => new external_value(
+                PARAM_BOOL,
+                'When merging into sectionid, replace its title and description with the copied section\'s',
+                VALUE_DEFAULT,
+                false
+            ),
         ]);
     }
 
@@ -64,14 +84,22 @@ class item_into_section extends external_api
      * @param int $sectionid
      * @param array $coursemodulestoinclude
      * @param int $beforecmid
-     * @param bool $asnewsection
+     * @param bool $asnewsection whether to create a section after the target for drag/drop
+     * @param array $sectionstoinclude
+     * @param bool $insertasnewsection whether the copied section itself becomes a new section
+     * @param int $courseid
+     * @param bool $replacesectiondetails
      */
     public static function execute(
         int $itemid,
         int $sectionid,
         array $coursemodulestoinclude,
         int $beforecmid = 0,
-        bool $asnewsection = false
+        bool $asnewsection = false,
+        array $sectionstoinclude = [],
+        bool $insertasnewsection = false,
+        int $courseid = 0,
+        bool $replacesectiondetails = false
     ): bool {
         global $USER, $DB;
 
@@ -83,20 +111,36 @@ class item_into_section extends external_api
             'coursemodulestoinclude' => $coursemodulestoinclude,
             'beforecmid' => $beforecmid,
             'asnewsection' => $asnewsection,
+            'sectionstoinclude' => $sectionstoinclude,
+            'insertasnewsection' => $insertasnewsection,
+            'courseid' => $courseid,
+            'replacesectiondetails' => $replacesectiondetails,
         ]);
 
-        $courseid = (int)$DB->get_field('course_sections', 'course', ['id' => $params['sectionid']], MUST_EXIST);
+        if ($params['asnewsection'] && $params['insertasnewsection']) {
+            throw new \invalid_parameter_exception('The two new-section restore options cannot be combined');
+        }
+
+        if ($params['sectionid'] > 0) {
+            $courseid = (int)$DB->get_field('course_sections', 'course', ['id' => $params['sectionid']], MUST_EXIST);
+        } else {
+            // Top level of the course: only meaningful when inserting the copied section as a new section.
+            if (!$params['insertasnewsection'] || $params['courseid'] <= 0) {
+                return false;
+            }
+            $courseid = (int)$DB->get_field('course', 'id', ['id' => $params['courseid']], MUST_EXIST);
+        }
         $context = \core\context\course::instance($courseid);
 
         self::validate_context($context);
         require_capability('moodle/restore:restoreactivity', $context);
-        if ($params['asnewsection']) {
+        if ($params['asnewsection'] || $params['insertasnewsection']) {
             // Same capability core requires for adding a section.
             require_capability('moodle/course:update', $context);
         }
 
         if (
-            $params['beforecmid'] &&
+            $params['beforecmid'] && $params['sectionid'] > 0 && !$params['asnewsection'] &&
             !$DB->record_exists('course_modules', ['id' => $params['beforecmid'], 'section' => $params['sectionid']])
         ) {
             throw new \invalid_parameter_exception('beforecmid is not a course module in the target section');
@@ -111,11 +155,15 @@ class item_into_section extends external_api
             return false;
         }
 
-        $settings = [];
+        $settings = [
+            'insert_as_new_section' => $params['insertasnewsection'],
+            'replace_section_details' => $params['replacesectiondetails'],
+        ];
 
         // Only pass include/exclude list when the user can configure restore in the target course context.
         if (has_capability('moodle/restore:configure', $context)) {
             $settings['course_modules_to_include'] = $params['coursemodulestoinclude'] ?? [];
+            $settings['sections_to_include'] = $params['sectionstoinclude'] ?? [];
         }
 
         $result = $basefactory->restore()->handler()->restore_item_into_section(
@@ -124,7 +172,8 @@ class item_into_section extends external_api
             $params['itemid'],
             $settings,
             $params['beforecmid'],
-            $params['asnewsection']
+            $params['asnewsection'],
+            $courseid
         );
 
         return $result !== null;

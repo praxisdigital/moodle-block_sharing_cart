@@ -45,11 +45,12 @@ class handler
      * restore_item_into_section
      *
      * @param entity $item
-     * @param int $sectionid
+     * @param int $sectionid target section; 0 means the top level of $courseid (only with insert_as_new_section)
      * @param int $itemid
-     * @param array $settings
+     * @param array $settings restore selections and nested-section options
      * @param int $beforecmid Place the restored activities before this course module (0 = end of the section).
-     * @param bool $asnewsection Restore into a new section created after $sectionid instead of into $sectionid.
+     * @param bool $asnewsection Create a new drop-target section after $sectionid.
+     * @param int $courseid required when $sectionid is 0
      * @return asynchronous_restore_task|null
      */
     public function restore_item_into_section(
@@ -58,11 +59,18 @@ class handler
         int $itemid,
         array $settings = [],
         int $beforecmid = 0,
-        bool $asnewsection = false
+        bool $asnewsection = false,
+        int $courseid = 0
     ): asynchronous_restore_task|null {
         global $USER, $DB;
 
-        $courseid = (int)$DB->get_field('course_sections', 'course', ['id' => $sectionid], MUST_EXIST);
+        if ($sectionid > 0) {
+            $courseid = (int)$DB->get_field('course_sections', 'course', ['id' => $sectionid], MUST_EXIST);
+        }
+
+        if ($courseid <= 0) {
+            return null;
+        }
 
         // The new section is created by the restore task, so its position is worked out when the restore runs.
         if ($asnewsection) {
@@ -73,6 +81,7 @@ class handler
         if ($beforecmid && !$asnewsection) {
             $settings['before_cm_id'] = $beforecmid;
         }
+        $settings['move_to_course_id'] = $courseid;
 
         $backupfile = $this->basefactory->item()->repository()->get_stored_file_by_item($item);
         if (!$backupfile) {
@@ -81,7 +90,12 @@ class handler
 
         $this->basefactory->restore()->assert_backup_file_looks_valid($backupfile);
 
-        if (!$this->restore_is_valid($itemid, $sectionid, $asnewsection)) {
+        if (!$this->restore_is_valid(
+            $itemid,
+            $sectionid,
+            $asnewsection,
+            !empty($settings['insert_as_new_section'])
+        )) {
             return null;
         }
 
@@ -93,13 +107,21 @@ class handler
      * The UI presents the user with the options of where to restore the item copied from the clipboard.
      * This function is the backend check of that logic.
      * @param int $itemid
-     * @param int $targetsectionid
-     * @param bool $asnewsection
+     * @param int $targetsectionid 0 means the top level of the course
+     * @param bool $asnewsection whether to create a section after the target for drag/drop
+     * @param bool $insertasnewsection
      */
-    private function restore_is_valid(int $itemid, int $targetsectionid, bool $asnewsection = false): bool {
+    private function restore_is_valid(
+        int $itemid,
+        int $targetsectionid,
+        bool $asnewsection = false,
+        bool $insertasnewsection = false
+    ): bool {
         global $DB;
 
-        $targetsection = $DB->get_record('course_sections', ['id' => $targetsectionid], 'id, component, itemid', MUST_EXIST);
+        if ($asnewsection && $insertasnewsection) {
+            return false;
+        }
 
         $sql = "SELECT
                 I1.type AS own_type
@@ -113,12 +135,39 @@ class handler
 
         $subjectitem = $DB->get_record_sql($sql, $params, MUST_EXIST);
 
+        // Creating a new section only makes sense for section items.
+        if ($insertasnewsection && $subjectitem->own_type !== 'section') {
+            return false;
+        }
+
+        // A drag/drop-created destination must be anchored to a top-level section.
+        if ($asnewsection && $subjectitem->own_type !== 'section') {
+            return false;
+        }
+
+        // Top level of the course.
+        if ($targetsectionid === 0) {
+            return $insertasnewsection;
+        }
+
+        $targetsection = $DB->get_record(
+            'course_sections',
+            ['id' => $targetsectionid],
+            'id, component, itemid',
+            MUST_EXIST
+        );
+
         $istargetasection = empty($targetsection->component) && empty($targetsection->itemid);
         $istargetasubsection = !empty($targetsection->component) && $targetsection->component == 'mod_subsection';
 
-        // Only sections can become a new section, and only between top level sections.
+        // Drag/drop-created sections are inserted after a top-level section only.
         if ($asnewsection) {
             return $subjectitem->own_type === 'section' && $istargetasection;
+        }
+
+        // A section inserted through the modal cannot be merged into a subsection.
+        if ($insertasnewsection && !$istargetasection) {
+            return false;
         }
 
         // Attempt to restore a section into a non-section?
@@ -135,7 +184,7 @@ class handler
             }
 
             // Attempt to restore a subsections's child into a subsection?
-            if ($subjectitem->parent_type === 'subsection') {
+            if ($subjectitem->parent_type === 'mod_subsection') {
                 return false;
             }
         }
