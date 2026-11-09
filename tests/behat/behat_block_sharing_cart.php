@@ -39,14 +39,39 @@ class behat_block_sharing_cart extends behat_base
      * @param string $selector CSS selector for the course module to replace.
      */
     public function replace_course_module_without_reloading(string $selector): void {
+        $this->replace_course_module_node($selector, true);
+    }
+
+    /**
+     * Simulate a course-format DOM replacement while retaining its basket markup.
+     *
+     * @When /^I replace course module "(?P<selector>[^"]*)" preserving its Sharing Cart basket without reloading$/
+     * @param string $selector CSS selector for the course module to replace.
+     */
+    public function replace_course_module_preserving_basket_without_reloading(string $selector): void {
+        $this->replace_course_module_node($selector, false);
+    }
+
+    /**
+     * Clone and replace a course-module node, optionally removing its basket.
+     *
+     * @param string $selector CSS selector for the course module to replace.
+     * @param bool $removebaskets Whether to remove basket icons from the clone.
+     */
+    private function replace_course_module_node(string $selector, bool $removebaskets): void {
         $selector = json_encode($selector, JSON_THROW_ON_ERROR);
-        $script = str_replace('SELECTOR_PLACEHOLDER', $selector, <<<'JS'
+        $script = str_replace(
+            ['SELECTOR_PLACEHOLDER', 'REMOVE_BASKETS_PLACEHOLDER'],
+            [$selector, $removebaskets ? 'true' : 'false'],
+            <<<'JS'
             const courseModule = document.querySelector(SELECTOR_PLACEHOLDER);
             if (!courseModule) {
                 throw new Error('Could not find the course-module node to replace.');
             }
             const replacement = courseModule.cloneNode(true);
-            replacement.querySelectorAll('.add_to_sharing_cart').forEach((button) => button.remove());
+            if (REMOVE_BASKETS_PLACEHOLDER) {
+                replacement.querySelectorAll('.add_to_sharing_cart').forEach((button) => button.remove());
+            }
             courseModule.replaceWith(replacement);
         JS);
         $this->getSession()->executeScript($script);
@@ -71,6 +96,47 @@ class behat_block_sharing_cart extends behat_base
                 $this->getSession()
             );
         }
+    }
+
+    /**
+     * Click the single enabled basket directly owned by a course module beside its title.
+     *
+     * @When /^I click the single actionable Sharing Cart basket owned by course module "(?P<selector>[^"]*)" in its title$/
+     * @param string $selector CSS selector for the course module.
+     */
+    public function click_single_actionable_basket_owned_by_course_module(string $selector): void {
+        $selector = json_encode($selector, JSON_THROW_ON_ERROR);
+        $script = str_replace('SELECTOR_PLACEHOLDER', $selector, <<<'JS'
+            const courseModule = document.querySelector(SELECTOR_PLACEHOLDER);
+            if (!courseModule) {
+                throw new Error('Could not find the course module that owns the Sharing Cart basket.');
+            }
+
+            const baskets = [...courseModule.querySelectorAll('.add_to_sharing_cart')].filter((basket) =>
+                basket.closest('[data-for="cmitem"]') === courseModule
+            );
+            if (baskets.length !== 1) {
+                throw new Error(
+                    `Expected one basket owned by the course module, found ${baskets.length}`
+                    + ` (id=${courseModule.dataset.id}).`
+                );
+            }
+
+            const basket = baskets[0];
+            if (basket.parentElement?.matches('.activityname, .sectionname') !== true) {
+                throw new Error('The course-module basket is not placed beside its title.');
+            }
+            if (basket.classList.contains('disabled') || basket.getAttribute('aria-disabled') === 'true') {
+                throw new Error('The course-module basket is disabled.');
+            }
+            if (basket.dataset.cmid !== courseModule.dataset.id) {
+                throw new Error('The course-module basket is not associated with its owning course module.');
+            }
+
+            basket.click();
+        JS);
+        $this->getSession()->executeScript($script);
+        $this->wait_for_pending_js();
     }
 
     /**

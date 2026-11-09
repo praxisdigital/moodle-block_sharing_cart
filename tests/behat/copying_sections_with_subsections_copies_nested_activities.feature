@@ -50,6 +50,17 @@ Feature: As an editing teacher, copying a section with a subsection, should auto
     And I reload the page
     When I run all adhoc tasks
     And I wait "20" seconds
+    # Verify the restored subsection basket before reloading the newly rendered course content.
+    And I wait until "//li[@id='section-2']//div[@data-activityname='Subsection1']" "xpath_element" exists
+    And I click the single actionable Sharing Cart basket owned by course module "#section-2 li[data-for='cmitem'].modtype_subsection" in its title
+    And I wait until "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element" exists
+    And I click on "//div[@class='modal-footer']//button[@data-action='cancel']" "xpath_element"
+    # Cloning preserves the basket markup but drops its event listener.
+    When I replace course module "#section-2 li[data-for='cmitem'].modtype_subsection" preserving its Sharing Cart basket without reloading
+    And I wait "1" seconds
+    And I click the single actionable Sharing Cart basket owned by course module "#section-2 li[data-for='cmitem'].modtype_subsection" in its title
+    And I wait until "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element" exists
+    And I click on "//div[@class='modal-footer']//button[@data-action='cancel']" "xpath_element"
     And I reload the page
     # Subsection should be visible.
     Then "//li[@id='section-2']//div[@data-activityname='Subsection1']" "xpath_element" should be visible

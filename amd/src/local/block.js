@@ -53,6 +53,13 @@ export default class Block extends BaseComponent {
     #queuedCourseModuleRefreshes = new Set();
 
     /**
+     * Tracks live course-module baskets that already have a click handler.
+     * A course-format clone copies the basket markup, but not its event listeners.
+     * @type {WeakSet<HTMLElement>}
+     */
+    #boundCourseModuleBaskets = new WeakSet();
+
+    /**
      * Section basket refreshes deferred until a course-item drag ends.
      * @type {Set<String>}
      */
@@ -366,7 +373,9 @@ export default class Block extends BaseComponent {
                 return;
             }
 
-            const sectionTitle = document.querySelector(
+            // A subsection's delegated section is represented by its course-module basket below, not a section basket.
+            const isSubsectionSection = element.component === 'mod_subsection';
+            const sectionTitle = isSubsectionSection ? null : document.querySelector(
                 '.course-content [data-for="section_title"] .inplaceeditable[data-itemid="' + element.id + '"]'
             );
             if (sectionTitle) {
@@ -482,12 +491,29 @@ export default class Block extends BaseComponent {
         const courseModuleItem = document.querySelector(
             '.course-content [data-for="cmitem"][data-id="' + element.id + '"]'
         ) ?? document.querySelector('[data-for="cmitem"][data-id="' + element.id + '"]');
-        const courseModuleActionMenu = courseModuleItem?.querySelector('.cm_action_menu[data-cmid="' + element.id + '"]');
+        const delegatedSectionElement = courseModuleItem ?
+            [...courseModuleItem.querySelectorAll('[data-for="section"]')].find((section) =>
+                section.closest('[data-for="cmitem"]') === courseModuleItem
+            ) : null;
+        const delegatedSectionId = element.delegatesectionid ?? delegatedSectionElement?.dataset.id;
+        const isSubsection = element.module === 'subsection' ||
+            element.plugin === 'mod_subsection' ||
+            Boolean(delegatedSectionId) ||
+            courseModuleItem?.classList.contains('modtype_subsection');
+        const delegatedSectionTitle = isSubsection && delegatedSectionId ?
+            [...(courseModuleItem?.querySelectorAll(
+                '[data-for="section_title"] .inplaceeditable[data-itemid="' + delegatedSectionId + '"]'
+            ) ?? [])].find((title) => title.closest('[data-for="cmitem"]') === courseModuleItem) : null;
+        const courseModuleActionMenu = courseModuleItem ?
+            [...courseModuleItem.querySelectorAll('.cm_action_menu')].find((actionMenu) =>
+                actionMenu.closest('[data-for="cmitem"]') === courseModuleItem
+            ) ?? null : null;
         const isPxgrid = document.body.classList.contains('format-pxgrid');
         const activityTitle = isPxgrid ?
             [...(courseModuleItem?.querySelectorAll('.activity-name-area .activityname') ?? [])].find((title) =>
                 title.closest('[data-for="cmitem"]') === courseModuleItem
             ) : null;
+        const basketContainer = activityTitle ?? delegatedSectionTitle?.parentElement ?? null;
 
         // Subsections can also get their basket from the delegated-section
         // renderer. Only count buttons owned by this CM, not nested CMs.
@@ -508,9 +534,11 @@ export default class Block extends BaseComponent {
         return {
             courseModuleItem,
             courseModuleActionMenu,
-            activityTitle,
+            activityTitle: basketContainer,
             existingButton,
-            buttonContainer: activityTitle ?? courseModuleActionMenu ?? existingButton?.parentElement,
+            isSubsection,
+            delegatedSectionId,
+            buttonContainer: basketContainer ?? courseModuleActionMenu ?? existingButton?.parentElement,
         };
     }
 
@@ -523,6 +551,8 @@ export default class Block extends BaseComponent {
      * @param {HTMLElement|null} param.courseModuleActionMenu
      * @param {HTMLElement|null} param.activityTitle
      * @param {HTMLElement|null} param.existingButton
+     * @param {boolean} param.isSubsection
+     * @param {number|string|null} param.delegatedSectionId
      */
     async _configureCourseModuleBasketButton({
         element,
@@ -531,19 +561,26 @@ export default class Block extends BaseComponent {
         courseModuleActionMenu,
         activityTitle,
         existingButton,
+        isSubsection,
+        delegatedSectionId,
     }) {
         const button = existingButton ?? backupButton;
         button.dataset.cmid = String(element.id);
-        if (!existingButton) {
-            backupButton.addEventListener(
+        if (!this.#boundCourseModuleBaskets.has(button)) {
+            button.addEventListener(
                 'click',
                 (event) => {
-                    if (event.currentTarget.classList.contains('disabled')) {
+                    const clickedButton = event.currentTarget;
+                    if (clickedButton.classList.contains('disabled')) {
                         return;
                     }
-                    this.block.addCourseModuleBackupToSharingCart(element.id);
+                    const courseModuleId = Number.parseInt(clickedButton.dataset.cmid, 10);
+                    if (Number.isInteger(courseModuleId) && courseModuleId > 0) {
+                        this.block.addCourseModuleBackupToSharingCart(courseModuleId);
+                    }
                 }
             );
+            this.#boundCourseModuleBaskets.add(button);
         }
 
         if (activityTitle) {
@@ -552,13 +589,12 @@ export default class Block extends BaseComponent {
             courseModuleActionMenu.append(button);
         }
 
-        const isSubsection = element.module === 'subsection' ||
-            element.plugin === 'mod_subsection' ||
-            Boolean(element.delegatesectionid) ||
-            courseModuleItem?.classList.contains('modtype_subsection');
-        const delegatedSection = isSubsection && element.delegatesectionid ?
-            this.reactive.state.section.get(element.delegatesectionid) : null;
-        const disabled = isSubsection && (!delegatedSection || delegatedSection.cmlist.length === 0);
+        const delegatedSection = isSubsection && delegatedSectionId ?
+            this.reactive.state.section.get(delegatedSectionId) : null;
+        const hasDelegatedSectionContent = delegatedSection ?
+            delegatedSection.cmlist.length > 0 :
+            Boolean(courseModuleItem?.querySelector('[data-for="cmitem"]'));
+        const disabled = isSubsection && !hasDelegatedSectionContent;
         button.classList.toggle('disabled', disabled);
         button.setAttribute('aria-disabled', String(disabled));
         button.title = disabled ?
