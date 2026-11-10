@@ -222,26 +222,37 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             $insertasnewsection = !empty($backupsettings->insert_as_new_section);
             if ($movetosectionid > 0 || $insertasnewsection) {
                 $planner = $this->factory()->restore()->section_planner();
+                $item = $this->factory()->item()->repository()->get_by_id((int)($customdata->item->id ?? 0));
 
                 $this->sectionplan = $planner->plan(
                     $restorecontroller,
-                    $this->factory()->item()->repository()->get_by_id((int)($customdata->item->id ?? 0)),
+                    $item,
                     $movetosectionid,
                     $insertasnewsection,
                     array_map('intval', (array)($backupsettings->sections_to_include ?? []))
                 );
+
+                $beforessectionsrestored = new before_sections_restored(
+                    restoreid: $restorecontroller->get_restoreid(),
+                    courseid: (int)$restorecontroller->get_courseid(),
+                    targetsectionid: $this->sectionplan->targetsectionid,
+                    plannedsections: array_values($this->sectionplan->sections),
+                );
+                \core\di::get(\core\hook\manager::class)->dispatch($beforessectionsrestored);
+
+                if (!$beforessectionsrestored->managesSectionHierarchy) {
+                    $planner->omit_empty_sections(
+                        $restorecontroller,
+                        $this->sectionplan,
+                        $this->createdsectionid !== null
+                    );
+                }
+
                 $planner->apply($restorecontroller, $this->sectionplan);
 
                 if (!empty($backupsettings->replace_section_details) && $this->sectionplan->merges_into_target()) {
                     $this->replace_section_details($restorecontroller);
                 }
-
-                \core\di::get(\core\hook\manager::class)->dispatch(new before_sections_restored(
-                    restoreid: $restorecontroller->get_restoreid(),
-                    courseid: (int)$restorecontroller->get_courseid(),
-                    targetsectionid: $this->sectionplan->targetsectionid,
-                    plannedsections: array_values($this->sectionplan->sections),
-                ));
             }
 
             $hasatleastonecoursemoduleincluded = false;
@@ -295,7 +306,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
     }
 
     /**
-     * Removes the section create_section_after made when the restore failed and left it empty.
+     * Removes the section create_section_after made when it is left empty.
      *
      * @param int $courseid
      * @return void
@@ -310,10 +321,10 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             $sectioninfo = get_fast_modinfo($courseid)->get_section_info_by_id($this->createdsectionid);
             if ($sectioninfo && empty($sectioninfo->sequence)) {
                 \core_courseformat\formatactions::section($courseid)->delete($sectioninfo, false);
-                mtrace("Deleted the empty section (id: {$this->createdsectionid}) created for the failed restore");
+                mtrace("Deleted the empty section (id: {$this->createdsectionid}) created before the restore");
             }
         } catch (\Exception $e) {
-            mtrace('Could not delete the section created for the failed restore: ' . $e->getMessage());
+            mtrace('Could not delete the task-created empty section: ' . $e->getMessage());
         }
     }
 
@@ -391,6 +402,11 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                     targetsectionid: $targetsectionid,
                     restoredsections: $restoredsections,
                 ));
+
+                if ($this->createdsectionid && $this->sectionplan->rootomitted) {
+                    $this->delete_created_section_if_empty($courseid);
+                    $this->createdsectionid = null;
+                }
 
                 rebuild_course_cache($courseid, true);
             }
@@ -511,11 +527,17 @@ class asynchronous_restore_task extends \core\task\adhoc_task
     ): void {
         foreach ($controller->get_plan()->get_tasks() as $task) {
             if ($task instanceof \restore_activity_task) {
+                if (!$task->get_setting('included')->get_value()) {
+                    continue;
+                }
                 $this->trigger_restore_course_module_event($task, $started, $finished);
                 continue;
             }
 
             if ($task instanceof \restore_section_task) {
+                if (!$task->get_setting('included')->get_value()) {
+                    continue;
+                }
                 $this->trigger_restore_section_event($task, $started, $finished);
             }
         }
