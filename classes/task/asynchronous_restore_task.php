@@ -240,7 +240,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 );
                 \core\di::get(\core\hook\manager::class)->dispatch($beforessectionsrestored);
 
-                if (!$beforessectionsrestored->managesSectionHierarchy) {
+                if (!$beforessectionsrestored->manages_section_hierarchy) {
                     $planner->omit_empty_sections(
                         $restorecontroller,
                         $this->sectionplan,

@@ -231,10 +231,13 @@ final class section_planner {
         $lastsection = $sections[array_key_last($sections)];
         get_fast_modinfo($courseid, 0, true);
         $lastsectioninfo = get_fast_modinfo($courseid)->get_section_info_by_id((int)$lastsection->id, IGNORE_MISSING);
-        if (!$lastsectioninfo || !\core_courseformat\formatactions::section($courseid)->move_at(
-            $lastsectioninfo,
-            $firstmissingnumber
-        )) {
+        if (
+            !$lastsectioninfo
+            || !\core_courseformat\formatactions::section($courseid)->move_at(
+                $lastsectioninfo,
+                $firstmissingnumber
+            )
+        ) {
             throw new \Exception('Could not compact destination section numbers before the Sharing Cart restore.');
         }
     }

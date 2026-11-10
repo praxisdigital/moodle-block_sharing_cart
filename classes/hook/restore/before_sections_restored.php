@@ -21,7 +21,7 @@ namespace block_sharing_cart\hook\restore;
  *
  * A course format can use it to mark the restore as "section structure managed by the sharing cart", so that its own
  * format restore plugin does not merge or reposition the sections that the cart is about to create. Formats that
- * rebuild nested section structure can set $managesSectionHierarchy to retain an otherwise empty structural root.
+ * rebuild nested section structure can set $manages_section_hierarchy to retain an otherwise empty structural root.
  *
  * @package   block_sharing_cart
  * @copyright moxis
@@ -31,7 +31,7 @@ namespace block_sharing_cart\hook\restore;
 #[\core\attribute\tags('restore')]
 final class before_sections_restored {
     /** @var bool Whether the target course format will recreate the restored section hierarchy. */
-    public bool $managesSectionHierarchy = false;
+    public bool $manages_section_hierarchy = false;
 
     /**
      * Hook for one sharing cart restore.
