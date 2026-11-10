@@ -95,13 +95,14 @@ GPL v3
 Change Log
 ----------
 
-* 5.2, release 3 2026.11.06
+* 5.2, release 4 2026.11.10
     * Items can be dragged from the Sharing Cart straight to a position in the course: activities before/after
       an activity or at the end of a section, sections between two sections as a new section. Uses core's
       drop indicator and an activity-like drag image, so it follows the theme.
     * New setting "Enable drop zones" (default on). Turn it off to hide the copy icon and only offer dragging.
     * Restoring into a course requires `moodle/restore:restoreactivity` in that course (and
       `moodle/course:update` when a new section is created).
+* 5.2, release 3 2026.09.29
     * Added support for copying sections with a nested structure (e.g. subsections) into the
       cart and restoring them with the structure preserved, via hooks a course format can
       implement. See docs/nested_sections_design.md.
