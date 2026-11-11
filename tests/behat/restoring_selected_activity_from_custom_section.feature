@@ -23,7 +23,7 @@ Feature: Restore a selected activity from an unchecked custom section
     Given I log in as "admin"
     And I am on the "SRC" "Course" page
     And I switch editing mode on
-    And I queue section number "1" with custom child section "2" in the Sharing Cart
+    And I queue custom section "1" with child "2" in the Sharing Cart
     And I run all adhoc tasks
     And I am on the "TARGET" "Course" page
     And I switch editing mode on
