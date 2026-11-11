@@ -7,13 +7,9 @@ Feature: Restore a selected activity from an unchecked custom section
 
   Background:
     Given the following "courses" exist:
-      | fullname      | shortname | format  | numsections | initsections |
-      | Source course | SRC       | pxgrid  | 0           | 1            |
+      | fullname      | shortname | format | numsections | initsections |
+      | Source course | SRC       | topics | 2           | 1            |
       | Target course | TARGET    | topics  | 2           | 1            |
-    And the following "format_pxgrid > sections" exist:
-      | id | course | parent_section_id | name         |
-      | 1  | SRC    | 0                 | Root section |
-      | 2  | SRC    | 1                 | Custom child |
     And the following "activities" exist:
       | activity | name                  | course | idnumber       | section |
       | page     | Root activity         | SRC    | rootactivity   | 1       |
@@ -27,7 +23,7 @@ Feature: Restore a selected activity from an unchecked custom section
     Given I log in as "admin"
     And I am on the "SRC" "Course" page
     And I switch editing mode on
-    And I queue section number "1" in the Sharing Cart
+    And I queue section number "1" with custom child section "2" in the Sharing Cart
     And I run all adhoc tasks
     And I am on the "TARGET" "Course" page
     And I switch editing mode on

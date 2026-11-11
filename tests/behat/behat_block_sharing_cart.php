@@ -36,21 +36,66 @@ class behat_block_sharing_cart extends behat_base
     }
 
     /**
-     * Queues a section backup for a restore scenario; the browser flow under test starts at the import dialog.
+     * Queues a section backup with a test-only nested custom-section tree. The browser flow under test starts at the
+     * import dialog, so no course-format plugin is required to provide the custom hierarchy.
      *
-     * @When /^I queue section number "(?P<sectionnumber>\d+)" in the Sharing Cart$/
-     * @param int $sectionnumber
+     * @When /^I queue section number "(?P<sectionnumber>\d+)" with custom child section "(?P<childnumber>\d+)" in the Sharing Cart$/
+     * @param int $sectionnumber root section number
+     * @param int $childnumber custom child section number
      * @return void
      */
-    public function queue_section_in_sharing_cart(int $sectionnumber): void {
-        $section = $this->get_selected_node(
+    public function queue_section_with_custom_child_in_sharing_cart(int $sectionnumber, int $childnumber): void {
+        global $DB, $USER;
+
+        $rootsectionnode = $this->get_selected_node(
             'css_element',
             '.course-content li[data-for="section"][data-number="' . $sectionnumber . '"]'
         );
-
-        \block_sharing_cart\external\backup\section_into_sharing_cart::execute(
-            (int)$section->getAttribute('data-id'),
-            ['users' => false, 'anonymize' => false]
+        $childsectionnode = $this->get_selected_node(
+            'css_element',
+            '.course-content li[data-for="section"][data-number="' . $childnumber . '"]'
         );
+        $rootsectionid = (int)$rootsectionnode->getAttribute('data-id');
+        $childsectionid = (int)$childsectionnode->getAttribute('data-id');
+        $rootsection = $DB->get_record('course_sections', ['id' => $rootsectionid], '*', MUST_EXIST);
+        $childsection = $DB->get_record('course_sections', ['id' => $childsectionid], '*', MUST_EXIST);
+        $rootsection->name = 'Root section';
+        $childsection->name = 'Custom child';
+        $DB->set_field('course_sections', 'name', $rootsection->name, ['id' => $rootsectionid]);
+        $DB->set_field('course_sections', 'name', $childsection->name, ['id' => $childsectionid]);
+
+        $resolvecustomtree = new \block_sharing_cart\hook\backup\resolve_section_tree(
+            (int)$rootsection->course,
+            $rootsectionid
+        );
+        $resolvecustomtree->add_child($childsectionid, $rootsectionid, 1);
+        $courseformat = course_get_format((int)$rootsection->course);
+        $sectiontree = array_map(static function (object $node) use ($childsection, $courseformat): array {
+            $name = (string)$childsection->name !== ''
+                ? format_string($childsection->name)
+                : $courseformat->get_section_name($childsection);
+
+            return [
+                'section_id' => (int)$node->section_id,
+                'parent_section_id' => (int)$node->parent_section_id,
+                'sort_order' => (int)$node->sort_order,
+                'name' => $name,
+            ];
+        }, $resolvecustomtree->get_tree());
+
+        $basefactory = \block_sharing_cart\app\factory::make();
+        $item = $basefactory->item()->repository()->insert_section(
+            $rootsection,
+            (int)$USER->id,
+            null,
+            \block_sharing_cart\app\item\entity::STATUS_AWAITING_BACKUP
+        );
+        $basefactory->backup()->handler()->backup_section(
+            $rootsection,
+            $item,
+            ['users' => false, 'anonymize' => false],
+            $sectiontree
+        );
+
     }
 }

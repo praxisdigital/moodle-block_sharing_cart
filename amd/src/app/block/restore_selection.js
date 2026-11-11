@@ -53,7 +53,7 @@ export default class RestoreSelection {
             : (root?.dataset.restoreTargetName ?? '');
         const hints = [...form.querySelectorAll('[data-region="restore-placement-hint"]')];
 
-        await Promise.all(hints.map(async (hint) => {
+        await Promise.all(hints.map(async hint => {
             const item = hint.closest('.form-check')?.querySelector(
                 ':scope > label > input[type="checkbox"][data-id]'
             );

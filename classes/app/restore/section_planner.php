@@ -259,7 +259,7 @@ final class section_planner {
      *
      * @param int $oldsectionid original section id, possibly delegated
      * @param section_plan $plan
-     * @param array<int, int> $delegatedowners delegated section id => section containing its parent module
+     * @param array $delegatedowners delegated section id => section containing its parent module
      * @return int|null original id of the nearest included section, or null when it is outside the copied tree
      */
     private function nearest_included_section_id(int $oldsectionid, section_plan $plan, array $delegatedowners): ?int {
