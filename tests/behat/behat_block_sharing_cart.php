@@ -39,8 +39,7 @@ class behat_block_sharing_cart extends behat_base
      * Queues a section backup with a test-only nested custom-section tree. The browser flow under test starts at the
      * import dialog, so no course-format plugin is required to provide the custom hierarchy.
      *
-     * @When /^I queue section number "(?P<sectionnumber>\d+)"
-     * with custom child section "(?P<childnumber>\d+)" in the Sharing Cart$/
+     * @When /^I queue custom section "(?P<sectionnumber>\d+)" with child "(?P<childnumber>\d+)" in the Sharing Cart$/
      * @param int $sectionnumber root section number
      * @param int $childnumber custom child section number
      * @return void
