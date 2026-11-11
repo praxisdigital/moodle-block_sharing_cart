@@ -1,5 +1,4 @@
 @block @block_sharing_cart @format_pxgrid @javascript
-  @ghgh
 Feature: Restore nested pxgrid sections into a flat course
   As an editing teacher
   I want empty ancestors omitted when restoring a nested section tree into a flat course
