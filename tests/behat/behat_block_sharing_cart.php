@@ -34,4 +34,63 @@ class behat_block_sharing_cart extends behat_base
         // Wait until the add block menu is ready.
         $this->get_selected_node("xpath_element", "//a[@data-blockname='sharing_cart']")->click();
     }
+
+    /**
+     * Selects a source section in the Sharing Cart block's copy-section picker and opens its backup modal.
+     *
+     * @When /^I start copying section "(?P<sectionname>[^\"]+)" from the Sharing Cart block$/
+     * @param string $sectionname
+     */
+    public function start_copying_section_from_sharing_cart_block(string $sectionname): void {
+        $select = $this->get_selected_node('css_element', '#copy_section_container select');
+        foreach ($select->findAll('css', 'option') as $option) {
+            if (trim($option->getText()) === $sectionname) {
+                $select->selectOption($option->getAttribute('value'));
+                $this->get_selected_node('css_element', '#copy_section_container button')->click();
+                return;
+            }
+        }
+
+        throw new \coding_exception("No Sharing Cart source section named '$sectionname' was found in the picker.");
+    }
+
+    /**
+     * Simulates dragging a cart section to the lower edge of a top-level course section.
+     *
+     * @When /^I drag Sharing Cart section "(?P<itemname>[^\"]+)" after course section "(?P<sectionnumber>\d+)"$/
+     * @param string $itemname
+     * @param string $sectionnumber
+     */
+    public function drag_sharing_cart_section_after_course_section(string $itemname, string $sectionnumber): void {
+        $script = '(function() {'
+            . ' const itemname = ' . json_encode($itemname) . ';'
+            . ' const sectionnumber = ' . json_encode($sectionnumber) . ';'
+            . ' const item = Array.from(document.querySelectorAll(' .
+                '"#block_sharing_cart .sharing_cart_items > .sharing_cart_item[data-type=section]"' .
+            ')).find((candidate) => candidate.querySelector(":scope > .item-body .name")?.textContent.trim() === itemname);'
+            . ' const target = document.querySelector(' .
+                '"[data-for=course_sectionlist] > [data-for=section][data-number=\"" + sectionnumber + "\"]"' .
+            ');'
+            . ' if (!item || !target) { throw new Error("Could not find the Sharing Cart item or target section"); }'
+            . ' const rect = target.getBoundingClientRect();'
+            . ' const y = rect.bottom - 1;'
+            . ' const transfer = {'
+            . '   effectAllowed: "move", dropEffect: "none", types: [], files: [], items: [],'
+            . '   setData: () => {}, getData: () => "", clearData: () => {}, setDragImage: () => {},'
+            . ' };'
+            . ' const dispatch = (type, element) => {'
+            . '   const event = new DragEvent(type, {'
+            . '     bubbles: true, cancelable: true, clientX: rect.left + rect.width / 2, clientY: y,'
+            . '   });'
+            . '   Object.defineProperty(event, "dataTransfer", {value: transfer});'
+            . '   element.dispatchEvent(event);'
+            . ' };'
+            . ' dispatch("dragstart", item);'
+            . ' dispatch("dragover", target);'
+            . ' dispatch("drop", target);'
+            . ' dispatch("dragend", item);'
+            . '})()';
+
+        $this->getSession()->executeScript($script);
+    }
 }
