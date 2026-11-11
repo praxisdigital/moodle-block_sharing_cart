@@ -230,7 +230,19 @@ class backup_settings_helper {
             );
         }
 
-        foreach ($sectionids as $sectionid) {
+        // Walk the subsection tree breadth-first, to arbitrary depth: a section can own a subsection whose own
+        // section owns another subsection, and so on. $visitedsectionids guards against cycles/re-visits.
+        $sectionidqueue = $sectionids;
+        $visitedsectionids = [];
+
+        while (!empty($sectionidqueue)) {
+            $sectionid = array_shift($sectionidqueue);
+
+            if (isset($visitedsectionids[$sectionid])) {
+                continue;
+            }
+            $visitedsectionids[$sectionid] = true;
+
             $immediatechildmodules = $this->backupsettingsrepository->get_immediate_child_modules_of_section($sectionid);
 
             if (empty($immediatechildmodules)) {
@@ -263,6 +275,10 @@ class backup_settings_helper {
                         explode(',', $immediatechildmodule->child_module_ids)
                     );
                 }
+
+                // The subsection's own section may itself own a further nested subsection: queue it so the next
+                // iteration walks one level deeper.
+                $sectionidqueue[] = (int)$immediatechildmodule->section_id;
             }
 
             $subsectionchildmodules = array_filter($coursemodules, function ($coursemodule) use ($childmoduleids) {

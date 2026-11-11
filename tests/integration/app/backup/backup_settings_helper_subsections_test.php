@@ -67,6 +67,22 @@ final class backup_settings_helper_subsections_test extends \advanced_testcase
     private object $subsection1hiddensectioncourse3;
     /** @var object $forum1course3 */
     private object $forum1course3;
+    /** @var object $course4 */
+    private object $course4;
+    /** @var object $section1course4 */
+    private object $section1course4;
+    /** @var object $subsectionmodule1course4 */
+    private object $subsectionmodule1course4;
+    /** @var object $subsection1hiddensectioncourse4 */
+    private object $subsection1hiddensectioncourse4;
+    /** @var object $subsectionmodule2course4 */
+    private object $subsectionmodule2course4;
+    /** @var object $subsection2hiddensectioncourse4 */
+    private object $subsection2hiddensectioncourse4;
+    /** @var object $forum1undersubsection2course4 */
+    private object $forum1undersubsection2course4;
+    /** @var object $forum1course4 */
+    private object $forum1course4;
 
     /**
      * setUp
@@ -205,6 +221,40 @@ final class backup_settings_helper_subsections_test extends \advanced_testcase
         $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1UnderSubsection1Course3, 'forum')]);
     }
 
+    // A section nesting TWO levels of mod_subsection must have every level's own delegated section, and every
+    // level's descendant activities, included in the backup plan (regression test for GH-243).
+    /**
+     * Includes both levels of a nested subsection tree, their own delegated sections, and their child modules.
+     */
+    // phpcs:ignore moodle.Files.LineLength.TooLong
+    public function test_construct_backup_plan_settings_includes_two_levels_of_nested_subsections_and_their_child_modules(): void {
+        $this->customdata1->item["old_instance_id"] = $this->section1course4->id;
+        $this->customdata1->item["type"] = "section";
+
+        $item = $this->basefactory->item()->entity((object)$this->customdata1->item);
+        $backupcontrollercontext = \core\context\course::instance($this->course4->id);
+
+        $backupplansettings = $this->helper->construct_backup_plan_settings($this->customdata1, $backupcontrollercontext, $item);
+
+        // The copied root section and its direct sibling activity must be included.
+        $this->assertTrue($backupplansettings[$this->get_section_include($this->section1course4)]);
+        $this->assertTrue($backupplansettings[$this->get_module_include($this->forum1course4, 'forum')]);
+
+        // Level 1 subsection module and its own delegated section must be included.
+        $this->assertTrue($backupplansettings[$this->get_module_include($this->subsectionmodule1course4, 'subsection')]);
+        $this->assertTrue($backupplansettings[$this->get_section_include($this->subsection1hiddensectioncourse4)]);
+
+        // Level 2 subsection module, nested inside level 1, and its own delegated section must also be included.
+        // Before the fix for GH-243, the module setting was flipped to included but its own section setting was
+        // never reached because the tree walk stopped after exactly one level.
+        $this->assertTrue($backupplansettings[$this->get_module_include($this->subsectionmodule2course4, 'subsection')]);
+        $this->assertTrue($backupplansettings[$this->get_section_include($this->subsection2hiddensectioncourse4)]);
+
+        // An activity nested two levels deep (inside level 2's own section) must be included.
+        // Before the fix for GH-243, this activity was dropped from the backup entirely.
+        $this->assertTrue($backupplansettings[$this->get_module_include($this->forum1undersubsection2course4, 'forum')]);
+    }
+
     /**
      * generate_custom_datas.
      */
@@ -290,6 +340,50 @@ final class backup_settings_helper_subsections_test extends \advanced_testcase
         $this->forum1Course3 = self::getDataGenerator()->create_module('forum', [
             'course' => $this->course3->id,
             'section' => $this->section1Course3->section,
+        ]);
+
+        // Course4: two levels of mod_subsection nesting (regression test for GH-243).
+        $this->course4 = self::getDataGenerator()->create_course();
+        $this->section1course4 = $db->get_record('course_sections', ['course' => $this->course4->id, 'section' => 0]);
+
+        // Level 1 subsection, directly inside the root section.
+        $this->subsectionmodule1course4 = self::getDataGenerator()->create_module('subsection', [
+            'course' => $this->course4->id,
+            'section' => $this->section1course4->section,
+        ]);
+        $subsectionmodule1course4instance = $db->get_record(
+            'course_modules',
+            ['id' => $this->subsectionmodule1course4->cmid]
+        );
+        $this->subsection1hiddensectioncourse4 = $db->get_record(
+            'course_sections',
+            ['itemid' => $subsectionmodule1course4instance->instance]
+        );
+
+        // Level 2 subsection, nested inside level 1's own (hidden) section.
+        $this->subsectionmodule2course4 = self::getDataGenerator()->create_module('subsection', [
+            'course' => $this->course4->id,
+            'section' => $this->subsection1hiddensectioncourse4->section,
+        ]);
+        $subsectionmodule2course4instance = $db->get_record(
+            'course_modules',
+            ['id' => $this->subsectionmodule2course4->cmid]
+        );
+        $this->subsection2hiddensectioncourse4 = $db->get_record(
+            'course_sections',
+            ['itemid' => $subsectionmodule2course4instance->instance]
+        );
+
+        // An activity nested two levels deep, inside level 2's own (hidden) section.
+        $this->forum1undersubsection2course4 = self::getDataGenerator()->create_module('forum', [
+            'course' => $this->course4->id,
+            'section' => $this->subsection2hiddensectioncourse4->section,
+        ]);
+
+        // A sibling activity directly in the root section, to confirm it is unaffected.
+        $this->forum1course4 = self::getDataGenerator()->create_module('forum', [
+            'course' => $this->course4->id,
+            'section' => $this->section1course4->section,
         ]);
     }
 

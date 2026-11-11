@@ -95,6 +95,13 @@ GPL v3
 Change Log
 ----------
 
+See `CHANGELOG.md` for detailed, file-oriented change history.
+
+* 5.2, release 4 2026.11.11
+    * Fixed a regression where copying a section nesting two or more levels of `mod_subsection`
+      (e.g. a subsection containing another subsection) produced corrupted backup data, causing
+      broken/orphan sections to appear on restore. The backup plan builder now walks the
+      subsection tree to arbitrary depth instead of only one level deep.
 * 5.2, release 3 2026.09.29
     * Added support for copying sections with a nested structure (e.g. subsections) into the
       cart and restoring them with the structure preserved, via hooks a course format can
