@@ -74,4 +74,23 @@ class behat_block_sharing_cart extends behat_base
 
         $this->getSession()->executeScript($script);
     }
+
+    /**
+     * Queues a section backup for a restore scenario; the browser flow under test starts at the import dialog.
+     *
+     * @When /^I queue section number "(?P<sectionnumber>\d+)" in the Sharing Cart$/
+     * @param int $sectionnumber
+     * @return void
+     */
+    public function queue_section_in_sharing_cart(int $sectionnumber): void {
+        $section = $this->get_selected_node(
+            'css_element',
+            '.course-content li[data-for="section"][data-number="' . $sectionnumber . '"]'
+        );
+
+        \block_sharing_cart\external\backup\section_into_sharing_cart::execute(
+            (int)$section->getAttribute('data-id'),
+            ['users' => false, 'anonymize' => false]
+        );
+    }
 }

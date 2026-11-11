@@ -229,7 +229,8 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                     $item,
                     $movetosectionid,
                     $insertasnewsection,
-                    array_map('intval', (array)($backupsettings->sections_to_include ?? []))
+                    array_map('intval', (array)($backupsettings->sections_to_include ?? [])),
+                    $coursemodulestoinclude
                 );
 
                 $beforessectionsrestored = new before_sections_restored(

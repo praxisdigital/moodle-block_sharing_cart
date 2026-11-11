@@ -99,7 +99,7 @@ GPL v3
 Change Log
 ----------
 
-* 5.2, release 4 2026.11.10
+* 5.2, release 4 2026.11.11
     * Items can be dragged from the Sharing Cart straight to a position in the course: activities before/after
       an activity or at the end of a section. Sections can be dropped between top-level sections to create a new
       section. Section drops depend on the course format's section-list markup; some formats may only support
@@ -112,6 +112,8 @@ Change Log
     * Course formats that rebuild nested section hierarchies can set `managessectionhierarchy` on the
       `before_sections_restored` hook. This keeps empty structural sections available for the format to attach after
       the restore.
+    * You can now deselect a subsection while keeping selected activities. Those activities are restored into the
+      nearest included parent section.
 * 5.2, release 3 2026.09.29
     * Added support for copying sections with a nested structure (e.g. subsections) into the
       cart and restoring them with the structure preserved, via hooks a course format can

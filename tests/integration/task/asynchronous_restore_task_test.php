@@ -93,9 +93,10 @@ final class asynchronous_restore_task_test extends \advanced_testcase
      * @param object $course as returned by create_course()
      * @param int $sectionnum
      * @param string $name
+     * @return object created page course module
      */
-    private function add_page(object $course, int $sectionnum, string $name): void {
-        $this->getDataGenerator()->create_module('page', [
+    private function add_page(object $course, int $sectionnum, string $name): object {
+        return $this->getDataGenerator()->create_module('page', [
             'course' => $course->id,
             'section' => $sectionnum,
             'name' => $name,
@@ -159,6 +160,8 @@ final class asynchronous_restore_task_test extends \advanced_testcase
      * @param int $courseid
      * @param bool $replacesectiondetails
      * @param bool $expectfailure whether the task is expected to log a restore failure
+     * @param int[] $moduleids course modules explicitly selected for restore
+     * @param int[] $sectionids nested sections explicitly selected for restore
      */
     private function restore(
         int $itemid,
@@ -166,14 +169,16 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         bool $insertasnewsection = false,
         int $courseid = 0,
         bool $replacesectiondetails = false,
-        bool $expectfailure = false
+        bool $expectfailure = false,
+        array $moduleids = [],
+        array $sectionids = []
     ): void {
         // Keep this legacy positional call: optional external parameters must remain backwards compatible.
         $this->assertTrue(item_into_section::execute(
             $itemid,
             $sectionid,
-            [],
-            [],
+            $moduleids,
+            $sectionids,
             $insertasnewsection,
             $courseid,
             $replacesectiondetails
@@ -336,6 +341,78 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $this->assertArrayHasKey('Instructions', $sections);
         $this->assertStringContainsString('Root instructions', (string)$sections['Instructions']->summary);
         $this->assertSame(['Page child'], $this->module_names((int)$sections['Child']->id));
+    }
+
+    public function test_selected_activities_under_excluded_sections_flatten_to_the_nearest_included_section(): void {
+        global $DB;
+
+        $source = $this->create_course(2, [1 => 'Copied root', 2 => 'Excluded child']);
+        $rootpage = $this->add_page($source, 1, 'Page root');
+        $childpage = $this->add_page($source, 2, 'Page child');
+        $this->declare_section_tree([[$source->sections[2]->id, $source->sections[1]->id, 1]]);
+
+        $subsection = $this->getDataGenerator()->create_module('subsection', [
+            'course' => $source->id,
+            'section' => 1,
+            'name' => 'Subsection',
+        ]);
+        $delegatedsection = $DB->get_record('course_sections', [
+            'course' => $source->id,
+            'component' => 'mod_subsection',
+            'itemid' => $subsection->id,
+        ], '*', MUST_EXIST);
+        $subsectionpage = $this->getDataGenerator()->create_module('page', [
+            'course' => $source->id,
+            'section' => $delegatedsection->section,
+            'name' => 'Page subsection',
+        ]);
+
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $moduleids = [(int)$rootpage->cmid, (int)$childpage->cmid, (int)$subsectionpage->cmid];
+
+        $target = $this->create_course(1, [1 => 'Merge target']);
+        $targetsectionid = (int)$target->sections[1]->id;
+        $this->restore(
+            $rootitemid,
+            $targetsectionid,
+            moduleids: $moduleids,
+            sectionids: [0]
+        );
+
+        $this->assertSame(['Page child', 'Page root', 'Page subsection'], $this->module_names($targetsectionid));
+        $this->assertFalse($DB->record_exists('course_sections', [
+            'course' => $target->id,
+            'name' => 'Excluded child',
+        ]));
+        $this->assertFalse($DB->record_exists('course_modules', [
+            'course' => $target->id,
+            'module' => (int)$DB->get_field('modules', 'id', ['name' => 'subsection'], MUST_EXIST),
+        ]));
+
+        $newtarget = $this->create_course(1, [1 => 'Existing section']);
+        $this->restore(
+            $rootitemid,
+            0,
+            insertasnewsection: true,
+            courseid: (int)$newtarget->id,
+            moduleids: $moduleids,
+            sectionids: [0]
+        );
+
+        $sections = $this->sections_by_name($newtarget->id);
+        $this->assertArrayHasKey('Copied root', $sections);
+        $this->assertSame(
+            ['Page child', 'Page root', 'Page subsection'],
+            $this->module_names((int)$sections['Copied root']->id)
+        );
+        $this->assertFalse($DB->record_exists('course_sections', [
+            'course' => $newtarget->id,
+            'name' => 'Excluded child',
+        ]));
+        $this->assertFalse($DB->record_exists('course_modules', [
+            'course' => $newtarget->id,
+            'module' => (int)$DB->get_field('modules', 'id', ['name' => 'subsection'], MUST_EXIST),
+        ]));
     }
 
     public function test_section_without_activities_but_with_populated_descendants_can_be_copied(): void {
