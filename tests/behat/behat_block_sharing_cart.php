@@ -36,25 +36,6 @@ class behat_block_sharing_cart extends behat_base
     }
 
     /**
-     * Selects a source section in the Sharing Cart block's copy-section picker and opens its backup modal.
-     *
-     * @When /^I start copying section "(?P<sectionname>[^\"]+)" from the Sharing Cart block$/
-     * @param string $sectionname
-     */
-    public function start_copying_section_from_sharing_cart_block(string $sectionname): void {
-        $select = $this->get_selected_node('css_element', '#copy_section_container select');
-        foreach ($select->findAll('css', 'option') as $option) {
-            if (trim($option->getText()) === $sectionname) {
-                $select->selectOption($option->getAttribute('value'));
-                $this->get_selected_node('css_element', '#copy_section_container button')->click();
-                return;
-            }
-        }
-
-        throw new \coding_exception("No Sharing Cart source section named '$sectionname' was found in the picker.");
-    }
-
-    /**
      * Simulates dragging a cart section to the lower edge of a top-level course section.
      *
      * @When /^I drag Sharing Cart section "(?P<itemname>[^\"]+)" after course section "(?P<sectionnumber>\d+)"$/
