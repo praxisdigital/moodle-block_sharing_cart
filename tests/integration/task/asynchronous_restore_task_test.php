@@ -278,6 +278,81 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $this->assertSame((int)$sections['Child']->id, $grandchild->new_parent_section_id);
     }
 
+    public function test_selected_custom_grandchild_is_reparented_when_its_custom_parent_is_excluded(): void {
+        global $DB;
+
+        $source = $this->create_course(3, [1 => 'Copied root', 2 => 'Excluded parent', 3 => 'Selected grandchild']);
+        $this->add_page($source, 1, 'Root activity');
+        $this->add_page($source, 2, 'Excluded parent activity');
+        $this->add_page($source, 3, 'Grandchild activity');
+        $this->declare_section_tree([
+            [$source->sections[2]->id, $source->sections[1]->id, 1],
+            [$source->sections[3]->id, $source->sections[2]->id, 1],
+        ]);
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $byparent = $this->items_by_parent($rootitemid);
+        $parentitem = $byparent[$rootitemid]['Excluded parent'];
+        $grandchilditem = $byparent[$parentitem->get_id()]['Selected grandchild'];
+        $moduleids = [
+            (int)$byparent[$rootitemid]['Root activity']->get_old_instance_id(),
+            (int)$byparent[$grandchilditem->get_id()]['Grandchild activity']->get_old_instance_id(),
+        ];
+        $selectedsectionids = [(int)$grandchilditem->get_old_instance_id()];
+
+        $target = $this->create_course(1, [1 => 'Merge target']);
+        $targetsectionid = (int)$target->sections[1]->id;
+        $payload = null;
+        \core\di::get(\core\hook\manager::class)->phpunit_redirect_hook(
+            after_sections_restored::class,
+            static function (after_sections_restored $hook) use (&$payload): void {
+                $payload = $hook;
+            }
+        );
+        $this->restore(
+            $rootitemid,
+            $targetsectionid,
+            moduleids: $moduleids,
+            sectionids: $selectedsectionids
+        );
+
+        $sections = $this->sections_by_name($target->id);
+        $this->assertArrayHasKey('Selected grandchild', $sections);
+        $grandchildid = (int)$sections['Selected grandchild']->id;
+        $this->assertSame(['Grandchild activity'], $this->module_names($grandchildid));
+        $this->assertFalse($DB->record_exists('course_sections', [
+            'course' => $target->id,
+            'name' => 'Excluded parent',
+        ]));
+        $this->assertNotNull($payload);
+        $this->assertCount(1, $payload->restoredsections);
+        $this->assertSame($grandchildid, $payload->restoredsections[0]->new_section_id);
+        $this->assertSame($targetsectionid, $payload->restoredsections[0]->new_parent_section_id);
+
+        $newtarget = $this->create_course(1, [1 => 'Existing section']);
+        $payload = null;
+        $this->restore(
+            $rootitemid,
+            0,
+            insertasnewsection: true,
+            courseid: (int)$newtarget->id,
+            moduleids: $moduleids,
+            sectionids: $selectedsectionids
+        );
+
+        $sections = $this->sections_by_name($newtarget->id);
+        $newrootid = (int)$sections['Copied root']->id;
+        $newgrandchildid = (int)$sections['Selected grandchild']->id;
+        $this->assertSame(['Grandchild activity'], $this->module_names($newgrandchildid));
+        $this->assertFalse($DB->record_exists('course_sections', [
+            'course' => $newtarget->id,
+            'name' => 'Excluded parent',
+        ]));
+        $this->assertNotNull($payload);
+        $this->assertCount(2, $payload->restoredsections);
+        $this->assertSame($newgrandchildid, $payload->restoredsections[1]->new_section_id);
+        $this->assertSame($newrootid, $payload->restoredsections[1]->new_parent_section_id);
+    }
+
     public function test_selected_activities_under_excluded_sections_flatten_to_the_nearest_included_section(): void {
         global $DB;
 

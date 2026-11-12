@@ -75,7 +75,7 @@ class import_item_modal_body implements \core\output\named_templatable, \rendera
             'can_replace_section_details' => false,
             'target_section_name' => '',
             'restore_target_name' => '',
-            'restore_source_name' => format_string($this->item->get_name()),
+            'restore_source_name' => html_to_text(format_string($this->item->get_name()), 0, false),
         ];
 
         if ($this->asnewsection) {
@@ -92,14 +92,16 @@ class import_item_modal_body implements \core\output\named_templatable, \rendera
             return $context;
         }
 
-        $context['target_section_name'] = format_string(
+        $formattedtargetname = format_string(
             course_get_format($targetsection->course)->get_section_name($targetsection)
         );
+        $context['target_section_name'] = $formattedtargetname;
+        $context['restore_target_name'] = html_to_text($formattedtargetname, 0, false);
         $hasname = (string)$targetsection->name !== '';
         // Core fills an unnamed merge target with the copied section's name, even without the replace-details option.
-        $context['restore_target_name'] = $hasname
-            ? $context['target_section_name']
-            : ($this->item->is_section() ? $context['restore_source_name'] : $context['target_section_name']);
+        if (!$hasname && $this->item->is_section()) {
+            $context['restore_target_name'] = $context['restore_source_name'];
+        }
 
         if (!$this->item->is_section()) {
             return $context;
