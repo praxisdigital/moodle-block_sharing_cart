@@ -152,13 +152,6 @@ final class section_planner {
 
         // Old module id => old section id / inclusion, and delegated section id => parent module / owner section.
         $modulesections = [];
-        $moduleincluded = [];
-        foreach ($restorecontroller->get_plan()->get_tasks() as $task) {
-            if ($task instanceof \restore_activity_task) {
-                $oldmoduleid = (int)$task->get_old_moduleid();
-                $moduleincluded[$oldmoduleid] = (bool)$task->get_setting('included')->get_value();
-            }
-        }
         foreach ($restorecontroller->get_info()->activities ?? [] as $activity) {
             $modulesections[(int)$activity->moduleid] = (int)$activity->sectionid;
         }
@@ -171,22 +164,19 @@ final class section_planner {
             }
         }
 
-        $moduleisselected = static function (int $oldmoduleid) use ($moduleincluded, $plan): bool {
-            return !empty($moduleincluded[$oldmoduleid]) || (
-                $plan->coursemodulestoinclude !== null &&
-                in_array($oldmoduleid, $plan->coursemodulestoinclude, true)
-            );
-        };
         $moduleexplicitlyselected = static function (int $oldmoduleid) use ($plan): bool {
             return $plan->coursemodulestoinclude !== null
                 && in_array($oldmoduleid, $plan->coursemodulestoinclude, true);
         };
+        $includedsectionids = $plan->included_section_ids();
         $delegatedsectionincluded = [];
         foreach ($delegatedmodules as $delegatedsectionid => $parentmoduleid) {
-            $delegatedsectionincluded[$delegatedsectionid] = $moduleisselected($parentmoduleid);
+            $ownersectionid = $delegatedowners[$delegatedsectionid];
+            $delegatedsectionincluded[$delegatedsectionid] = $plan->coursemodulestoinclude === null
+                ? in_array($ownersectionid, $includedsectionids, true)
+                : $moduleexplicitlyselected($parentmoduleid);
         }
 
-        $includedsectionids = $plan->included_section_ids();
         $isincluded = static function (int $oldsectionid) use ($includedsectionids, $delegatedsectionincluded): bool {
             if (isset($delegatedsectionincluded[$oldsectionid])) {
                 return $delegatedsectionincluded[$oldsectionid];
