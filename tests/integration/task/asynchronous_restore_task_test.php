@@ -350,6 +350,97 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         ]));
     }
 
+    public function test_selected_subsection_inside_excluded_custom_section_keeps_its_child_activity_nested(): void {
+        global $DB;
+
+        $source = $this->create_course(2, [1 => 'Copied root', 2 => 'Excluded custom child']);
+        $rootpage = $this->add_page($source, 1, 'Root activity');
+        $this->declare_section_tree([[$source->sections[2]->id, $source->sections[1]->id, 1]]);
+
+        $subsection = $this->getDataGenerator()->create_module('subsection', [
+            'course' => $source->id,
+            'section' => 2,
+            'name' => 'Subsection',
+        ]);
+        $delegatedsection = $DB->get_record('course_sections', [
+            'course' => $source->id,
+            'component' => 'mod_subsection',
+            'itemid' => $subsection->id,
+        ], '*', MUST_EXIST);
+        $subsectionpage = $this->getDataGenerator()->create_module('page', [
+            'course' => $source->id,
+            'section' => $delegatedsection->section,
+            'name' => 'Subsection activity',
+        ]);
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $byparent = $this->items_by_parent($rootitemid);
+        $customchilditem = $byparent[$rootitemid]['Excluded custom child'];
+        $subsectionitem = $byparent[$customchilditem->get_id()]['Subsection'];
+        $subsectionpageitem = $byparent[$subsectionitem->get_id()]['Subsection activity'];
+        $this->assertSame('mod_subsection', $subsectionitem->get_type());
+        $moduleids = [
+            (int)$rootpage->cmid,
+            (int)$subsectionitem->get_old_instance_id(),
+            (int)$subsectionpageitem->get_old_instance_id(),
+        ];
+
+        $target = $this->create_course(1, [1 => 'Merge target']);
+        $targetsectionid = (int)$target->sections[1]->id;
+        $this->restore($rootitemid, $targetsectionid, moduleids: $moduleids, sectionids: [0]);
+
+        $targetdelegatedsection = $DB->get_record('course_sections', [
+            'course' => $target->id,
+            'component' => 'mod_subsection',
+        ], '*', MUST_EXIST);
+        $targetsubsection = get_coursemodule_from_instance(
+            'subsection',
+            (int)$targetdelegatedsection->itemid,
+            (int)$target->id,
+            false,
+            MUST_EXIST
+        );
+
+        $this->assertSame(['Root activity', 'Subsection'], $this->module_names($targetsectionid));
+        $this->assertSame($targetsectionid, (int)$targetsubsection->section);
+        $this->assertSame(['Subsection activity'], $this->module_names((int)$targetdelegatedsection->id));
+        $this->assertFalse($DB->record_exists('course_sections', [
+            'course' => $target->id,
+            'name' => 'Excluded custom child',
+        ]));
+
+        $newtarget = $this->create_course(1, [1 => 'Existing section']);
+        $this->restore(
+            $rootitemid,
+            0,
+            insertasnewsection: true,
+            courseid: (int)$newtarget->id,
+            moduleids: $moduleids,
+            sectionids: [0]
+        );
+
+        $sections = $this->sections_by_name($newtarget->id);
+        $newrootsection = $sections['Copied root'];
+        $newdelegatedsection = $DB->get_record('course_sections', [
+            'course' => $newtarget->id,
+            'component' => 'mod_subsection',
+        ], '*', MUST_EXIST);
+        $newsubsection = get_coursemodule_from_instance(
+            'subsection',
+            (int)$newdelegatedsection->itemid,
+            (int)$newtarget->id,
+            false,
+            MUST_EXIST
+        );
+
+        $this->assertSame(['Root activity', 'Subsection'], $this->module_names((int)$newrootsection->id));
+        $this->assertSame((int)$newrootsection->id, (int)$newsubsection->section);
+        $this->assertSame(['Subsection activity'], $this->module_names((int)$newdelegatedsection->id));
+        $this->assertFalse($DB->record_exists('course_sections', [
+            'course' => $newtarget->id,
+            'name' => 'Excluded custom child',
+        ]));
+    }
+
     public function test_section_without_activities_but_with_populated_descendants_can_be_copied(): void {
         $source = $this->create_course(2, [1 => 'Structural parent', 2 => 'Child']);
         $this->add_page($source, 2, 'Page child');
