@@ -39,16 +39,105 @@ class behat_block_sharing_cart extends behat_base
      * @param string $selector CSS selector for the course module to replace.
      */
     public function replace_course_module_without_reloading(string $selector): void {
+        $this->replace_course_content_node($selector, true);
+    }
+
+    /**
+     * Simulate a course-format DOM replacement while retaining its basket markup.
+     *
+     * @When /^I replace course module "(?P<selector>[^"]*)" preserving its Sharing Cart basket without reloading$/
+     * @param string $selector CSS selector for the course module to replace.
+     */
+    public function replace_course_module_preserving_basket_without_reloading(string $selector): void {
+        $this->replace_course_content_node($selector, false);
+    }
+
+    /**
+     * Simulate a course-section DOM replacement while retaining its basket markup.
+     *
+     * @When /^I replace section "(?P<selector>[^"]*)" preserving its Sharing Cart basket without reloading$/
+     * @param string $selector CSS selector for the course section.
+     */
+    public function replace_section_preserving_basket_without_reloading(string $selector): void {
+        $this->replace_course_content_node($selector, false);
+    }
+
+    /**
+     * Simulate a delegated section's content state changing without reloading.
+     *
+     * @When /^I set delegated section contents for subsection "(?P<selector>[^"]*)" to "(?P<state>empty|non-empty)"$/
+     * @param string $selector CSS selector for the subsection course module.
+     * @param string $state Whether the delegated section should be empty.
+     */
+    public function set_delegated_section_contents(string $selector, string $state): void {
         $selector = json_encode($selector, JSON_THROW_ON_ERROR);
-        $script = str_replace('SELECTOR_PLACEHOLDER', $selector, <<<'JS'
-            const courseModule = document.querySelector(SELECTOR_PLACEHOLDER);
-            if (!courseModule) {
-                throw new Error('Could not find the course-module node to replace.');
+        $hascontent = $state === 'non-empty' ? 'true' : 'false';
+        $script = str_replace(
+            ['SELECTOR_PLACEHOLDER', 'HAS_CONTENT_PLACEHOLDER'],
+            [$selector, $hascontent],
+            <<<'JS'
+            const subsection = document.querySelector(SELECTOR_PLACEHOLDER);
+            if (!subsection) {
+                throw new Error('Could not find the subsection course module.');
             }
-            const replacement = courseModule.cloneNode(true);
-            replacement.querySelectorAll('.add_to_sharing_cart').forEach((button) => button.remove());
-            courseModule.replaceWith(replacement);
-        JS);
+            const delegatedSection = [...subsection.querySelectorAll('[data-for="section"]')].find((section) =>
+                section.closest('[data-for="cmitem"]') === subsection
+            );
+            if (!delegatedSection) {
+                throw new Error('Could not find the subsection delegated section.');
+            }
+
+            const courseModuleId = subsection.dataset.id;
+            const sectionId = delegatedSection.dataset.id;
+            const courseEditor = require('core_courseformat/courseeditor').getCurrentCourseEditor();
+            const courseModule = courseEditor.state.cm.get(courseModuleId);
+            if (!courseModule) {
+                throw new Error('Could not find the subsection course-module state.');
+            }
+
+            if (courseModule.delegatesectionid !== null) {
+                courseEditor.stateManager.processUpdates([{
+                    name: 'cm',
+                    action: 'update',
+                    fields: {id: courseModuleId, delegatesectionid: null},
+                }]);
+            }
+            courseEditor.stateManager.processUpdates([{
+                name: 'section',
+                action: 'update',
+                fields: {
+                    id: sectionId,
+                    cmlist: HAS_CONTENT_PLACEHOLDER ? [courseModuleId] : [],
+                },
+            }]);
+        JS
+        );
+        $this->getSession()->executeScript($script);
+    }
+
+    /**
+     * Clone and replace a course-content node, optionally removing its baskets.
+     *
+     * @param string $selector CSS selector for the node to replace.
+     * @param bool $removebaskets Whether to remove basket icons from the clone.
+     */
+    private function replace_course_content_node(string $selector, bool $removebaskets): void {
+        $selector = json_encode($selector, JSON_THROW_ON_ERROR);
+        $script = str_replace(
+            ['SELECTOR_PLACEHOLDER', 'REMOVE_BASKETS_PLACEHOLDER'],
+            [$selector, $removebaskets ? 'true' : 'false'],
+            <<<'JS'
+            const courseContentNode = document.querySelector(SELECTOR_PLACEHOLDER);
+            if (!courseContentNode) {
+                throw new Error('Could not find the course-content node to replace.');
+            }
+            const replacement = courseContentNode.cloneNode(true);
+            if (REMOVE_BASKETS_PLACEHOLDER) {
+                replacement.querySelectorAll('.add_to_sharing_cart').forEach((button) => button.remove());
+            }
+            courseContentNode.replaceWith(replacement);
+        JS
+        );
         $this->getSession()->executeScript($script);
         $this->wait_for_pending_js();
     }
@@ -71,6 +160,47 @@ class behat_block_sharing_cart extends behat_base
                 $this->getSession()
             );
         }
+    }
+
+    /**
+     * Click the single enabled basket directly owned by a course module beside its title.
+     *
+     * @When /^I click the single actionable Sharing Cart basket owned by course module "(?P<selector>[^"]*)" in its title$/
+     * @param string $selector CSS selector for the course module.
+     */
+    public function click_single_actionable_basket_owned_by_course_module(string $selector): void {
+        $selector = json_encode($selector, JSON_THROW_ON_ERROR);
+        $script = str_replace('SELECTOR_PLACEHOLDER', $selector, <<<'JS'
+            const courseModule = document.querySelector(SELECTOR_PLACEHOLDER);
+            if (!courseModule) {
+                throw new Error('Could not find the course module that owns the Sharing Cart basket.');
+            }
+
+            const baskets = [...courseModule.querySelectorAll('.add_to_sharing_cart')].filter((basket) =>
+                basket.closest('[data-for="cmitem"]') === courseModule
+            );
+            if (baskets.length !== 1) {
+                throw new Error(
+                    `Expected one basket owned by the course module, found ${baskets.length}`
+                    + ` (id=${courseModule.dataset.id}).`
+                );
+            }
+
+            const basket = baskets[0];
+            if (basket.parentElement?.matches('.activityname, .sectionname') !== true) {
+                throw new Error('The course-module basket is not placed beside its title.');
+            }
+            if (basket.classList.contains('disabled') || basket.getAttribute('aria-disabled') === 'true') {
+                throw new Error('The course-module basket is disabled.');
+            }
+            if (basket.dataset.cmid !== courseModule.dataset.id) {
+                throw new Error('The course-module basket is not associated with its owning course module.');
+            }
+
+            basket.click();
+        JS);
+        $this->getSession()->executeScript($script);
+        $this->wait_for_pending_js();
     }
 
     /**

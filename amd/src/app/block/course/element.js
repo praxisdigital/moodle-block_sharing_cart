@@ -250,11 +250,15 @@ export default class CourseElement {
     getSectionName(sectionId) {
         const section = this.reactive.state.section.get(sectionId);
 
-        if (section.title) {
+        if (section?.title) {
             return section.title;
         }
 
-        return 'Unknown';
+        const sectionTitle = this.#element.querySelector(
+            '[data-for="section_title"] .inplaceeditable[data-itemid="' + sectionId + '"]'
+        );
+
+        return sectionTitle?.textContent?.trim() || 'Unknown';
     }
 
     /**
@@ -262,7 +266,25 @@ export default class CourseElement {
      * @returns {Array<string>}
      */
     getSectionCourseModules(sectionId) {
-        return this.reactive.state.section.get(sectionId).cmlist;
+        const courseModuleIds = this.reactive.state.section.get(sectionId)?.cmlist ?? [];
+        if (courseModuleIds.length > 0) {
+            return courseModuleIds;
+        }
+
+        // After a subsection restore, the course DOM can update before its reactive state.
+        const sectionElement = this.#element.querySelector(
+            '[data-for="section"][data-id="' + sectionId + '"]'
+        );
+        if (!sectionElement) {
+            return courseModuleIds;
+        }
+
+        return [...sectionElement.querySelectorAll('[data-for="cmitem"]')]
+            .filter((courseModule) =>
+                courseModule.closest('[data-for="section"]') === sectionElement &&
+                courseModule.closest('[data-for="cmitem"]') === courseModule
+            )
+            .map((courseModule) => courseModule.dataset.id);
     }
 
     /**

@@ -35,3 +35,7 @@ Feature: Empty subsections show a disabled Sharing Cart basket
     And I wait until "//li[@id='section-1']//li[contains(@class, 'modtype_subsection')]//i[contains(@class, 'add_to_sharing_cart')]" "xpath_element" exists
     And there are exactly 1 Sharing Cart baskets matching ".course-content li[data-for='cmitem'].modtype_subsection .add_to_sharing_cart"
     Then "//li[@id='section-1']//li[contains(@class, 'modtype_subsection')]//i[contains(@class, 'add_to_sharing_cart') and contains(@class, 'disabled')]" "xpath_element" should exist
+    When I set delegated section contents for subsection ".course-content li[data-for='cmitem'].modtype_subsection" to "non-empty"
+    Then ".course-content li[data-for='cmitem'].modtype_subsection .add_to_sharing_cart.disabled" "css_element" should not exist
+    When I set delegated section contents for subsection ".course-content li[data-for='cmitem'].modtype_subsection" to "empty"
+    Then "//li[@id='section-1']//li[contains(@class, 'modtype_subsection')]//i[contains(@class, 'add_to_sharing_cart') and contains(@class, 'disabled')]" "xpath_element" should exist
