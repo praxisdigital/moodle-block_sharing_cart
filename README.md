@@ -30,6 +30,10 @@ Capabilities
     - Required to be able to copy user data. (A checkbox will appear when copying an activity or section)
 - moodle/backup:anonymise
     - Required to be able to anonymize user data. (A checkbox will appear when copying an activity or section)
+- moodle/restore:restoreactivity
+    - Required in the destination course to restore items from the Sharing Cart.
+- moodle/course:update
+    - Also required in the destination course when restoring an item as a new section.
 - block/sharing_cart:manual_run_task
     - Required to be able to manually run the backup/restore task from the block.
 
@@ -97,11 +101,17 @@ Change Log
 
 * 5.2, release 4 2026.11.10
     * Items can be dragged from the Sharing Cart straight to a position in the course: activities before/after
-      an activity or at the end of a section, sections between two sections as a new section. Uses core's
-      drop indicator and an activity-like drag image, so it follows the theme.
-    * New setting "Enable drop zones" (default on). Turn it off to hide the copy icon and only offer dragging.
+      an activity or at the end of a section. Sections can be dropped between top-level sections to create a new
+      section. Section drops depend on the course format's section-list markup; some formats may only support
+      activity drops.
+    * New setting "Enable drop zones" (default on). When enabled, the copy icon offers drop zones as an alternative
+      to dragging, including the keyboard-accessible copy workflow. When disabled, the icon is hidden on desktop
+      pointers but remains available on touch screens, where dragging to the course is not supported.
     * Restoring into a course requires `moodle/restore:restoreactivity` in that course (and
       `moodle/course:update` when a new section is created).
+    * Course formats that rebuild nested section hierarchies can set `managessectionhierarchy` on the
+      `before_sections_restored` hook. This keeps empty structural sections available for the format to attach after
+      the restore.
 * 5.2, release 3 2026.09.29
     * Added support for copying sections with a nested structure (e.g. subsections) into the
       cart and restoring them with the structure preserved, via hooks a course format can
