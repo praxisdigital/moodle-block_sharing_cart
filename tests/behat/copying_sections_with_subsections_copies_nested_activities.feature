@@ -19,6 +19,7 @@ Feature: As an editing teacher, copying a section with a subsection, should auto
     | activity   | name        | course | idnumber    | section |
     | subsection | Subsection1 | C1     | Subsection1 | 1       |
     | book       | Subactivity | C1     | book1       | 3       |
+    | choice     | Subchoice   | C1     | choice1     | 3       |
 
   Scenario: A course has a section with a subsection containing an activity.
     The editing teacher copies the section and inserts it into a different section.
@@ -49,8 +50,48 @@ Feature: As an editing teacher, copying a section with a subsection, should auto
     And I reload the page
     When I run all adhoc tasks
     And I wait "20" seconds
+    # Verify the restored subsection basket before reloading the newly rendered course content.
+    And I wait until "//li[@id='section-2']//div[@data-activityname='Subsection1']" "xpath_element" exists
+    And I click the single actionable Sharing Cart basket owned by course module "#section-2 li[data-for='cmitem'].modtype_subsection" in its title
+    And I wait until "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element" exists
+    And I click on "//div[@class='modal-footer']//button[@data-action='cancel']" "xpath_element"
+    # Cloning preserves the basket markup but drops its event listener.
+    When I replace course module "#section-2 li[data-for='cmitem'].modtype_subsection" preserving its Sharing Cart basket without reloading
+    And I wait "1" seconds
+    And I click the single actionable Sharing Cart basket owned by course module "#section-2 li[data-for='cmitem'].modtype_subsection" in its title
+    And I wait until "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element" exists
+    And I click on "//div[@class='modal-footer']//button[@data-action='cancel']" "xpath_element"
     And I reload the page
     # Subsection should be visible.
     Then "//li[@id='section-2']//div[@data-activityname='Subsection1']" "xpath_element" should be visible
+    # A subsection containing content can be copied on its own.
+    And "//li[@id='section-2']//li[contains(@class, 'modtype_subsection')]//i[contains(@class, 'add_to_sharing_cart') and not(contains(@class, 'disabled')) and ancestor::li[@data-for='cmitem'][1][contains(@class, 'modtype_subsection')]]" "xpath_element" should exist
+    # Nested activities get one basket each, even if course-format refreshes their DOM.
+    And I wait until "//li[@id='section-2']//li[contains(@class, 'modtype_choice')]//i[contains(@class, 'add_to_sharing_cart')]" "xpath_element" exists
+    And there are exactly 1 Sharing Cart baskets matching "#section-2 li[data-for='cmitem'].modtype_choice .add_to_sharing_cart"
+    When I replace course module "#section-2 li[data-for='cmitem'].modtype_choice" without reloading
+    And there are exactly 1 Sharing Cart baskets matching "#section-2 li[data-for='cmitem'].modtype_choice .add_to_sharing_cart"
     # Nested activity should be visible.
     And "//li[@id='section-2']//div[@data-activityname='Subactivity']" "xpath_element" should be visible
+    # Saving a subsection uses its delegated section ID, not its course-module ID.
+    When I click on "//li[@id='section-2']//li[contains(@class, 'modtype_subsection')]//i[contains(@class, 'add_to_sharing_cart') and ancestor::li[@data-for='cmitem'][1][contains(@class, 'modtype_subsection')]]" "xpath_element"
+    And I wait until "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element" exists
+    And I click on "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element"
+    And I run all adhoc tasks
+    And I wait until ".block.block_sharing_cart .sharing_cart_item[data-type='mod_subsection'][data-status='1']" "css_element" exists
+    Then "//div[contains(@class, 'sharing_cart_item') and @data-type='mod_subsection']//div[contains(@class, 'sharing_cart_item_children') and contains(., 'Subactivity')]" "xpath_element" should exist
+
+  Scenario: A section basket remains clickable after its section is cloned
+    Given the following config values are set as admin:
+      | show_sharing_cart_basket | 1 | block_sharing_cart |
+    And I log in as "admin"
+    And I am on "Course 1" course homepage with editing mode on
+    And I click on "//a[@data-key='addblock']" "xpath_element"
+    And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists
+    And I click on "//a[@data-blockname='sharing_cart']" "xpath_element"
+    And I wait until ".course-content #section-1 [data-for='section_title'] .add_to_sharing_cart" "css_element" exists
+    When I replace section "#section-1" preserving its Sharing Cart basket without reloading
+    And I wait "1" seconds
+    And I click on ".course-content #section-1 [data-for='section_title'] .add_to_sharing_cart" "css_element"
+    Then I wait until "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element" exists
+    And I click on "//div[@class='modal-footer']//button[@data-action='cancel']" "xpath_element"

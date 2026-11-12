@@ -38,8 +38,9 @@ body:has(.block.block_sharing_cart) .course-content {
   }
 
   .add_to_sharing_cart {
-    display: flex;
-    align-self: center;
+    position: relative;
+    z-index: 2;
+    vertical-align: middle;
     cursor: pointer;
     margin-left: 0.5rem;
 
@@ -48,6 +49,4 @@ body:has(.block.block_sharing_cart) .course-content {
       opacity: 0.5;
     }
   }
-
-
 }

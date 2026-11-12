@@ -27,6 +27,57 @@ export default class Block extends BaseComponent {
     #courseContentObserver;
 
     /**
+     * Retries basket-icon refreshes for course modules that appear in the DOM
+     * before their reactive state has been created.
+     * @type {Map<String, number>}
+     */
+    #pendingCourseModuleRefreshes = new Map();
+
+    /**
+     * Retries basket-icon refreshes for sections that appear before their
+     * reactive state has been created.
+     * @type {Map<String, number>}
+     */
+    #pendingCourseSectionRefreshes = new Map();
+
+    /**
+     * Serialises simultaneous basket refreshes for the same course module.
+     * @type {Map<String, Promise>}
+     */
+    #courseModuleRefreshes = new Map();
+
+    /**
+     * Records course modules that need one more refresh after an active refresh.
+     * @type {Set<String>}
+     */
+    #queuedCourseModuleRefreshes = new Set();
+
+    /**
+     * Tracks live course-module baskets that already have a click handler.
+     * A course-format clone copies the basket markup, but not its event listeners.
+     * @type {WeakSet<HTMLElement>}
+     */
+    #boundCourseModuleBaskets = new WeakSet();
+
+    /**
+     * Tracks live section baskets that already have a click handler.
+     * @type {WeakSet<HTMLElement>}
+     */
+    #boundSectionBaskets = new WeakSet();
+
+    /**
+     * Section basket refreshes deferred until a course-item drag ends.
+     * @type {Set<String>}
+     */
+    #deferredCourseSectionRefreshes = new Set();
+
+    /**
+     * Course-module basket refreshes deferred until a course-item drag ends.
+     * @type {Set<String>}
+     */
+    #deferredCourseModuleRefreshes = new Set();
+
+    /**
      * Constructor hook.
      * @param {Object} descriptor
      */
@@ -96,14 +147,12 @@ export default class Block extends BaseComponent {
             courseContents.forEach(courseContent => {
                 const sectionElements = courseContent.querySelectorAll('[data-for="section"]');
                 sectionElements.forEach(sectionElement => {
-                    const section = this.reactive.state.section.get(sectionElement.dataset.id);
-                    this._refreshSection({element: section});
+                    this._refreshSectionWhenReady(sectionElement.dataset.id);
                 });
 
                 const courseModuleElements = courseContent.querySelectorAll('[data-for="cmitem"]');
                 courseModuleElements.forEach(courseModuleElement => {
-                    const courseModule = this.reactive.state.cm.get(courseModuleElement.dataset.id);
-                    this._refreshCourseModule({element: courseModule});
+                    this._refreshCourseModuleWhenReady(courseModuleElement.dataset.id);
                 });
             });
         }
@@ -143,6 +192,7 @@ export default class Block extends BaseComponent {
 
         this.#courseContentObserver = new MutationObserver((mutations) => {
             const affectedCourseModuleIds = new Set();
+            const affectedSectionIds = new Set();
 
             mutations.forEach((mutation) => {
                 mutation.addedNodes.forEach((node) => {
@@ -153,18 +203,24 @@ export default class Block extends BaseComponent {
                     if (node.matches('[data-for="cmitem"]')) {
                         affectedCourseModuleIds.add(node.dataset.id);
                     }
+                    if (node.matches('[data-for="section"]')) {
+                        affectedSectionIds.add(node.dataset.id);
+                    }
 
                     node.querySelectorAll('[data-for="cmitem"]').forEach((cmitem) => {
                         affectedCourseModuleIds.add(cmitem.dataset.id);
+                    });
+                    node.querySelectorAll('[data-for="section"]').forEach((section) => {
+                        affectedSectionIds.add(section.dataset.id);
                     });
                 });
             });
 
             affectedCourseModuleIds.forEach((courseModuleId) => {
-                const courseModule = this.reactive.state.cm.get(courseModuleId);
-                if (courseModule) {
-                    this._refreshCourseModule({element: courseModule});
-                }
+                this._refreshCourseModuleWhenReady(courseModuleId);
+            });
+            affectedSectionIds.forEach((sectionId) => {
+                this._refreshSectionWhenReady(sectionId);
             });
         });
 
@@ -174,6 +230,67 @@ export default class Block extends BaseComponent {
                 subtree: true,
             });
         });
+    }
+
+    /**
+     * Refresh a course module after its reactive state is available. Course
+     * format mutations can insert the rendered node just before state creation.
+     * @param {String} courseModuleId
+     * @param {Number} attempt
+     */
+    _refreshCourseModuleWhenReady(courseModuleId, attempt = 0) {
+        const courseModule = this.reactive.state.cm.get(courseModuleId);
+        if (courseModule) {
+            const timeout = this.#pendingCourseModuleRefreshes.get(courseModuleId);
+            if (timeout) {
+                clearTimeout(timeout);
+                this.#pendingCourseModuleRefreshes.delete(courseModuleId);
+            }
+            this._refreshCourseModule({element: courseModule});
+            return;
+        }
+
+        // The cm:created watcher normally catches this. Retry briefly as well
+        // because some course-format mutations render the node first.
+        const maxAttempts = 20;
+        if (attempt >= maxAttempts || this.#pendingCourseModuleRefreshes.has(courseModuleId)) {
+            return;
+        }
+
+        const timeout = setTimeout(() => {
+            this.#pendingCourseModuleRefreshes.delete(courseModuleId);
+            this._refreshCourseModuleWhenReady(courseModuleId, attempt + 1);
+        }, 50);
+        this.#pendingCourseModuleRefreshes.set(courseModuleId, timeout);
+    }
+
+    /**
+     * Refresh a section after its reactive state is available.
+     * @param {String} sectionId
+     * @param {Number} attempt
+     */
+    _refreshSectionWhenReady(sectionId, attempt = 0) {
+        const section = this.reactive.state.section.get(sectionId);
+        if (section) {
+            const timeout = this.#pendingCourseSectionRefreshes.get(sectionId);
+            if (timeout) {
+                clearTimeout(timeout);
+                this.#pendingCourseSectionRefreshes.delete(sectionId);
+            }
+            this._refreshSection({element: section});
+            return;
+        }
+
+        const maxAttempts = 20;
+        if (attempt >= maxAttempts || this.#pendingCourseSectionRefreshes.has(sectionId)) {
+            return;
+        }
+
+        const timeout = setTimeout(() => {
+            this.#pendingCourseSectionRefreshes.delete(sectionId);
+            this._refreshSectionWhenReady(sectionId, attempt + 1);
+        }, 50);
+        this.#pendingCourseSectionRefreshes.set(sectionId, timeout);
     }
 
     /**
@@ -248,30 +365,45 @@ export default class Block extends BaseComponent {
      * @param {Object} param.element
      */
     async _refreshSection({element}) {
+        if (this._isCourseItemDragging()) {
+            this.#deferredCourseSectionRefreshes.add(String(element.id));
+            return;
+        }
+
         this._refreshCopySectionOptions();
 
         if (this.showSharingCartBasket && this.canBackup) {
             let backupButton = await this.getBackupToSharingCartButton();
+            if (this._isCourseItemDragging()) {
+                this.#deferredCourseSectionRefreshes.add(String(element.id));
+                return;
+            }
 
-            const sectionTitle = document.querySelector(
+            // A subsection's delegated section is represented by its course-module basket below, not a section basket.
+            const isSubsectionSection = element.component === 'mod_subsection';
+            const sectionTitle = isSubsectionSection ? null : document.querySelector(
                 '.course-content [data-for="section_title"] .inplaceeditable[data-itemid="' + element.id + '"]'
             );
             if (sectionTitle) {
                 const hasBackupButton = sectionTitle.parentElement.querySelector('.add_to_sharing_cart');
                 if (!hasBackupButton) {
                     sectionTitle.after(backupButton);
+                }
 
+                backupButton = sectionTitle.parentElement.querySelector('.add_to_sharing_cart');
+                if (!this.#boundSectionBaskets.has(backupButton)) {
                     backupButton.addEventListener(
                         'click',
-                        (e) => {
-                            if (e.currentTarget.classList.contains('disabled')) {
+                        (event) => {
+                            const clickedButton = event.currentTarget;
+                            if (clickedButton.classList.contains('disabled')) {
                                 return;
                             }
                             this.block.addSectionBackupToSharingCart(element.id);
                         }
                     );
+                    this.#boundSectionBaskets.add(backupButton);
                 }
-                backupButton = sectionTitle.parentElement.querySelector('.add_to_sharing_cart');
 
                 const disabled = element.cmlist.length === 0;
                 backupButton.classList.toggle('disabled', disabled);
@@ -279,6 +411,21 @@ export default class Block extends BaseComponent {
                     await getString('no_course_modules_in_section_description', 'block_sharing_cart') :
                     '';
             }
+        }
+
+        if (this.showSharingCartBasket && this.canBackup) {
+            // A subsection's copyability depends on its delegated section contents,
+            // which can change without the subsection course-module state changing.
+            const delegatedSectionElement = document.querySelector(
+                '.course-content [data-for="section"][data-id="' + element.id + '"]'
+            );
+            const ownerCourseModuleId = delegatedSectionElement?.closest('[data-for="cmitem"]')?.dataset.id;
+            this.reactive.state.cm.forEach((courseModule) => {
+                if (String(courseModule.delegatesectionid) === String(element.id) ||
+                        String(courseModule.id) === ownerCourseModuleId) {
+                    this._refreshCourseModule({element: courseModule});
+                }
+            });
         }
     }
 
@@ -288,27 +435,211 @@ export default class Block extends BaseComponent {
      * @param {Object} param.element
      */
     async _refreshCourseModule({element}) {
-        if (this.showSharingCartBasket && this.canBackup) {
-            const backupButton = await this.getBackupToSharingCartButton();
+        if (!this.showSharingCartBasket || !this.canBackup) {
+            return;
+        }
 
-            const courseModuleActionMenu = document.querySelector(
-                '.course-content .cm_action_menu[data-cmid="' + element.id + '"]'
-            );
-            if (!courseModuleActionMenu) {
-                setTimeout(() => this._refreshCourseModule({element}), 100);
-                return;
-            }
+        const courseModuleId = String(element.id);
+        if (this._isCourseItemDragging()) {
+            this.#deferredCourseModuleRefreshes.add(courseModuleId);
+            return;
+        }
 
-            const hasBackupButton = courseModuleActionMenu.querySelector('.add_to_sharing_cart');
-            if (!hasBackupButton) {
-                courseModuleActionMenu.append(backupButton);
+        const activeRefresh = this.#courseModuleRefreshes.get(courseModuleId);
+        if (activeRefresh) {
+            this.#queuedCourseModuleRefreshes.add(courseModuleId);
+            await activeRefresh;
+            return;
+        }
 
-                backupButton.addEventListener(
-                    'click',
-                    this.block.addCourseModuleBackupToSharingCart.bind(this.block, element.id)
-                );
+        const refresh = this._refreshCourseModuleNow({element});
+        this.#courseModuleRefreshes.set(courseModuleId, refresh);
+        try {
+            await refresh;
+        } finally {
+            if (this.#courseModuleRefreshes.get(courseModuleId) === refresh) {
+                this.#courseModuleRefreshes.delete(courseModuleId);
+                if (this.#queuedCourseModuleRefreshes.delete(courseModuleId)) {
+                    await this._refreshCourseModule({element});
+                }
             }
         }
+    }
+
+    /**
+     * Perform one basket refresh for a course module.
+     * @param {Object} param
+     * @param {Object} param.element
+     */
+    async _refreshCourseModuleNow({element}) {
+        if (!this.showSharingCartBasket || !this.canBackup) {
+            return;
+        }
+
+        const backupButton = await this.getBackupToSharingCartButton();
+        if (this._isCourseItemDragging()) {
+            this.#deferredCourseModuleRefreshes.add(String(element.id));
+            return;
+        }
+
+        const basketElements = this._getCourseModuleBasketElements(element);
+        if (!basketElements.courseModuleItem) {
+            return;
+        }
+        if (!basketElements.buttonContainer) {
+            setTimeout(() => this._refreshCourseModule({element}), 100);
+            return;
+        }
+
+        await this._configureCourseModuleBasketButton({element, backupButton, ...basketElements});
+    }
+
+    /**
+     * Find the exact course-module item from its state ID.
+     * @param {Object} element
+     * @returns {HTMLElement|null}
+     */
+    _getCourseModuleItem(element) {
+        // Walking up from its action menu can land on an ancestor subsection and
+        // misclassify nested activities (for example, a choice inside a subsection).
+        return document.querySelector(
+            '.course-content [data-for="cmitem"][data-id="' + element.id + '"]'
+        ) ?? document.querySelector('[data-for="cmitem"][data-id="' + element.id + '"]');
+    }
+
+    /**
+     * Find the existing basket button for a course module and remove duplicates.
+     * @param {Object} element
+     * @param {HTMLElement|null} courseModuleItem
+     * @returns {HTMLElement|null}
+     */
+    _getExistingCourseModuleBasket(element, courseModuleItem) {
+        // Subsections can also get their basket from the delegated-section
+        // renderer. Only count buttons owned by this CM, not nested CMs.
+        const courseModuleButtons = courseModuleItem ?
+            [...courseModuleItem.querySelectorAll('.add_to_sharing_cart')].filter((button) =>
+                button.closest('[data-for="cmitem"]') === courseModuleItem
+            ) : [];
+        const registeredButtons = [...document.querySelectorAll(
+            '.course-content .add_to_sharing_cart[data-cmid="' + element.id + '"]'
+        )];
+        const existingButton = courseModuleButtons[0] ?? registeredButtons[0] ?? null;
+        new Set([...courseModuleButtons, ...registeredButtons]).forEach((button) => {
+            if (button !== existingButton) {
+                button.remove();
+            }
+        });
+        return existingButton;
+    }
+
+    /**
+     * Find the course-module basket and its container.
+     * @param {Object} element
+     * @returns {Object}
+     */
+    _getCourseModuleBasketElements(element) {
+        const courseModuleItem = this._getCourseModuleItem(element);
+        const delegatedSectionElement = courseModuleItem ?
+            [...courseModuleItem.querySelectorAll('[data-for="section"]')].find((section) =>
+                section.closest('[data-for="cmitem"]') === courseModuleItem
+            ) : null;
+        const delegatedSectionId = element.delegatesectionid ?? delegatedSectionElement?.dataset.id;
+        const isSubsection = element.module === 'subsection' ||
+            element.plugin === 'mod_subsection' ||
+            Boolean(delegatedSectionId) ||
+            courseModuleItem?.classList.contains('modtype_subsection');
+        const delegatedSectionTitle = isSubsection && delegatedSectionId ?
+            [...(courseModuleItem?.querySelectorAll(
+                '[data-for="section_title"] .inplaceeditable[data-itemid="' + delegatedSectionId + '"]'
+            ) ?? [])].find((title) => title.closest('[data-for="cmitem"]') === courseModuleItem) : null;
+        const courseModuleActionMenu = courseModuleItem ?
+            [...courseModuleItem.querySelectorAll('.cm_action_menu')].find((actionMenu) =>
+                actionMenu.closest('[data-for="cmitem"]') === courseModuleItem
+            ) ?? null : null;
+        const isPxgrid = document.body.classList.contains('format-pxgrid');
+        const activityTitle = isPxgrid ?
+            [...(courseModuleItem?.querySelectorAll('.activity-name-area .activityname') ?? [])].find((title) =>
+                title.closest('[data-for="cmitem"]') === courseModuleItem
+            ) : null;
+        const basketContainer = activityTitle ?? delegatedSectionTitle?.parentElement ?? null;
+
+        const existingButton = this._getExistingCourseModuleBasket(element, courseModuleItem);
+
+        return {
+            courseModuleItem,
+            courseModuleActionMenu,
+            activityTitle: basketContainer,
+            existingButton,
+            isSubsection,
+            delegatedSectionId,
+            buttonContainer: basketContainer ?? courseModuleActionMenu ?? existingButton?.parentElement,
+        };
+    }
+
+    /**
+     * Place and update a course-module basket button.
+     * @param {Object} param
+     * @param {Object} param.element
+     * @param {HTMLElement} param.backupButton
+     * @param {HTMLElement|null} param.courseModuleItem
+     * @param {HTMLElement|null} param.courseModuleActionMenu
+     * @param {HTMLElement|null} param.activityTitle
+     * @param {HTMLElement|null} param.existingButton
+     * @param {boolean} param.isSubsection
+     * @param {number|string|null} param.delegatedSectionId
+     */
+    async _configureCourseModuleBasketButton({
+        element,
+        backupButton,
+        courseModuleItem,
+        courseModuleActionMenu,
+        activityTitle,
+        existingButton,
+        isSubsection,
+        delegatedSectionId,
+    }) {
+        const button = existingButton ?? backupButton;
+        button.dataset.cmid = String(element.id);
+        if (!this.#boundCourseModuleBaskets.has(button)) {
+            button.addEventListener(
+                'click',
+                (event) => {
+                    const clickedButton = event.currentTarget;
+                    if (clickedButton.classList.contains('disabled')) {
+                        return;
+                    }
+                    if (isSubsection) {
+                        if (delegatedSectionId) {
+                            this.block.addSectionBackupToSharingCart(delegatedSectionId);
+                        }
+                        return;
+                    }
+                    const courseModuleId = Number.parseInt(clickedButton.dataset.cmid, 10);
+                    if (Number.isInteger(courseModuleId) && courseModuleId > 0) {
+                        this.block.addCourseModuleBackupToSharingCart(courseModuleId);
+                    }
+                }
+            );
+            this.#boundCourseModuleBaskets.add(button);
+        }
+
+        if (activityTitle) {
+            activityTitle.append(button);
+        } else if (!existingButton && button.parentElement !== courseModuleActionMenu) {
+            courseModuleActionMenu.append(button);
+        }
+
+        const delegatedSection = isSubsection && delegatedSectionId ?
+            this.reactive.state.section.get(delegatedSectionId) : null;
+        const hasDelegatedSectionContent = delegatedSection ?
+            delegatedSection.cmlist.length > 0 :
+            Boolean(courseModuleItem?.querySelector('[data-for="cmitem"]'));
+        const disabled = isSubsection && !hasDelegatedSectionContent;
+        button.classList.toggle('disabled', disabled);
+        button.setAttribute('aria-disabled', String(disabled));
+        button.title = disabled ?
+            await getString('no_course_modules_in_section_description', 'block_sharing_cart') :
+            '';
     }
 
     /**
@@ -323,6 +654,7 @@ export default class Block extends BaseComponent {
         } else {
             this.block.getElement().classList.remove('dragging_item');
             this.block.setDraggedSectionId(null);
+            this._flushDeferredBasketRefreshes();
         }
     }
 
@@ -338,6 +670,32 @@ export default class Block extends BaseComponent {
         } else {
             this.block.getElement().classList.remove('dragging_item');
             this.block.setDraggedCourseModuleId(null);
+            this._flushDeferredBasketRefreshes();
         }
+    }
+
+    /**
+     * Check whether course content is currently in a drag operation.
+     * @returns {boolean}
+     */
+    _isCourseItemDragging() {
+        return this.block?.getElement()?.classList.contains('dragging_item') ?? false;
+    }
+
+    /**
+     * Reconcile deferred basket icons once dragging has finished.
+     */
+    _flushDeferredBasketRefreshes() {
+        if (this._isCourseItemDragging()) {
+            return;
+        }
+
+        const sectionIds = [...this.#deferredCourseSectionRefreshes];
+        this.#deferredCourseSectionRefreshes.clear();
+        const courseModuleIds = [...this.#deferredCourseModuleRefreshes];
+        this.#deferredCourseModuleRefreshes.clear();
+
+        sectionIds.forEach((sectionId) => this._refreshSectionWhenReady(sectionId));
+        courseModuleIds.forEach((courseModuleId) => this._refreshCourseModuleWhenReady(courseModuleId));
     }
 }
