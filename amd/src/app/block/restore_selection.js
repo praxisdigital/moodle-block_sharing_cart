@@ -40,7 +40,7 @@ export default class RestoreSelection {
         const containers = [...form.querySelectorAll('input[type="checkbox"][data-container="true"]')].reverse();
         containers.forEach((containerCheckbox) => {
             const container = containerCheckbox.closest('.form-check');
-            const descendants = [...(container?.querySelectorAll('.item-children input[type="checkbox"][data-id]') ?? [])];
+            const descendants = [...(container?.querySelectorAll(':scope > .item-children input[type="checkbox"][data-id]') ?? [])];
             const hasSelected = descendants.some((checkbox) => checkbox.checked || checkbox.indeterminate);
             const hasUnselected = descendants.some((checkbox) => !checkbox.checked || checkbox.indeterminate);
             containerCheckbox.indeterminate = hasSelected && (!containerCheckbox.checked || hasUnselected);
