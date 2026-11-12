@@ -62,3 +62,10 @@ Feature: As an editing teacher, copying a section with a subsection, should auto
     And there are exactly 1 Sharing Cart baskets matching "#section-2 li[data-for='cmitem'].modtype_choice .add_to_sharing_cart"
     # Nested activity should be visible.
     And "//li[@id='section-2']//div[@data-activityname='Subactivity']" "xpath_element" should be visible
+    # Saving a subsection uses its delegated section ID, not its course-module ID.
+    When I click on "//li[@id='section-2']//li[contains(@class, 'modtype_subsection')]//i[contains(@class, 'add_to_sharing_cart') and ancestor::li[@data-for='cmitem'][1][contains(@class, 'modtype_subsection')]]" "xpath_element"
+    And I wait until "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element" exists
+    And I click on "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element"
+    And I run all adhoc tasks
+    And I wait until ".block.block_sharing_cart .sharing_cart_item[data-type='mod_subsection'][data-status='1']" "css_element" exists
+    Then "//div[contains(@class, 'sharing_cart_item') and @data-type='mod_subsection']//div[contains(@class, 'sharing_cart_item_children') and contains(., 'Subactivity')]" "xpath_element" should exist

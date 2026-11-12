@@ -532,13 +532,27 @@ export default class Block extends BaseComponent {
         activityTitle,
         existingButton,
     }) {
-        const button = existingButton ?? backupButton;
+        const isSubsection = element.module === 'subsection' ||
+            element.plugin === 'mod_subsection' ||
+            Boolean(element.delegatesectionid) ||
+            courseModuleItem?.classList.contains('modtype_subsection');
+        const delegatedSectionId = element.delegatesectionid;
+        let button = existingButton ?? backupButton;
+        if (existingButton && isSubsection) {
+            // Replace any delegated-section basket so this CM's click route is explicit.
+            button = existingButton.cloneNode(true);
+            existingButton.replaceWith(button);
+        }
         button.dataset.cmid = String(element.id);
-        if (!existingButton) {
-            backupButton.addEventListener(
+        if (!existingButton || isSubsection) {
+            button.addEventListener(
                 'click',
                 (event) => {
                     if (event.currentTarget.classList.contains('disabled')) {
+                        return;
+                    }
+                    if (isSubsection && delegatedSectionId) {
+                        this.block.addSectionBackupToSharingCart(delegatedSectionId);
                         return;
                     }
                     this.block.addCourseModuleBackupToSharingCart(element.id);
@@ -552,12 +566,8 @@ export default class Block extends BaseComponent {
             courseModuleActionMenu.append(button);
         }
 
-        const isSubsection = element.module === 'subsection' ||
-            element.plugin === 'mod_subsection' ||
-            Boolean(element.delegatesectionid) ||
-            courseModuleItem?.classList.contains('modtype_subsection');
-        const delegatedSection = isSubsection && element.delegatesectionid ?
-            this.reactive.state.section.get(element.delegatesectionid) : null;
+        const delegatedSection = isSubsection && delegatedSectionId ?
+            this.reactive.state.section.get(delegatedSectionId) : null;
         const disabled = isSubsection && (!delegatedSection || delegatedSection.cmlist.length === 0);
         button.classList.toggle('disabled', disabled);
         button.setAttribute('aria-disabled', String(disabled));
