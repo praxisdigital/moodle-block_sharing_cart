@@ -205,9 +205,11 @@ class import_item_modal_body implements \core\output\named_templatable, \rendera
             ]);
         }
 
+        $formattedtitle = format_string($item->get_name());
         $node = (object)[
             'id' => $item->get_old_instance_id(),
-            'title' => $this->truncate(format_string($item->get_name())),
+            'title' => $this->truncate($formattedtitle),
+            'plain_title' => html_to_text($formattedtitle, 0, false),
             'type' => $item->is_section() ? 'section' : 'coursemodule',
             'is_section' => $item->is_section(),
             'is_subsection' => $item->is_subsection(),
