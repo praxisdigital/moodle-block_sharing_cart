@@ -27,8 +27,8 @@ use Exception;
  * @package   block_sharing_cart
  * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- * @covers    \block_sharing_cart\event\restored_section
  */
+#[\PHPUnit\Framework\Attributes\CoversClass(restored_section::class)]
 final class restored_section_test extends advanced_testcase
 {
     /**

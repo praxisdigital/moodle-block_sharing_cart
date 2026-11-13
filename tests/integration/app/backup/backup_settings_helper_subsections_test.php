@@ -25,8 +25,8 @@ use block_sharing_cart\app\backup\backup_settings_helper;
  * @package   block_sharing_cart
  * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- * @covers    \block_sharing_cart\app\backup\backup_settings_helper
  */
+#[\PHPUnit\Framework\Attributes\CoversClass(backup_settings_helper::class)]
 final class backup_settings_helper_subsections_test extends \advanced_testcase
 {
     /** @var backup_settings_helper $helper */
@@ -94,7 +94,7 @@ final class backup_settings_helper_subsections_test extends \advanced_testcase
      */
     // phpcs:ignore moodle.Files.LineLength.TooLong
     public function test_construct_backup_plan_settings_includes_activity_when_an_activity_that_lies_in_section_is_specified(): void {
-        $this->customdata1->item["old_instance_id"] = $this->forum1Course2->cmid;
+        $this->customdata1->item["old_instance_id"] = $this->forum1course2->cmid;
         $this->customdata1->item["type"] = "mod_forum";
 
         $item = $this->basefactory->item()->entity((object)$this->customdata1->item);
@@ -102,8 +102,8 @@ final class backup_settings_helper_subsections_test extends \advanced_testcase
 
         $backupplansettings = $this->helper->construct_backup_plan_settings($this->customdata1, $backupcontrollercontext, $item);
 
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->forum1Course2, 'forum')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1Course2, 'forum')]);
+        $this->assertTrue($backupplansettings[$this->get_module_include($this->forum1course2, 'forum')]);
+        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1course2, 'forum')]);
     }
 
     /**
@@ -111,7 +111,7 @@ final class backup_settings_helper_subsections_test extends \advanced_testcase
      */
     // phpcs:ignore moodle.Files.LineLength.TooLong
     public function test_construct_backup_plan_settings_includes_activity_when_an_activity_that_lies_in_subsection_is_specified(): void {
-        $this->customdata1->item["old_instance_id"] = $this->book1UnderSubsection1Course2->cmid;
+        $this->customdata1->item["old_instance_id"] = $this->book1undersubsection1course2->cmid;
         $this->customdata1->item["type"] = "mod_book";
 
         $item = $this->basefactory->item()->entity((object)$this->customdata1->item);
@@ -119,8 +119,8 @@ final class backup_settings_helper_subsections_test extends \advanced_testcase
 
         $backupplansettings = $this->helper->construct_backup_plan_settings($this->customdata1, $backupcontrollercontext, $item);
 
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->book1UnderSubsection1Course2, 'book')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->book1UnderSubsection1Course2, 'book')]);
+        $this->assertTrue($backupplansettings[$this->get_module_include($this->book1undersubsection1course2, 'book')]);
+        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->book1undersubsection1course2, 'book')]);
 
         $this->assertFalse($backupplansettings[$this->get_module_include($this->subsectionmodule1course2, 'subsection')]);
         $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->subsectionmodule1course2, 'subsection')]);
@@ -133,7 +133,7 @@ final class backup_settings_helper_subsections_test extends \advanced_testcase
     // phpcs:ignore moodle.Files.LineLength.TooLong
     public function test_construct_backup_plan_settings_includes_parent_section_when_a_subsection_is_specified_and_the_subsection_section_and_its_child_modules(): void {
         // Must point to subsection section id, not the parent.
-        $this->customdata1->item["old_instance_id"] = $this->subsection1HiddenSectionCourse3->id;
+        $this->customdata1->item["old_instance_id"] = $this->subsection1hiddensectioncourse3->id;
         $this->customdata1->item["type"] = "mod_subsection";
 
         $item = $this->basefactory->item()->entity((object)$this->customdata1->item);
@@ -141,29 +141,29 @@ final class backup_settings_helper_subsections_test extends \advanced_testcase
 
         $backupplansettings = $this->helper->construct_backup_plan_settings($this->customdata1, $backupcontrollercontext, $item);
 
-        $this->assertFalse($backupplansettings[$this->get_section_include($this->section1Course3)]);
-        $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->section1Course3)]);
+        $this->assertFalse($backupplansettings[$this->get_section_include($this->section1course3)]);
+        $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->section1course3)]);
 
-        $this->assertFalse($backupplansettings[$this->get_module_include($this->forum1Course3, 'forum')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1Course3, 'forum')]);
+        $this->assertFalse($backupplansettings[$this->get_module_include($this->forum1course3, 'forum')]);
+        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1course3, 'forum')]);
 
         $this->assertTrue($backupplansettings[$this->get_section_include($this->subsectionparent1course3)]);
         $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->subsectionparent1course3)]);
 
-        $this->assertTrue($backupplansettings[$this->get_section_include($this->subsection1HiddenSectionCourse3)]);
-        $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->subsection1HiddenSectionCourse3)]);
+        $this->assertTrue($backupplansettings[$this->get_section_include($this->subsection1hiddensectioncourse3)]);
+        $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->subsection1hiddensectioncourse3)]);
 
         $this->assertTrue($backupplansettings[$this->get_module_include($this->subsectionmodule1course3, 'subsection')]);
         $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->subsectionmodule1course3, 'subsection')]);
 
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->book1UnderSubsection1Course3, 'book')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->book1UnderSubsection1Course3, 'book')]);
+        $this->assertTrue($backupplansettings[$this->get_module_include($this->book1undersubsection1course3, 'book')]);
+        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->book1undersubsection1course3, 'book')]);
 
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->quiz1UnderSubsection1Course3, 'quiz')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->quiz1UnderSubsection1Course3, 'quiz')]);
+        $this->assertTrue($backupplansettings[$this->get_module_include($this->quiz1undersubsection1course3, 'quiz')]);
+        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->quiz1undersubsection1course3, 'quiz')]);
 
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->forum1UnderSubsection1Course3, 'forum')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1UnderSubsection1Course3, 'forum')]);
+        $this->assertTrue($backupplansettings[$this->get_module_include($this->forum1undersubsection1course3, 'forum')]);
+        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1undersubsection1course3, 'forum')]);
     }
 
     // Only the specified section should be included (including child modules and nested subsection modules).
@@ -180,29 +180,29 @@ final class backup_settings_helper_subsections_test extends \advanced_testcase
 
         $backupplansettings = $this->helper->construct_backup_plan_settings($this->customdata1, $backupcontrollercontext, $item);
 
-        $this->assertFalse($backupplansettings[$this->get_section_include($this->section1Course3)]);
-        $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->section1Course3)]);
+        $this->assertFalse($backupplansettings[$this->get_section_include($this->section1course3)]);
+        $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->section1course3)]);
 
-        $this->assertFalse($backupplansettings[$this->get_module_include($this->forum1Course3, 'forum')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1Course3, 'forum')]);
+        $this->assertFalse($backupplansettings[$this->get_module_include($this->forum1course3, 'forum')]);
+        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1course3, 'forum')]);
 
         $this->assertTrue($backupplansettings[$this->get_section_include($this->subsectionparent1course3)]);
         $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->subsectionparent1course3)]);
 
-        $this->assertTrue($backupplansettings[$this->get_section_include($this->subsection1HiddenSectionCourse3)]);
-        $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->subsection1HiddenSectionCourse3)]);
+        $this->assertTrue($backupplansettings[$this->get_section_include($this->subsection1hiddensectioncourse3)]);
+        $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->subsection1hiddensectioncourse3)]);
 
         $this->assertTrue($backupplansettings[$this->get_module_include($this->subsectionmodule1course3, 'subsection')]);
         $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->subsectionmodule1course3, 'subsection')]);
 
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->book1UnderSubsection1Course3, 'book')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->book1UnderSubsection1Course3, 'book')]);
+        $this->assertTrue($backupplansettings[$this->get_module_include($this->book1undersubsection1course3, 'book')]);
+        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->book1undersubsection1course3, 'book')]);
 
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->quiz1UnderSubsection1Course3, 'quiz')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->quiz1UnderSubsection1Course3, 'quiz')]);
+        $this->assertTrue($backupplansettings[$this->get_module_include($this->quiz1undersubsection1course3, 'quiz')]);
+        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->quiz1undersubsection1course3, 'quiz')]);
 
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->forum1UnderSubsection1Course3, 'forum')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1UnderSubsection1Course3, 'forum')]);
+        $this->assertTrue($backupplansettings[$this->get_module_include($this->forum1undersubsection1course3, 'forum')]);
+        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1undersubsection1course3, 'forum')]);
     }
 
     /**
@@ -243,25 +243,25 @@ final class backup_settings_helper_subsections_test extends \advanced_testcase
 
         // Course2.
         $this->course2 = self::getDataGenerator()->create_course();
-        $this->section1Course2 = $db->get_record('course_sections', ['course' => $this->course2->id, 'section' => 0]);
-        $this->subsection1Course2 = $db->get_record('course_sections', ['course' => $this->course2->id, 'section' => 1]);
+        $this->section1course2 = $db->get_record('course_sections', ['course' => $this->course2->id, 'section' => 0]);
+        $this->subsection1course2 = $db->get_record('course_sections', ['course' => $this->course2->id, 'section' => 1]);
 
         $this->subsectionmodule1course2 = self::getDataGenerator()->create_module('subsection', [
             'course' => $this->course2->id,
-            'section' => $this->section1Course2->section,
+            'section' => $this->section1course2->section,
         ]);
-        $this->forum1Course2 = self::getDataGenerator()->create_module('forum', [
+        $this->forum1course2 = self::getDataGenerator()->create_module('forum', [
             'course' => $this->course2->id,
-            'section' => $this->section1Course2->section,
+            'section' => $this->section1course2->section,
         ]);
-        $this->book1UnderSubsection1Course2 = self::getDataGenerator()->create_module('book', [
+        $this->book1undersubsection1course2 = self::getDataGenerator()->create_module('book', [
             'course' => $this->course2->id,
-            'section' => $this->subsection1Course2->section,
+            'section' => $this->subsection1course2->section,
         ]);
 
         // Course3.
         $this->course3 = self::getDataGenerator()->create_course();
-        $this->section1Course3 = $db->get_record('course_sections', ['course' => $this->course3->id, 'section' => 0]);
+        $this->section1course3 = $db->get_record('course_sections', ['course' => $this->course3->id, 'section' => 0]);
         $this->subsectionparent1course3 = $db->get_record('course_sections', ['course' => $this->course3->id, 'section' => 1]);
 
         $this->subsectionmodule1course3 = self::getDataGenerator()->create_module('subsection', [
@@ -269,27 +269,27 @@ final class backup_settings_helper_subsections_test extends \advanced_testcase
             'section' => $this->subsectionparent1course3->section,
         ]);
         $subsectionmodule31instance = $db->get_record('course_modules', ['id' => $this->subsectionmodule1course3->cmid]);
-        $this->subsection1HiddenSectionCourse3 = $db->get_record(
+        $this->subsection1hiddensectioncourse3 = $db->get_record(
             'course_sections',
             ['itemid' => $subsectionmodule31instance->instance]
         );
 
-        $this->book1UnderSubsection1Course3 = self::getDataGenerator()->create_module('book', [
+        $this->book1undersubsection1course3 = self::getDataGenerator()->create_module('book', [
             'course' => $this->course3->id,
-            'section' => $this->subsection1HiddenSectionCourse3->section,
+            'section' => $this->subsection1hiddensectioncourse3->section,
         ]);
-        $this->quiz1UnderSubsection1Course3 = self::getDataGenerator()->create_module('quiz', [
+        $this->quiz1undersubsection1course3 = self::getDataGenerator()->create_module('quiz', [
             'course' => $this->course3->id,
-            'section' => $this->subsection1HiddenSectionCourse3->section,
+            'section' => $this->subsection1hiddensectioncourse3->section,
         ]);
-        $this->forum1UnderSubsection1Course3 = self::getDataGenerator()->create_module('forum', [
+        $this->forum1undersubsection1course3 = self::getDataGenerator()->create_module('forum', [
             'course' => $this->course3->id,
-            'section' => $this->subsection1HiddenSectionCourse3->section,
+            'section' => $this->subsection1hiddensectioncourse3->section,
         ]);
 
-        $this->forum1Course3 = self::getDataGenerator()->create_module('forum', [
+        $this->forum1course3 = self::getDataGenerator()->create_module('forum', [
             'course' => $this->course3->id,
-            'section' => $this->section1Course3->section,
+            'section' => $this->section1course3->section,
         ]);
     }
 

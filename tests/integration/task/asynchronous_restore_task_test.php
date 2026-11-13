@@ -42,8 +42,8 @@ require_once($CFG->dirroot . '/backup/util/includes/restore_includes.php');
  * @package   block_sharing_cart
  * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- * @covers    \block_sharing_cart\task\asynchronous_restore_task
  */
+#[\PHPUnit\Framework\Attributes\CoversClass(asynchronous_restore_task::class)]
 final class asynchronous_restore_task_test extends \advanced_testcase
 {
     /** @var factory $factory */
@@ -135,6 +135,22 @@ final class asynchronous_restore_task_test extends \advanced_testcase
     }
 
     /**
+     * Copies a three-level section tree whose only activity is in the last section.
+     *
+     * @return int id of the root cart item
+     */
+    private function copy_tree_with_content_only_in_leaf(): int {
+        $source = $this->create_course(4, [2 => 'Section 2', 3 => 'Section 3', 4 => 'Section 4']);
+        $this->add_page($source, 4, 'Leaf activity');
+        $this->declare_section_tree([
+            [$source->sections[3]->id, $source->sections[2]->id, 1],
+            [$source->sections[4]->id, $source->sections[3]->id, 1],
+        ]);
+
+        return $this->copy_section_to_cart((int)$source->sections[2]->id);
+    }
+
+    /**
      * Queues a restore through the web service and runs it.
      *
      * @param int $itemid
@@ -142,14 +158,17 @@ final class asynchronous_restore_task_test extends \advanced_testcase
      * @param bool $insertasnewsection
      * @param int $courseid
      * @param bool $replacesectiondetails
+     * @param bool $expectfailure whether the task is expected to log a restore failure
      */
     private function restore(
         int $itemid,
         int $sectionid,
         bool $insertasnewsection = false,
         int $courseid = 0,
-        bool $replacesectiondetails = false
+        bool $replacesectiondetails = false,
+        bool $expectfailure = false
     ): void {
+        // Keep this legacy positional call: optional external parameters must remain backwards compatible.
         $this->assertTrue(item_into_section::execute(
             $itemid,
             $sectionid,
@@ -160,6 +179,12 @@ final class asynchronous_restore_task_test extends \advanced_testcase
             $replacesectiondetails
         ));
         $this->runAdhocTasks(asynchronous_restore_task::class);
+        $output = $this->getActualOutputForAssertion();
+        $this->assertSame(
+            $expectfailure,
+            str_contains($output, 'Exception thrown during restore execution'),
+            'Unexpected restore outcome. Task output: ' . $output
+        );
     }
 
     /**
@@ -273,6 +298,46 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $this->assertSame((int)$sections['Child']->id, $grandchild->new_parent_section_id);
     }
 
+    public function test_flat_restore_preserves_summary_on_empty_nested_section(): void {
+        global $DB;
+
+        $source = $this->create_course(3, [1 => 'Root', 2 => 'Instructions', 3 => 'Child']);
+        $this->add_page($source, 1, 'Page root');
+        $this->add_page($source, 3, 'Page child');
+        $DB->set_field('course_sections', 'summary', '<p>Parent instructions</p>', ['id' => $source->sections[2]->id]);
+        $this->declare_section_tree([
+            [$source->sections[2]->id, $source->sections[1]->id, 1],
+            [$source->sections[3]->id, $source->sections[2]->id, 1],
+        ]);
+
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $target = $this->create_course(1, [1 => 'Target']);
+        $this->restore($rootitemid, (int)$target->sections[1]->id);
+
+        $sections = $this->sections_by_name((int)$target->id);
+        $this->assertArrayHasKey('Instructions', $sections);
+        $this->assertStringContainsString('Parent instructions', (string)$sections['Instructions']->summary);
+        $this->assertSame(['Page child'], $this->module_names((int)$sections['Child']->id));
+    }
+
+    public function test_flat_restore_preserves_summary_on_empty_root_inserted_as_new_section(): void {
+        global $DB;
+
+        $source = $this->create_course(2, [1 => 'Instructions', 2 => 'Child']);
+        $this->add_page($source, 2, 'Page child');
+        $DB->set_field('course_sections', 'summary', '<p>Root instructions</p>', ['id' => $source->sections[1]->id]);
+        $this->declare_section_tree([[$source->sections[2]->id, $source->sections[1]->id, 1]]);
+
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $target = $this->create_course(1, [1 => 'Existing']);
+        $this->restore($rootitemid, 0, insertasnewsection: true, courseid: (int)$target->id);
+
+        $sections = $this->sections_by_name((int)$target->id);
+        $this->assertArrayHasKey('Instructions', $sections);
+        $this->assertStringContainsString('Root instructions', (string)$sections['Instructions']->summary);
+        $this->assertSame(['Page child'], $this->module_names((int)$sections['Child']->id));
+    }
+
     public function test_section_without_activities_but_with_populated_descendants_can_be_copied(): void {
         $source = $this->create_course(2, [1 => 'Structural parent', 2 => 'Child']);
         $this->add_page($source, 2, 'Page child');
@@ -335,7 +400,7 @@ final class asynchronous_restore_task_test extends \advanced_testcase
             }
         );
 
-        $this->restore($rootitemid, $targetsectionid, replacesectiondetails: true);
+        $this->restore($rootitemid, $targetsectionid, replacesectiondetails: true, expectfailure: true);
 
         $section = $DB->get_record('course_sections', ['id' => $targetsectionid], '*', MUST_EXIST);
         $this->assertSame('Target', $section->name);
@@ -376,6 +441,58 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         [$copied, $child] = $payload->restoredsections;
         $this->assertSame(0, $copied->new_parent_section_id);
         $this->assertSame((int)$sections['Copied']->id, $child->new_parent_section_id);
+    }
+
+    public function test_flat_restore_omits_empty_ancestors_and_keeps_only_populated_leaf(): void {
+        global $DB;
+
+        $rootitemid = $this->copy_tree_with_content_only_in_leaf();
+        $target = $this->create_course(1, [1 => 'Existing']);
+
+        $this->restore($rootitemid, 0, insertasnewsection: true, courseid: (int)$target->id);
+
+        $sections = $DB->get_records('course_sections', ['course' => $target->id], 'section ASC');
+        $this->assertCount(3, $sections);
+        $this->assertEqualsCanonicalizing(['', 'Existing', 'Section 4'], array_map(
+            static fn(object $section): string => (string)$section->name,
+            array_values($sections)
+        ));
+        $this->assertFalse($DB->record_exists('course_sections', ['course' => $target->id, 'name' => 'Section 2']));
+        $this->assertFalse($DB->record_exists('course_sections', ['course' => $target->id, 'name' => 'Section 3']));
+
+        $leaf = $DB->get_record('course_sections', ['course' => $target->id, 'name' => 'Section 4'], '*', MUST_EXIST);
+        $this->assertSame(2, (int)$leaf->section);
+        $this->assertSame(['Leaf activity'], $this->module_names((int)$leaf->id));
+    }
+
+    public function test_flat_drop_restore_removes_empty_placeholder_and_ancestors(): void {
+        global $DB;
+
+        $rootitemid = $this->copy_tree_with_content_only_in_leaf();
+        $target = $this->create_course(2, [1 => 'Before', 2 => 'After']);
+        $restoreitem = $this->factory->item()->repository()->get_by_id($rootitemid);
+
+        $task = $this->factory->restore()->handler()->restore_item_into_section(
+            item: $restoreitem,
+            sectionid: (int)$target->sections[1]->id,
+            itemid: $rootitemid,
+            asnewsection: true
+        );
+        $this->assertInstanceOf(asynchronous_restore_task::class, $task);
+        $this->runAdhocTasks(asynchronous_restore_task::class);
+
+        $sections = array_values($DB->get_records('course_sections', ['course' => $target->id], 'section ASC'));
+        $this->assertCount(4, $sections);
+        $this->assertEqualsCanonicalizing(['', 'Before', 'Section 4', 'After'], array_map(
+            static fn(object $section): string => (string)$section->name,
+            $sections
+        ));
+        $this->assertFalse($DB->record_exists('course_sections', ['course' => $target->id, 'name' => 'Section 2']));
+        $this->assertFalse($DB->record_exists('course_sections', ['course' => $target->id, 'name' => 'Section 3']));
+
+        $leaf = $DB->get_record('course_sections', ['course' => $target->id, 'name' => 'Section 4'], '*', MUST_EXIST);
+        $this->assertSame(2, (int)$leaf->section);
+        $this->assertSame(['Leaf activity'], $this->module_names((int)$leaf->id));
     }
 
     /**

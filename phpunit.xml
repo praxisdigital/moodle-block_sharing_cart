@@ -35,6 +35,7 @@
     <!--All core suites need to be manually added here-->
     <testsuites>
         <testsuite name="unit">
+            <directory suffix="_test.php">tests/unit</directory>
             <directory suffix="_test.php">tests/integration</directory>
         </testsuite>
     </testsuites>

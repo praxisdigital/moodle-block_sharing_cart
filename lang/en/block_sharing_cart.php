@@ -23,6 +23,7 @@
  */
 
 $string['anonymize_user_data'] = 'Do you want to anonymize the user data?';
+$string['as_new_section_after'] = 'as a new section after';
 $string['as_new_section_in'] = 'as a new section in';
 $string['atleast_one_course_module_must_be_included'] = 'At least one course module must be included,' .
     ' please select at least one course module to include.';
@@ -40,7 +41,7 @@ $string['confirm_delete_item'] = 'Are you sure you want to delete this item? All
 $string['confirm_delete_items'] = 'Are you sure you want to delete these items? All sub-items will also be deleted.';
 $string['copy'] = 'Copy';
 $string['copy_item'] = 'Copy item';
-$string['copy_quiz_warning'] = 'Warning! - You are about to copy a quiz into the sharing cart.' .
+$string['copy_quiz_warning'] = 'Warning! - You are about to copy a quiz into the Sharing cart.' .
     ' This could take a while, if there are a lot of questions in the course.';
 $string['copy_section'] = 'Copy section';
 $string['copy_this_course'] = 'Copy this course';
@@ -51,21 +52,22 @@ $string['delete_items'] = 'Delete items';
 $string['delete_marked_items'] = 'Delete marked items';
 $string['deselect_all'] = 'Deselect all';
 $string['drop_here'] = 'Drop here...';
-$string['empty_section_restore'] = 'Something went wrong trying to copy the item from the sharing cart. The item was empty.';
+$string['empty_section_restore'] = 'Something went wrong trying to copy the item from the sharing Sharing cart. The item was empty.';
 $string['has_items'] = 'Click the <i class="fa fa-clone"></i> icon to copy items from the Sharing Cart to the course.';
+$string['has_items_drag'] = 'Drag items from the Sharing Cart to the place in the course where you want them copied.';
 $string['import_subsection_into_default_named_section_warning'] = 'You are about to copy a subsection into a section' .
     ' without a name. This will overwrite the section name.';
 $string['into_section'] = 'into section';
 $string['into_sharing_cart'] = 'into Sharing Cart';
 $string['items'] = 'Items';
-$string['legacy_section_info'] = 'This is a legacy section. The sharing cart is unable to copy this section,' .
+$string['legacy_section_info'] = 'This is a legacy section. The Sharing cart is unable to copy this section,' .
     ' but the individual activities are still available.';
 $string['maybe_the_queue_is_stuck'] = 'If you would like to run the copy now, click the button above.';
 $string['module_is_disabled_on_site'] = 'This module have been disabled on the site, you will be unable to copy it.';
 $string['no_course_modules_in_section'] = 'No course modules in this section';
 $string['no_course_modules_in_section_description'] = 'This section does not contain any course modules' .
     ' and you are therefore not able to copy it.';
-$string['no_items'] = 'No items.<br><br>Drag & drop activities or sections into the sharing cart or click the' .
+$string['no_items'] = 'No items.<br><br>Drag & drop activities or sections into the Sharing cart or click the' .
     ' <i class="fa fa-shopping-basket"></i> icon, to add items to the Sharing Cart.';
 $string['no_restores'] = '<div class="no-restores fst-italic text-muted">No copies queued.</div>';
 $string['nopermissions'] = 'You do not have permission to backup or restore items in this course.' .
@@ -81,7 +83,7 @@ $string['privacy:metadata:sharing_cart_items:original_course_fullname'] = 'The f
 $string['privacy:metadata:sharing_cart_items:parent_item_id'] = 'The parent item ID of the item';
 $string['privacy:metadata:sharing_cart_items:sortorder'] = 'The sort order of the item';
 $string['privacy:metadata:sharing_cart_items:status'] = 'The status of the item';
-$string['privacy:metadata:sharing_cart_items:tabledesc'] = 'The table that stores sharing cart items';
+$string['privacy:metadata:sharing_cart_items:tabledesc'] = 'The table that stores Sharing cart items';
 $string['privacy:metadata:sharing_cart_items:timecreated'] = 'The time this item was created';
 $string['privacy:metadata:sharing_cart_items:timemodified'] = 'The time this item was modified';
 $string['privacy:metadata:sharing_cart_items:type'] = 'The type of the item';
@@ -94,16 +96,20 @@ $string['restore_failed'] = 'The restore failed (task id: {$a}). This message wi
 $string['restores'] = 'Copies queued';
 $string['run_now'] = 'Run now';
 $string['select_all'] = 'Select all';
+$string['settings:enable_drop_zones'] = 'Enable drop zones';
+$string['settings:enable_drop_zones_desc'] = 'Show the copy icon on Sharing Cart items, which marks drop zones in the course' .
+    ' to click on. Items can always be dragged straight to a position in the course; turn this off to offer only that.' .
+    ' On touch screens the copy icon stays available. Note that the drop zones are also the way to copy with a keyboard.';
 $string['settings:show_copies_queued_segment_when_empty'] = 'Show "Copies queued" segment when it\'s empty';
-$string['settings:show_copies_queued_segment_when_empty_desc'] = 'Show the "Copies queued" segment in the sharing cart,' .
+$string['settings:show_copies_queued_segment_when_empty_desc'] = 'Show the "Copies queued" segment in the Sharing cart,' .
     ' even when there are no copies queued.';
 $string['settings:show_copy_section_in_block'] = 'Show the "Copy section" in block';
-$string['settings:show_copy_section_in_block_desc'] = 'Show the "Copy section" in the sharing cart block,' .
+$string['settings:show_copy_section_in_block_desc'] = 'Show the "Copy section" in the Sharing cart block,' .
     ' underneath all modules/activities';
-$string['settings:show_sharing_cart_basket'] = 'Show the sharing cart basket';
-$string['settings:show_sharing_cart_basket_desc'] = 'Show the sharing cart basket on the course page when in editing mode.' .
-    ' This allows users to click and copy activities & sections into the sharing cart. If you hide the basket,' .
-    ' users can still drag and drop activities & sections into the sharing cart.';
+$string['settings:show_sharing_cart_basket'] = 'Show the Sharing cart basket';
+$string['settings:show_sharing_cart_basket_desc'] = 'Show the Sharing cart basket on the course page when in editing mode.' .
+    ' This allows users to click and copy activities & sections into the Sharing cart. If you hide the basket,' .
+    ' users can still drag and drop activities & sections into the Sharing cart.';
 $string['sharing_cart:addinstance'] = 'Add a new Sharing Cart block';
 $string['sharing_cart:manual_run_task'] = 'Manually run the backup/restore task';
 $string['the_course'] = 'the course';

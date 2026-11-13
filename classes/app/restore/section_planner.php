@@ -64,6 +64,10 @@ final class section_planner {
         $db = $this->basefactory->moodle()->db();
         $courseid = (int)$restorecontroller->get_courseid();
 
+        if ($item && $item->is_section()) {
+            $this->compact_section_numbers($courseid);
+        }
+
         $targetsectionnumber = 0;
         if ($targetsectionid > 0) {
             $targetsectionnumber = (int)$db->get_field(
@@ -89,8 +93,8 @@ final class section_planner {
         $plan->insertasnewsection = $insertasnewsection;
 
         $maxnumber = (int)$db->get_field_sql(
-            'SELECT MAX(section) FROM {course_sections} WHERE course = ?',
-            [$courseid]
+            'SELECT MAX(section) FROM {course_sections} WHERE course = ? AND (component IS NULL OR component = ?)',
+            [$courseid, '']
         );
         $counter = 0;
 
@@ -131,6 +135,127 @@ final class section_planner {
     }
 
     /**
+     * Omits empty sections when the target format will not recreate nested sections.
+     *
+     * @param \restore_controller $restorecontroller
+     * @param section_plan $plan
+     * @param bool $targetisnewsection whether the target is a temporary section created for this restore
+     * @return void
+     */
+    public function omit_empty_sections(
+        \restore_controller $restorecontroller,
+        section_plan $plan,
+        bool $targetisnewsection
+    ): void {
+        if (empty($plan->sections)) {
+            return;
+        }
+
+        $modulesections = $this->module_section_ids($restorecontroller);
+
+        $sectionswithcontent = [];
+        foreach ($restorecontroller->get_plan()->get_tasks() as $task) {
+            if ($task instanceof \restore_activity_task && $task->get_setting('included')->get_value()) {
+                $oldsectionid = $modulesections[(int)$task->get_old_moduleid()] ?? 0;
+                $sectionswithcontent[$oldsectionid] = true;
+            }
+            if ($task instanceof \restore_section_task && $this->section_has_summary($task)) {
+                $sectionswithcontent[$this->old_section_id_of_task($task)] = true;
+            }
+        }
+
+        $rootisnew = $plan->insertasnewsection || $targetisnewsection;
+        $omitroot = $rootisnew && empty($sectionswithcontent[$plan->rootoldsectionid]);
+        foreach (array_keys($plan->sections) as $oldsectionid) {
+            if ((int)$oldsectionid === $plan->rootoldsectionid && $omitroot) {
+                continue;
+            }
+            if (empty($sectionswithcontent[(int)$oldsectionid])) {
+                mtrace("...Excluding empty section (id: $oldsectionid)");
+                unset($plan->sections[$oldsectionid]);
+            }
+        }
+
+        if ($omitroot) {
+            $plan->omit_root();
+        }
+
+        if (!empty($plan->sections)) {
+            $db = $this->basefactory->moodle()->db();
+            $maxnumber = (int)$db->get_field_sql(
+                'SELECT MAX(section) FROM {course_sections} WHERE course = ? AND (component IS NULL OR component = ?)',
+                [(int)$restorecontroller->get_courseid(), '']
+            );
+            $plan->renumber_sections($maxnumber + 1);
+        }
+    }
+
+    /**
+     * Compact existing section numbers before core restore fills any gaps with empty sections.
+     *
+     * Moodle's restore cache step creates a regular section for every missing number up to the maximum. Moving the
+     * last section to the first gap through the course-format action preserves section order while renumbering all
+     * existing sections contiguously.
+     *
+     * @param int $courseid
+     * @return void
+     */
+    private function compact_section_numbers(int $courseid): void {
+        $db = $this->basefactory->moodle()->db();
+        $sections = array_values($db->get_records(
+            'course_sections',
+            ['course' => $courseid],
+            'section ASC, id ASC',
+            'id, section'
+        ));
+
+        if (count($sections) < 2 || (int)$sections[0]->section !== 0) {
+            return;
+        }
+
+        $expectednumber = 0;
+        $firstmissingnumber = null;
+        foreach ($sections as $section) {
+            if ((int)$section->section !== $expectednumber) {
+                $firstmissingnumber = $expectednumber;
+                break;
+            }
+            $expectednumber++;
+        }
+
+        if ($firstmissingnumber === null || $firstmissingnumber === 0) {
+            return;
+        }
+
+        $course = $db->get_record('course', ['id' => $courseid], 'id, marker', MUST_EXIST);
+        $highlightedsectionid = $course->marker > 0
+            ? $db->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $course->marker])
+            : false;
+
+        // Moving the last section to the missing position leaves the existing order unchanged and compacts all numbers.
+        $lastsection = $sections[array_key_last($sections)];
+        get_fast_modinfo($courseid, 0, true);
+        $lastsectioninfo = get_fast_modinfo($courseid)->get_section_info_by_id((int)$lastsection->id, IGNORE_MISSING);
+        if (
+            !$lastsectioninfo
+            || !\core_courseformat\formatactions::section($courseid)->move_at(
+                $lastsectioninfo,
+                $firstmissingnumber
+            )
+        ) {
+            throw new \Exception('Could not compact destination section numbers before the Sharing Cart restore.');
+        }
+
+        if ($highlightedsectionid) {
+            $modinfo = get_fast_modinfo($courseid);
+            $highlightedsection = $modinfo->get_section_info_by_id((int)$highlightedsectionid);
+            if ($highlightedsection) {
+                \core_courseformat\formatactions::section($courseid)->set_marker($highlightedsection, true);
+            }
+        }
+    }
+
+    /**
      * Rewrite the section numbers in the extracted backup and switch off the section (and module) tasks that are not
      * part of the plan.
      *
@@ -144,10 +269,7 @@ final class section_planner {
 
         // Old module id => old section id, and delegated (core subsection) section id => the section owning its
         // parent module, used to tell whether something belongs to an included branch.
-        $modulesections = [];
-        foreach ($restorecontroller->get_info()->activities ?? [] as $activity) {
-            $modulesections[(int)$activity->moduleid] = (int)$activity->sectionid;
-        }
+        $modulesections = $this->module_section_ids($restorecontroller);
         $delegatedowners = [];
         foreach ($restorecontroller->get_info()->sections ?? [] as $section) {
             if (!empty($section->parentcmid) && isset($modulesections[(int)$section->parentcmid])) {
@@ -194,6 +316,12 @@ final class section_planner {
                     mtrace("...Excluding delegated section (id: $oldsectionid)");
                     $task->get_setting('included')->set_value(false);
                 }
+                continue;
+            }
+
+            if ($plan->rootomitted && $oldsectionid === $plan->rootoldsectionid) {
+                mtrace("...Excluding empty structural root section (id: $oldsectionid)");
+                $task->get_setting('included')->set_value(false);
                 continue;
             }
 
@@ -318,6 +446,50 @@ final class section_planner {
      */
     private function old_section_id_of_task(\restore_section_task $task): int {
         return (int)substr(basename($task->get_taskbasepath()), strlen('section_'));
+    }
+
+    /**
+     * Original section IDs for activity tasks, keyed by original course-module ID.
+     *
+     * Prefer the activity's own backup XML and fall back to restore info for older backups.
+     *
+     * @param \restore_controller $restorecontroller
+     * @return int[]
+     */
+    private function module_section_ids(\restore_controller $restorecontroller): array {
+        $modulesections = [];
+        foreach ($restorecontroller->get_info()->activities ?? [] as $activity) {
+            $modulesections[(int)$activity->moduleid] = (int)$activity->sectionid;
+        }
+
+        foreach ($restorecontroller->get_plan()->get_tasks() as $task) {
+            if (!$task instanceof \restore_activity_task) {
+                continue;
+            }
+
+            $modulexml = simplexml_load_string(file_get_contents("{$task->get_taskbasepath()}/module.xml"));
+            if ($modulexml !== false && isset($modulexml->sectionid)) {
+                $modulesections[(int)$task->get_old_moduleid()] = (int)$modulexml->sectionid;
+            }
+        }
+
+        return $modulesections;
+    }
+
+    /**
+     * Whether a restored section has a nonblank summary in its backup data.
+     *
+     * @param \restore_section_task $task
+     * @return bool
+     */
+    private function section_has_summary(\restore_section_task $task): bool {
+        $sectionxml = file_get_contents("{$task->get_taskbasepath()}/section.xml");
+        if ($sectionxml === false) {
+            return false;
+        }
+
+        $data = simplexml_load_string($sectionxml);
+        return $data !== false && trim((string)$data->summary) !== '';
     }
 
     /**

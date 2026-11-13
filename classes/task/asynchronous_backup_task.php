@@ -441,7 +441,7 @@ class asynchronous_backup_task extends \core\task\adhoc_task {
             $cms = [];
 
             if ($item->get_type() === 'section') {
-                // The copied section plus the descendant sections declared by a nesting course format.
+                // Include the copied section and its descendants from nesting course formats.
                 $sectionids = array_merge(
                     [$itemid],
                     \block_sharing_cart\app\backup\backup_settings_helper::get_section_tree_ids(
@@ -460,6 +460,14 @@ class asynchronous_backup_task extends \core\task\adhoc_task {
                 if (empty($cms)) {
                     return [];
                 }
+            } else if ($item->get_type() === 'mod_subsection') {
+                $section = $modinfo->get_section_info_by_id($itemid);
+                if (empty($section->sequence)) {
+                    return [];
+                }
+                $cms = array_map(static function ($id) {
+                    return (int)$id;
+                }, explode(',', $section->sequence));
             } else {
                 $cms[] = $itemid;
             }

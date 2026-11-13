@@ -26,8 +26,8 @@ use core\event\base;
  * @package   block_sharing_cart
  * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- * @covers    \block_sharing_cart\event\restored_course_module
  */
+#[\PHPUnit\Framework\Attributes\CoversClass(restored_course_module::class)]
 final class restored_course_module_test extends advanced_testcase
 {
     /**

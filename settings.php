@@ -29,6 +29,14 @@ defined('MOODLE_INTERNAL') || die();
 if ($ADMIN->fulltree) {
     $settings->add(
         new admin_setting_configcheckbox(
+            'block_sharing_cart/enable_drop_zones',
+            get_string('settings:enable_drop_zones', 'block_sharing_cart'),
+            get_string('settings:enable_drop_zones_desc', 'block_sharing_cart'),
+            1
+        )
+    );
+    $settings->add(
+        new admin_setting_configcheckbox(
             'block_sharing_cart/show_sharing_cart_basket',
             get_string('settings:show_sharing_cart_basket', 'block_sharing_cart'),
             get_string('settings:show_sharing_cart_basket_desc', 'block_sharing_cart'),

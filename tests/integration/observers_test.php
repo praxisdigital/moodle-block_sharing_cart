@@ -26,6 +26,7 @@ use block_sharing_cart\app\factory;
  * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+#[\PHPUnit\Framework\Attributes\CoversClass(factory::class)]
 final class observers_test extends advanced_testcase
 {
     /**
@@ -42,7 +43,6 @@ final class observers_test extends advanced_testcase
      * test_deleted_user_expect_sharing_cart_record_to_be_remove
      *
      * @return void
-     * @covers \block_sharing_cart\app\factory
      */
     public function test_deleted_user_expect_sharing_cart_record_to_be_remove(): void {
         $USER = self::getDataGenerator()->create_user();

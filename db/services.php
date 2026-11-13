@@ -56,7 +56,7 @@ $functions = [
         'type' => 'write',
         'ajax' => true,
         'readonlysession' => false,
-        'capabilities' => '',
+        'capabilities' => 'moodle/restore:restoreactivity',
     ],
 
     'block_sharing_cart_reorder_sharing_cart_items' => [
