@@ -186,7 +186,7 @@ final class section_planner {
         if (!empty($plan->sections)) {
             $db = $this->basefactory->moodle()->db();
             $maxnumber = (int)$db->get_field_sql(
-                'SELECT MAX(section) FROM {course_sections} WHERE course = ? AND component IS NULL',
+                'SELECT MAX(section) FROM {course_sections} WHERE course = ? AND (component IS NULL OR component = "")',
                 [(int)$restorecontroller->get_courseid()]
             );
             $plan->renumber_sections($maxnumber + 1);
