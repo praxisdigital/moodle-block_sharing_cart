@@ -290,6 +290,46 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $this->assertSame((int)$sections['Child']->id, $grandchild->new_parent_section_id);
     }
 
+    public function test_flat_restore_preserves_summary_on_empty_nested_section(): void {
+        global $DB;
+
+        $source = $this->create_course(3, [1 => 'Root', 2 => 'Instructions', 3 => 'Child']);
+        $this->add_page($source, 1, 'Page root');
+        $this->add_page($source, 3, 'Page child');
+        $DB->set_field('course_sections', 'summary', '<p>Parent instructions</p>', ['id' => $source->sections[2]->id]);
+        $this->declare_section_tree([
+            [$source->sections[2]->id, $source->sections[1]->id, 1],
+            [$source->sections[3]->id, $source->sections[2]->id, 1],
+        ]);
+
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $target = $this->create_course(1, [1 => 'Target']);
+        $this->restore($rootitemid, (int)$target->sections[1]->id);
+
+        $sections = $this->sections_by_name((int)$target->id);
+        $this->assertArrayHasKey('Instructions', $sections);
+        $this->assertStringContainsString('Parent instructions', (string)$sections['Instructions']->summary);
+        $this->assertSame(['Page child'], $this->module_names((int)$sections['Child']->id));
+    }
+
+    public function test_flat_restore_preserves_summary_on_empty_root_inserted_as_new_section(): void {
+        global $DB;
+
+        $source = $this->create_course(2, [1 => 'Instructions', 2 => 'Child']);
+        $this->add_page($source, 2, 'Page child');
+        $DB->set_field('course_sections', 'summary', '<p>Root instructions</p>', ['id' => $source->sections[1]->id]);
+        $this->declare_section_tree([[$source->sections[2]->id, $source->sections[1]->id, 1]]);
+
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $target = $this->create_course(1, [1 => 'Existing']);
+        $this->restore($rootitemid, 0, insertasnewsection: true, courseid: (int)$target->id);
+
+        $sections = $this->sections_by_name((int)$target->id);
+        $this->assertArrayHasKey('Instructions', $sections);
+        $this->assertStringContainsString('Root instructions', (string)$sections['Instructions']->summary);
+        $this->assertSame(['Page child'], $this->module_names((int)$sections['Child']->id));
+    }
+
     public function test_section_without_activities_but_with_populated_descendants_can_be_copied(): void {
         $source = $this->create_course(2, [1 => 'Structural parent', 2 => 'Child']);
         $this->add_page($source, 2, 'Page child');

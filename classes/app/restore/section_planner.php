@@ -162,6 +162,9 @@ final class section_planner {
                 $oldsectionid = $modulesections[(int)$task->get_old_moduleid()] ?? 0;
                 $sectionswithcontent[$oldsectionid] = true;
             }
+            if ($task instanceof \restore_section_task && $this->section_has_summary($task)) {
+                $sectionswithcontent[$this->old_section_id_of_task($task)] = true;
+            }
         }
 
         $rootisnew = $plan->insertasnewsection || $targetisnewsection;
@@ -436,6 +439,22 @@ final class section_planner {
      */
     private function old_section_id_of_task(\restore_section_task $task): int {
         return (int)substr(basename($task->get_taskbasepath()), strlen('section_'));
+    }
+
+    /**
+     * Whether a restored section has a nonblank summary in its backup data.
+     *
+     * @param \restore_section_task $task
+     * @return bool
+     */
+    private function section_has_summary(\restore_section_task $task): bool {
+        $sectionxml = file_get_contents("{$task->get_taskbasepath()}/section.xml");
+        if ($sectionxml === false) {
+            return false;
+        }
+
+        $data = simplexml_load_string($sectionxml);
+        return $data !== false && trim((string)$data->summary) !== '';
     }
 
     /**
