@@ -230,6 +230,11 @@ final class section_planner {
             return;
         }
 
+        $course = $db->get_record('course', ['id' => $courseid], 'id, marker', MUST_EXIST);
+        $highlightedsectionid = $course->marker > 0
+            ? $db->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $course->marker])
+            : false;
+
         // Moving the last section to the missing position leaves the existing order unchanged and compacts all numbers.
         $lastsection = $sections[array_key_last($sections)];
         get_fast_modinfo($courseid, 0, true);
@@ -242,6 +247,14 @@ final class section_planner {
             )
         ) {
             throw new \Exception('Could not compact destination section numbers before the Sharing Cart restore.');
+        }
+
+        if ($highlightedsectionid) {
+            $modinfo = get_fast_modinfo($courseid);
+            $highlightedsection = $modinfo->get_section_info_by_id((int)$highlightedsectionid);
+            if ($highlightedsection) {
+                \core_courseformat\formatactions::section($courseid)->set_marker($highlightedsection, true);
+            }
         }
     }
 

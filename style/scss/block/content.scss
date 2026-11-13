@@ -145,10 +145,16 @@
               cursor: pointer;
             }
 
-            // Drop zones are turned off: only touch screens, which cannot drag items to the course, keep the copy icon.
+            // Hide the touch-only copy icon on mouse-only devices; keep it if any coarse pointer is available.
             @media (hover: hover) and (pointer: fine) {
               .copy-to-course-touch-only {
                 display: none;
+              }
+            }
+
+            @media (any-pointer: coarse) {
+              .copy-to-course-touch-only {
+                display: inline-block;
               }
             }
           }
@@ -194,4 +200,3 @@
     }
   }
 }
-

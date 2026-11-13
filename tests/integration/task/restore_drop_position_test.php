@@ -353,6 +353,53 @@ final class restore_drop_position_test extends \advanced_testcase {
         self::assertSame(['S2a', 'S2b'], $this->section_cm_names($course->id, 2));
     }
 
+    public function test_compacting_section_number_gap_preserves_the_highlighted_section(): void {
+        global $DB;
+
+        self::setAdminUser();
+        $course = self::getDataGenerator()->create_course(['numsections' => 4, 'format' => 'topics']);
+        $highlightedsectionid = (int)$DB->get_field(
+            'course_sections',
+            'id',
+            ['course' => $course->id, 'section' => 3],
+            MUST_EXIST
+        );
+        $lastsectionid = (int)$DB->get_field(
+            'course_sections',
+            'id',
+            ['course' => $course->id, 'section' => 4],
+            MUST_EXIST
+        );
+        $DB->delete_records('course_sections', ['course' => $course->id, 'section' => 2]);
+        $DB->set_field('course', 'marker', 3, ['id' => $course->id]);
+        rebuild_course_cache($course->id, true);
+
+        [$item, $labelcmid] = $this->section_in_cart();
+        $task = $this->factory->restore()->handler()->restore_item_into_section(
+            item: $item,
+            sectionid: $this->section_id($course->id, 1),
+            itemid: $item->get_id(),
+            settings: ['course_modules_to_include' => [$labelcmid]]
+        );
+        $this->execute_restore_task($task);
+
+        $highlightedsectionnumber = (int)$DB->get_field(
+            'course_sections',
+            'section',
+            ['id' => $highlightedsectionid, 'course' => $course->id],
+            MUST_EXIST
+        );
+        self::assertSame(2, $highlightedsectionnumber);
+        self::assertSame(
+            3,
+            (int)$DB->get_field('course_sections', 'section', ['id' => $lastsectionid, 'course' => $course->id], MUST_EXIST)
+        );
+        self::assertSame(
+            $highlightedsectionnumber,
+            (int)$DB->get_field('course', 'marker', ['id' => $course->id], MUST_EXIST)
+        );
+    }
+
     public function test_activity_cannot_be_inserted_as_a_new_section(): void {
         self::setAdminUser();
         $course = $this->create_target_course();
