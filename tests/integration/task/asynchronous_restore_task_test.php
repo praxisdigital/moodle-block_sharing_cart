@@ -42,8 +42,8 @@ require_once($CFG->dirroot . '/backup/util/includes/restore_includes.php');
  * @package   block_sharing_cart
  * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- * @covers    \block_sharing_cart\task\asynchronous_restore_task
  */
+#[\PHPUnit\Framework\Attributes\CoversClass(asynchronous_restore_task::class)]
 final class asynchronous_restore_task_test extends \advanced_testcase
 {
     /** @var factory $factory */
@@ -158,13 +158,15 @@ final class asynchronous_restore_task_test extends \advanced_testcase
      * @param bool $insertasnewsection
      * @param int $courseid
      * @param bool $replacesectiondetails
+     * @param bool $expectfailure whether the task is expected to log a restore failure
      */
     private function restore(
         int $itemid,
         int $sectionid,
         bool $insertasnewsection = false,
         int $courseid = 0,
-        bool $replacesectiondetails = false
+        bool $replacesectiondetails = false,
+        bool $expectfailure = false
     ): void {
         // Keep this legacy positional call: optional external parameters must remain backwards compatible.
         $this->assertTrue(item_into_section::execute(
@@ -177,6 +179,12 @@ final class asynchronous_restore_task_test extends \advanced_testcase
             $replacesectiondetails
         ));
         $this->runAdhocTasks(asynchronous_restore_task::class);
+        $output = $this->getActualOutputForAssertion();
+        $this->assertSame(
+            $expectfailure,
+            str_contains($output, 'Exception thrown during restore execution'),
+            'Unexpected restore outcome. Task output: ' . $output
+        );
     }
 
     /**
@@ -392,7 +400,7 @@ final class asynchronous_restore_task_test extends \advanced_testcase
             }
         );
 
-        $this->restore($rootitemid, $targetsectionid, replacesectiondetails: true);
+        $this->restore($rootitemid, $targetsectionid, replacesectiondetails: true, expectfailure: true);
 
         $section = $DB->get_record('course_sections', ['id' => $targetsectionid], '*', MUST_EXIST);
         $this->assertSame('Target', $section->name);

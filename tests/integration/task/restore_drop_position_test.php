@@ -33,10 +33,10 @@ require_once($CFG->dirroot . '/backup/util/includes/restore_includes.php');
  * @package   block_sharing_cart
  * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- * @covers    \block_sharing_cart\task\asynchronous_restore_task
- * @covers    \block_sharing_cart\app\restore\handler
- * @covers    \block_sharing_cart\external\restore\item_into_section
  */
+#[\PHPUnit\Framework\Attributes\CoversClass(asynchronous_restore_task::class)]
+#[\PHPUnit\Framework\Attributes\CoversClass(\block_sharing_cart\app\restore\handler::class)]
+#[\PHPUnit\Framework\Attributes\CoversClass(item_into_section::class)]
 final class restore_drop_position_test extends \advanced_testcase {
     /** @var factory $factory */
     private factory $factory;
@@ -132,12 +132,22 @@ final class restore_drop_position_test extends \advanced_testcase {
      * execute_restore_task
      *
      * @param asynchronous_restore_task $task
+     * @param bool $expectfailure whether the task is expected to fail without retrying
      * @return void
      */
-    private function execute_restore_task(asynchronous_restore_task $task): void {
+    private function execute_restore_task(asynchronous_restore_task $task, bool $expectfailure = false): void {
         ob_start();
-        $task->execute();
-        ob_end_clean();
+        try {
+            $task->execute();
+            $output = ob_get_contents();
+        } finally {
+            ob_end_clean();
+        }
+        self::assertSame(
+            $expectfailure,
+            $task->get_custom_data()->noretry ?? false,
+            'Unexpected restore outcome. Task output: ' . $output
+        );
     }
 
     /**
@@ -346,7 +356,7 @@ final class restore_drop_position_test extends \advanced_testcase {
             settings: ['course_modules_to_include' => [-1]],
             asnewsection: true
         );
-        $this->execute_restore_task($task);
+        $this->execute_restore_task($task, expectfailure: true);
 
         self::assertTrue($task->get_custom_data()->noretry);
         self::assertSame(['', 'S1', 'S2', 'S3'], array_map('strval', $this->section_names($course->id)));

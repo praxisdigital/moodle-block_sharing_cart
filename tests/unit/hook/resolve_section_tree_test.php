@@ -24,8 +24,8 @@ use block_sharing_cart\hook\backup\resolve_section_tree;
  * @package   block_sharing_cart
  * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- * @covers    \block_sharing_cart\hook\backup\resolve_section_tree
  */
+#[\PHPUnit\Framework\Attributes\CoversClass(resolve_section_tree::class)]
 final class resolve_section_tree_test extends \basic_testcase {
     /**
      * Descendants come out depth-first, siblings by sort order.

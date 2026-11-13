@@ -25,8 +25,8 @@ use core\context\system;
  * @package   block_sharing_cart
  * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- * @covers    \block_sharing_cart\external\task\run_now
  */
+#[\PHPUnit\Framework\Attributes\CoversClass(\block_sharing_cart\external\task\run_now::class)]
 final class manual_run_task_test extends \advanced_testcase
 {
     /**

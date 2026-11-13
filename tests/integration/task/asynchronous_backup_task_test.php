@@ -26,8 +26,8 @@ use block_sharing_cart\task\asynchronous_backup_task;
  * @package   block_sharing_cart
  * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- * @covers    \block_sharing_cart\task\asynchronous_backup_task
  */
+#[\PHPUnit\Framework\Attributes\CoversClass(asynchronous_backup_task::class)]
 final class asynchronous_backup_task_test extends \advanced_testcase
 {
     /** @var factory $factory */

@@ -28,8 +28,8 @@ use section_info;
  * @package   block_sharing_cart
  * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- * @covers    \block_sharing_cart\app\backup\backup_settings_helper
  */
+#[\PHPUnit\Framework\Attributes\CoversClass(backup_settings_helper::class)]
 final class backup_settings_helper_test extends \advanced_testcase
 {
     /** @var backup_settings_helper $helper */
@@ -77,7 +77,7 @@ final class backup_settings_helper_test extends \advanced_testcase
     // phpcs:ignore moodle.Files.LineLength.TooLong
     public function test_construct_backup_plan_settings_sets_all_sections_and_modules_to_not_include_users_when_users_are_set_to_false(): void {
         $this->customdata1->backup_settings["users"] = false;
-        $this->customdata1->item["old_instance_id"] = $this->section1Course1->id;
+        $this->customdata1->item["old_instance_id"] = $this->section1course1->id;
         $this->customdata1->item["type"] = "section";
 
         $item = $this->basefactory->item()->entity((object)$this->customdata1->item);
@@ -86,21 +86,21 @@ final class backup_settings_helper_test extends \advanced_testcase
         $backupplansettings = $this->helper->construct_backup_plan_settings($this->customdata1, $backupcontrollercontext, $item);
 
         // Section asserts.
-        $this->assertTrue($backupplansettings[$this->get_section_include($this->section1Course1)]);
-        $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->section1Course1)]);
+        $this->assertTrue($backupplansettings[$this->get_section_include($this->section1course1)]);
+        $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->section1course1)]);
 
         // Module asserts.
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->page1Course1, 'page')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->page1Course1, 'page')]);
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->book1Course1, 'book')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->book1Course1, 'book')]);
+        $this->assertTrue($backupplansettings[$this->get_module_include($this->page1course1, 'page')]);
+        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->page1course1, 'page')]);
+        $this->assertTrue($backupplansettings[$this->get_module_include($this->book1course1, 'book')]);
+        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->book1course1, 'book')]);
 
-        $item->set_old_instance_id($this->section2Course1->id);
+        $item->set_old_instance_id($this->section2course1->id);
         $backupplansettings = $this->helper->construct_backup_plan_settings($this->customdata1, $backupcontrollercontext, $item);
 
         // Section asserts.
-        $this->assertTrue($backupplansettings[$this->get_section_include($this->section2Course1)]);
-        $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->section2Course1)]);
+        $this->assertTrue($backupplansettings[$this->get_section_include($this->section2course1)]);
+        $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->section2course1)]);
     }
 
     /**
@@ -111,7 +111,7 @@ final class backup_settings_helper_test extends \advanced_testcase
     // phpcs:ignore moodle.Files.LineLength.TooLong
     public function test_construct_backup_plan_settings_sets_all_sections_and_modules_to_include_users_when_users_are_set_to_true_and_user_has_capability(): void {
         $this->customdata1->backup_settings["users"] = true;
-        $this->customdata1->item["old_instance_id"] = $this->section1Course1->id;
+        $this->customdata1->item["old_instance_id"] = $this->section1course1->id;
         $this->customdata1->item["type"] = "section";
 
         $this->setAdminUser();
@@ -122,21 +122,21 @@ final class backup_settings_helper_test extends \advanced_testcase
         $backupplansettings = $this->helper->construct_backup_plan_settings($this->customdata1, $backupcontrollercontext, $item);
 
         // Section asserts.
-        $this->assertTrue($backupplansettings[$this->get_section_include($this->section1Course1)]);
-        $this->assertTrue($backupplansettings[$this->get_section_userinfo($this->section1Course1)]);
+        $this->assertTrue($backupplansettings[$this->get_section_include($this->section1course1)]);
+        $this->assertTrue($backupplansettings[$this->get_section_userinfo($this->section1course1)]);
 
         // Module asserts.
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->page1Course1, 'page')]);
-        $this->assertTrue($backupplansettings[$this->get_module_userinfo($this->page1Course1, 'page')]);
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->book1Course1, 'book')]);
-        $this->assertTrue($backupplansettings[$this->get_module_userinfo($this->book1Course1, 'book')]);
+        $this->assertTrue($backupplansettings[$this->get_module_include($this->page1course1, 'page')]);
+        $this->assertTrue($backupplansettings[$this->get_module_userinfo($this->page1course1, 'page')]);
+        $this->assertTrue($backupplansettings[$this->get_module_include($this->book1course1, 'book')]);
+        $this->assertTrue($backupplansettings[$this->get_module_userinfo($this->book1course1, 'book')]);
 
-        $item->set_old_instance_id($this->section2Course1->id);
+        $item->set_old_instance_id($this->section2course1->id);
         $backupplansettings = $this->helper->construct_backup_plan_settings($this->customdata1, $backupcontrollercontext, $item);
 
         // Section asserts.
-        $this->assertTrue($backupplansettings[$this->get_section_include($this->section2Course1)]);
-        $this->assertTrue($backupplansettings[$this->get_section_userinfo($this->section2Course1)]);
+        $this->assertTrue($backupplansettings[$this->get_section_include($this->section2course1)]);
+        $this->assertTrue($backupplansettings[$this->get_section_userinfo($this->section2course1)]);
     }
 
     /**
@@ -152,7 +152,7 @@ final class backup_settings_helper_test extends \advanced_testcase
         }
 
         $this->customdata1->backup_settings["users"] = true;
-        $this->customdata1->item["old_instance_id"] = $this->section1Course1->id;
+        $this->customdata1->item["old_instance_id"] = $this->section1course1->id;
         $this->customdata1->item["type"] = "section";
 
         $item = $this->basefactory->item()->entity((object)$this->customdata1->item);
@@ -177,7 +177,7 @@ final class backup_settings_helper_test extends \advanced_testcase
 
         $this->customdata1->backup_settings["users"] = true;
         $this->customdata1->backup_settings["anonymize"] = true;
-        $this->customdata1->item["old_instance_id"] = $this->section1Course1->id;
+        $this->customdata1->item["old_instance_id"] = $this->section1course1->id;
         $this->customdata1->item["type"] = "section";
 
         $item = $this->basefactory->item()->entity((object)$this->customdata1->item);
@@ -226,19 +226,19 @@ final class backup_settings_helper_test extends \advanced_testcase
 
         // Course1.
         $this->course1 = self::getDataGenerator()->create_course();
-        $this->section1Course1 = $db->get_record('course_sections', ['course' => $this->course1->id, 'section' => 0]);
-        $this->page1Course1 = self::getDataGenerator()->create_module('page', [
+        $this->section1course1 = $db->get_record('course_sections', ['course' => $this->course1->id, 'section' => 0]);
+        $this->page1course1 = self::getDataGenerator()->create_module('page', [
             'course' => $this->course1->id,
-            'section' => $this->section1Course1->section,
+            'section' => $this->section1course1->section,
         ]);
-        $this->book1Course1 = self::getDataGenerator()->create_module('book', [
+        $this->book1course1 = self::getDataGenerator()->create_module('book', [
             'course' => $this->course1->id,
-            'section' => $this->section1Course1->section,
+            'section' => $this->section1course1->section,
         ]);
-        $this->section2Course1 = $db->get_record('course_sections', ['course' => $this->course1->id, 'section' => 1]);
-        $this->page2Course1 = self::getDataGenerator()->create_module('page', [
+        $this->section2course1 = $db->get_record('course_sections', ['course' => $this->course1->id, 'section' => 1]);
+        $this->page2course1 = self::getDataGenerator()->create_module('page', [
             'course' => $this->course1->id,
-            'section' => $this->section2Course1->section,
+            'section' => $this->section2course1->section,
         ]);
     }
 

@@ -25,11 +25,11 @@ use block_sharing_cart\external\backup\course_module_into_sharing_cart;
  * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+#[\PHPUnit\Framework\Attributes\CoversClass(course_module_into_sharing_cart::class)]
 final class course_module_into_sharing_cart_test extends \advanced_testcase {
     /**
      * A subsection copied from its module action uses the delegated section as its item identity.
      *
-     * @covers \block_sharing_cart\external\backup\course_module_into_sharing_cart
      * @return void
      */
     public function test_subsection_course_module_is_backed_up_as_its_delegated_section(): void {
