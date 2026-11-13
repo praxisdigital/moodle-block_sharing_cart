@@ -151,10 +151,7 @@ final class section_planner {
             return;
         }
 
-        $modulesections = [];
-        foreach ($restorecontroller->get_info()->activities ?? [] as $activity) {
-            $modulesections[(int)$activity->moduleid] = (int)$activity->sectionid;
-        }
+        $modulesections = $this->module_section_ids($restorecontroller);
 
         $sectionswithcontent = [];
         foreach ($restorecontroller->get_plan()->get_tasks() as $task) {
@@ -272,10 +269,7 @@ final class section_planner {
 
         // Old module id => old section id, and delegated (core subsection) section id => the section owning its
         // parent module, used to tell whether something belongs to an included branch.
-        $modulesections = [];
-        foreach ($restorecontroller->get_info()->activities ?? [] as $activity) {
-            $modulesections[(int)$activity->moduleid] = (int)$activity->sectionid;
-        }
+        $modulesections = $this->module_section_ids($restorecontroller);
         $delegatedowners = [];
         foreach ($restorecontroller->get_info()->sections ?? [] as $section) {
             if (!empty($section->parentcmid) && isset($modulesections[(int)$section->parentcmid])) {
@@ -452,6 +446,34 @@ final class section_planner {
      */
     private function old_section_id_of_task(\restore_section_task $task): int {
         return (int)substr(basename($task->get_taskbasepath()), strlen('section_'));
+    }
+
+    /**
+     * Original section IDs for activity tasks, keyed by original course-module ID.
+     *
+     * Prefer the activity's own backup XML and fall back to restore info for older backups.
+     *
+     * @param \restore_controller $restorecontroller
+     * @return int[]
+     */
+    private function module_section_ids(\restore_controller $restorecontroller): array {
+        $modulesections = [];
+        foreach ($restorecontroller->get_info()->activities ?? [] as $activity) {
+            $modulesections[(int)$activity->moduleid] = (int)$activity->sectionid;
+        }
+
+        foreach ($restorecontroller->get_plan()->get_tasks() as $task) {
+            if (!$task instanceof \restore_activity_task) {
+                continue;
+            }
+
+            $modulexml = simplexml_load_string(file_get_contents("{$task->get_taskbasepath()}/module.xml"));
+            if ($modulexml !== false && isset($modulexml->sectionid)) {
+                $modulesections[(int)$task->get_old_moduleid()] = (int)$modulexml->sectionid;
+            }
+        }
+
+        return $modulesections;
     }
 
     /**
