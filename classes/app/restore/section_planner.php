@@ -93,7 +93,7 @@ final class section_planner {
         $plan->insertasnewsection = $insertasnewsection;
 
         $maxnumber = (int)$db->get_field_sql(
-            'SELECT MAX(section) FROM {course_sections} WHERE course = ? AND component IS NULL',
+            'SELECT MAX(section) FROM {course_sections} WHERE course = ? AND (component IS NULL OR component = "")',
             [$courseid]
         );
         $counter = 0;
