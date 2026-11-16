@@ -26,6 +26,155 @@ require_once(__DIR__ . '/../../../../lib/behat/behat_base.php');
 class behat_block_sharing_cart extends behat_base
 {
     /**
+     * Queue a real section backup, allowing the installed course format to declare its own hierarchy.
+     *
+     * @Given /^I queue section "(\d+)" from course "([^"]+)" in the Sharing Cart$/
+     * @param int $number section number
+     * @param string $shortname course shortname
+     */
+    public function queue_course_section(int $number, string $shortname): void {
+        global $DB;
+
+        $courseid = $DB->get_field('course', 'id', ['shortname' => $shortname], MUST_EXIST);
+        $sectionid = $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $number], MUST_EXIST);
+        \block_sharing_cart\external\backup\section_into_sharing_cart::execute(
+            (int)$sectionid,
+            ['users' => false, 'anonymize' => false]
+        );
+    }
+
+    /**
+     * Assert invalid UI selections have not queued a restore as a side effect.
+     *
+     * @Then /^no Sharing Cart restore is queued$/
+     */
+    public function assert_no_restore_queued(): void {
+        if (\core\task\manager::get_adhoc_tasks(\block_sharing_cart\task\asynchronous_restore_task::class)) {
+            throw new \Behat\Mink\Exception\ExpectationException('An invalid restore was queued.', $this->getSession());
+        }
+    }
+
+    /**
+     * Delay the actual string loader to prove an obsolete validation response cannot change a newer form state.
+     *
+     * @Then /^delayed Sharing Cart validation cannot overwrite a newer selection$/
+     */
+    public function assert_delayed_validation_is_discarded(): void {
+        $this->getSession()->executeScript(<<<'JS'
+            (() => {
+                M.util.js_pending('sharing_cart_delayed_validation');
+                require(['block_sharing_cart/app/block/restore_selection', 'core/str'], (module, strings) => {
+                    (async () => {
+                        const Selection = module.default ?? module;
+                        const original = strings.get_string;
+                        let form;
+                        try {
+                            for (const action of ['select', 'change-back', 'close']) {
+                                form = document.createElement('div');
+                                form.hidden = true;
+                                const contents = document.createElement('div');
+                                contents.className = 'import_form';
+                                const input = document.createElement('input');
+                                input.type = 'checkbox';
+                                input.dataset.type = 'coursemodule';
+                                input.dataset.id = '42';
+                                const error = document.createElement('p');
+                                error.dataset.region = 'restore-selection-error';
+                                error.className = 'd-none';
+                                contents.append(input, error);
+                                form.append(contents);
+                                document.body.append(form);
+                                Selection.bind(form);
+                                let release;
+                                strings.get_string = (key, ...args) => key === 'atleast_one_course_module_must_be_included'
+                                    ? new Promise(resolve => { release = resolve; }) : original(key, ...args);
+                                const pending = Selection.reportEmpty(form);
+                                if (!release) {
+                                    throw new Error('The delayed string loader was not used');
+                                }
+                                if (action === 'close') {
+                                    form.remove();
+                                } else {
+                                    input.checked = true;
+                                    input.dispatchEvent(new Event('change', {bubbles: true}));
+                                    if (action === 'change-back') {
+                                        input.checked = false;
+                                        input.dispatchEvent(new Event('change', {bubbles: true}));
+                                    }
+                                }
+                                release('Delayed validation message');
+                                await pending;
+                                if (!error.classList.contains('d-none') || input.validationMessage !== '') {
+                                    throw new Error('Stale validation changed the form after: ' + action);
+                                }
+                                form.remove();
+                            }
+                            window.sharingCartDelayedValidationResult = true;
+                        } catch (error) {
+                            window.sharingCartDelayedValidationResult = error.stack || error.message;
+                        } finally {
+                            strings.get_string = original;
+                            form?.remove();
+                            M.util.js_complete('sharing_cart_delayed_validation');
+                        }
+                    })();
+                });
+            })();
+            JS);
+        $this->wait_for_pending_js();
+        $result = $this->getSession()->evaluateScript('window.sharingCartDelayedValidationResult');
+        if ($result !== true) {
+            throw new \Behat\Mink\Exception\ExpectationException(
+                'Delayed restore validation was not discarded: ' . json_encode($result),
+                $this->getSession()
+            );
+        }
+    }
+
+    /**
+     * Exercise both supported ways of opening the subsection-copy dialog.
+     *
+     * @When /^I copy Sharing Cart subsection "([^"]+)" into section "(\d+)" using "(clipboard|drag)"$/
+     * @param string $name subsection name
+     * @param int $number destination section number
+     * @param string $method clipboard or drag
+     */
+    public function copy_subsection_into_section(string $name, int $number, string $method): void {
+        if ($method === 'clipboard') {
+            $literal = behat_context_helper::escape($name);
+            $this->get_selected_node(
+                'xpath_element',
+                "//div[@data-type='mod_subsection'][.//span[@class='name' and normalize-space(.)=$literal]]" .
+                "//i[@data-action='copy_to_course']"
+            )->click();
+            $this->get_selected_node('css_element', ".single-section [data-number='$number'] .clipboard_target")->click();
+            return;
+        }
+
+        $namejson = json_encode($name);
+        $this->getSession()->executeScript(<<<JS
+            (() => {
+                const item = [...document.querySelectorAll('.sharing_cart_item[data-type="mod_subsection"]')]
+                    .find(node => node.querySelector(':scope > .item-body .name')?.textContent.trim() === $namejson);
+                const target = document.querySelector('.single-section [data-for="section"][data-number="$number"]');
+                if (!item || !target) {
+                    throw new Error('The cart subsection or course section is missing');
+                }
+                const rect = target.getBoundingClientRect();
+                const transfer = new DataTransfer();
+                const dispatch = (type, node) => node.dispatchEvent(new DragEvent(type, {
+                    bubbles: true, cancelable: true, dataTransfer: transfer,
+                    clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2,
+                }));
+                dispatch('dragstart', item);
+                dispatch('dragover', target);
+                dispatch('drop', target);
+                dispatch('dragend', item);
+            })();
+            JS);
+    }
+
+    /**
      * Checks native container inclusion independently of the accessible descendant-selection summary.
      *
      * @Then /^the restore container "([^"]+)" is "([01])" with "(\d+)" of "(\d+)" descendants selected$/

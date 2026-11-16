@@ -755,18 +755,12 @@ export default class BlockElement {
      * @param {DropTarget|null} dropTarget Set when the item was dragged to a position in the course.
      */
     importItem(item, sectionId, modal, options = {}, dropTarget = null) {
-        this.#course.clearClipboard();
-
         const {courseModuleIds, sectionIds, replaceSectionDetails} = RestoreSelection.read(modal);
         const hasNestedSections = modal.querySelector('input[type="checkbox"][data-type="section"]') !== null;
 
-        if (item.isSection() && courseModuleIds.length === 0 && (!hasNestedSections || sectionIds[0] === 0)) {
-            modal.querySelectorAll('.form-check-input').forEach(async(item) => {
-                item.setCustomValidity(
-                    await getString('atleast_one_course_module_must_be_included', 'block_sharing_cart')
-                );
-                item.reportValidity();
-            });
+        if ((item.isSection() || item.isSubsection()) && courseModuleIds.length === 0 &&
+                (!hasNestedSections || sectionIds[0] === 0)) {
+            RestoreSelection.reportEmpty(modal).catch(Notification.exception);
             return false;
         }
 
@@ -774,13 +768,15 @@ export default class BlockElement {
             courseModuleIds.push(item.getItemOldInstanceId());
         }
 
+        this.#course.clearClipboard();
+
         Ajax.call([{
             methodname: 'block_sharing_cart_restore_item_from_sharing_cart_into_section',
             args: {
                 itemid: item.getItemId(),
                 sectionid: sectionId,
                 coursemodulestoinclude: courseModuleIds,
-                moduleselectionexplicit: item.isSection(),
+                moduleselectionexplicit: true,
                 sectionstoinclude: sectionIds,
                 insertasnewsection: Boolean(options.asNewSection),
                 courseid: options.courseId ?? 0,
@@ -874,7 +870,11 @@ export default class BlockElement {
         RestoreSelection.bind(modal.getRoot()[0]);
         modal.getRoot().on(
             ModalEvents.save,
-            this.importItem.bind(this, item, sectionId, modal.getRoot()[0], options, dropTarget)
+            (event) => {
+                if (!this.importItem(item, sectionId, modal.getRoot()[0], options, dropTarget)) {
+                    event.preventDefault();
+                }
+            }
         );
         await modal.show();
     }

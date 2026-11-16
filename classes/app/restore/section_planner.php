@@ -116,10 +116,17 @@ final class section_planner {
 
         $plan = new section_plan($targetsectionid, $targetsectionnumber);
 
-        // Core subsection items and single activity items keep the legacy behaviour.
+        // Individual items never restore siblings: subsections retain their owner module and delegated section.
         if (!$item || !$item->is_section()) {
             if ($targetsectionid === 0) {
                 throw new \Exception('Only section items can be restored to the top level of a course.');
+            }
+            $plan->coursemodulestoinclude = $coursemodulestoinclude;
+            if ($item && $item->is_subsection()) {
+                $task = $this->subsection_task($restorecontroller, $item, $coursemodulestoinclude);
+                $plan->rootoldsectionid = $this->old_section_id_of_task($task);
+                // The dialog header implicitly includes this container, not just its selected contents.
+                $plan->coursemodulestoinclude[] = $task->get_delegated_cm();
             }
             return $plan;
         }
@@ -179,6 +186,55 @@ final class section_planner {
         $walk($item);
 
         return $plan;
+    }
+
+    /**
+     * Resolve both historical root CM IDs and modern delegated-section IDs without consulting the source course.
+     *
+     * @param \restore_controller $controller backup being restored
+     * @param entity $item selected subsection
+     * @param int[] $moduleids selected child module IDs
+     * @return \restore_section_task
+     */
+    private function subsection_task(\restore_controller $controller, entity $item, array $moduleids): \restore_section_task {
+        $candidates = [];
+        $oldid = (int)$item->get_old_instance_id();
+        foreach ($controller->get_plan()->get_tasks() as $task) {
+            if (!$task instanceof \restore_section_task || $task->get_delegated_cm() === null) {
+                continue;
+            }
+            $sectionid = $this->old_section_id_of_task($task);
+            // Nested items always use CM IDs. Root items have used both representations over time.
+            if ($task->get_delegated_cm() === $oldid || ($item->get_parent_item_id() === null && $sectionid === $oldid)) {
+                $candidates[$sectionid] = $task;
+            }
+        }
+        if ($candidates === []) {
+            throw new \coding_exception('The copied subsection was not found in its backup.');
+        }
+        if (count($candidates) > 1) {
+            // IDs from separate tables can collide. Only the section containing all selected children is valid.
+            $modulesections = $this->module_section_ids($controller);
+            $candidates = array_filter($candidates, function (\restore_section_task $task) use (
+                $moduleids,
+                $modulesections
+            ): bool {
+                $sectionid = $this->old_section_id_of_task($task);
+                if ($moduleids === []) {
+                    return false;
+                }
+                foreach ($moduleids as $moduleid) {
+                    if (($modulesections[$moduleid] ?? null) !== $sectionid) {
+                        return false;
+                    }
+                }
+                return true;
+            });
+        }
+        if (count($candidates) !== 1) {
+            throw new \coding_exception('The copied subsection identity is ambiguous in its backup.');
+        }
+        return reset($candidates);
     }
 
     /**
@@ -408,8 +464,10 @@ final class section_planner {
             $sectionxmlpath = "{$task->get_taskbasepath()}/section.xml";
 
             if (!$plan->selective) {
-                // Legacy behaviour: everything merges into the target section.
-                $this->rewrite_xml_number($sectionxmlpath, 'number', $targetnumber);
+                // Retain only the chosen delegated section. Core creates it and maps its selected children to it.
+                // Its owner module is placed in the target; unrelated regular section details must not be merged.
+                $included = $oldsectionid === $plan->rootoldsectionid;
+                $task->get_setting('included')->set_value($included);
                 continue;
             }
 
@@ -441,6 +499,14 @@ final class section_planner {
             } else {
                 mtrace("...Excluding section (id: $oldsectionid)");
                 $task->get_setting('included')->set_value(false);
+            }
+        }
+
+        // Disabling section tasks can disable their activities through core setting dependencies.
+        // Restore only the scoped content (and the chosen subsection's owner) after applying all section settings.
+        foreach ($restorecontroller->get_plan()->get_tasks() as $task) {
+            if ($task instanceof \restore_activity_task && !$plan->selective) {
+                $task->get_setting('included')->set_value($moduleexplicitlyselected((int)$task->get_old_moduleid()));
             }
         }
     }

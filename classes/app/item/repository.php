@@ -34,6 +34,9 @@ require_once($CFG->dirroot . '/course/format/lib.php');
  */
 class repository extends \block_sharing_cart\app\repository
 {
+    /** Maximum parent IDs per query, below the parameter limits of supported databases. */
+    private const SUBTREE_QUERY_BATCH_SIZE = 500;
+
     /**
      * get_table
      *
@@ -378,7 +381,7 @@ class repository extends \block_sharing_cart\app\repository
     }
 
     /**
-     * get_recursively_by_parent_id
+     * Read a subtree in batches, retaining the existing siblings-first traversal order.
      *
      * @param int $itemid
      * @param ?collection $items
@@ -396,14 +399,41 @@ class repository extends \block_sharing_cart\app\repository
             $items->add($rootitem);
         }
 
-        $children = $this->get_by_parent_item_id($itemid);
-        foreach ($children as $child) {
-            $items->add($child);
+        $childrenbyparent = [];
+        $visited = [$itemid => true];
+        $pending = [$itemid];
+        while ($pending) {
+            $next = [];
+            foreach (array_chunk($pending, self::SUBTREE_QUERY_BATCH_SIZE) as $parentids) {
+                $records = $this->db->get_records_list(
+                    $this->get_table(),
+                    'parent_item_id',
+                    $parentids,
+                    'sortorder ASC, id ASC'
+                );
+                foreach ($records as $record) {
+                    $id = (int)$record->id;
+                    if (isset($visited[$id])) {
+                        continue;
+                    }
+                    $visited[$id] = true;
+                    $childrenbyparent[(int)$record->parent_item_id][] = $this->map_record_to_entity($record);
+                    $next[] = $id;
+                }
+            }
+            $pending = $next;
         }
 
-        foreach ($children as $child) {
-            $this->get_recursively_by_parent_id($child->get_id(), $items);
-        }
+        // Query breadth-first, but assemble in the same order as the former recursive implementation.
+        $appendchildren = static function (int $parentid) use (&$appendchildren, $childrenbyparent, $items): void {
+            foreach ($childrenbyparent[$parentid] ?? [] as $child) {
+                $items->add($child);
+            }
+            foreach ($childrenbyparent[$parentid] ?? [] as $child) {
+                $appendchildren($child->get_id());
+            }
+        };
+        $appendchildren($itemid);
 
         return $items;
     }

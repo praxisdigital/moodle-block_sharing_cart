@@ -3,6 +3,9 @@ import Notification from 'core/notification';
 
 /** Restore-dialog selection behavior for sections and their descendants. */
 export default class RestoreSelection {
+    /** @type {WeakMap<HTMLElement, number>} Invalidates pending validation when a form changes. */
+    static #validationVersions = new WeakMap();
+
     /**
      * Binds cascading selection, descendant counts and placement feedback to a restore form.
      *
@@ -11,7 +14,12 @@ export default class RestoreSelection {
     static bind(form) {
         form.addEventListener('change', (event) => {
             const checkbox = event.target;
-            checkbox.setCustomValidity('');
+            if (!checkbox.matches('input[type="checkbox"]')) {
+                return;
+            }
+            RestoreSelection.#validationVersions.set(form, (RestoreSelection.#validationVersions.get(form) ?? 0) + 1);
+            form.querySelectorAll('input[type="checkbox"]').forEach((input) => input.setCustomValidity(''));
+            form.querySelector('[data-region="restore-selection-error"]')?.classList.add('d-none');
 
             if (checkbox.dataset.container === 'true') {
                 checkbox.closest('.form-check')
@@ -143,5 +151,32 @@ export default class RestoreSelection {
             sectionIds,
             replaceSectionDetails: Boolean(form.querySelector('input[data-action="replace_section_details"]:checked')),
         };
+    }
+
+    /**
+     * Explain an empty selection even when the cart item has no selectable children.
+     *
+     * @param {HTMLElement} form restore modal
+     * @return {Promise<void>}
+     */
+    static async reportEmpty(form) {
+        const version = (RestoreSelection.#validationVersions.get(form) ?? 0) + 1;
+        RestoreSelection.#validationVersions.set(form, version);
+        const message = await getString('atleast_one_course_module_must_be_included', 'block_sharing_cart');
+        if (!form.isConnected || RestoreSelection.#validationVersions.get(form) !== version) {
+            return;
+        }
+        const {courseModuleIds, sectionIds} = RestoreSelection.read(form);
+        if (courseModuleIds.length > 0 || sectionIds.some(id => id > 0)) {
+            return;
+        }
+        const error = form.querySelector('[data-region="restore-selection-error"]');
+        if (error) {
+            error.textContent = message;
+            error.classList.remove('d-none');
+        }
+        const input = form.querySelector('input[type="checkbox"]:not(:disabled)');
+        input?.setCustomValidity(message);
+        input?.reportValidity();
     }
 }

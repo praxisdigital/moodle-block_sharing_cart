@@ -303,6 +303,117 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $this->assertSame((int)$sections['Child']->id, $grandchild->new_parent_section_id);
     }
 
+    /**
+     * A format's generic hierarchy-managed hook preserves empty structural ancestors for its own hierarchy rebuild.
+     */
+    public function test_managed_hierarchy_preserves_structural_ancestors_and_reports_the_parent_chain(): void {
+        $rootitemid = $this->copy_tree_with_content_only_in_leaf();
+        $target = $this->create_course(1, [1 => 'Existing']);
+        $planned = [];
+        $restored = null;
+        \core\di::get(\core\hook\manager::class)->phpunit_redirect_hook(
+            before_sections_restored::class,
+            static function (before_sections_restored $hook) use (&$planned): void {
+                $planned = $hook->plannedsections;
+                $hook->managessectionhierarchy = true;
+            }
+        );
+        \core\di::get(\core\hook\manager::class)->phpunit_redirect_hook(
+            after_sections_restored::class,
+            static function (after_sections_restored $hook) use (&$restored): void {
+                $restored = $hook;
+            }
+        );
+
+        $this->restore($rootitemid, 0, insertasnewsection: true, courseid: (int)$target->id);
+
+        $sections = $this->sections_by_name((int)$target->id);
+        $this->assertEqualsCanonicalizing(['', 'Existing', 'Section 2', 'Section 3', 'Section 4'], array_keys($sections));
+        $this->assertSame([], $this->module_names((int)$sections['Section 2']->id));
+        $this->assertSame([], $this->module_names((int)$sections['Section 3']->id));
+        $this->assertSame(['Leaf activity'], $this->module_names((int)$sections['Section 4']->id));
+        $this->assertCount(3, $planned);
+        $this->assertNotNull($restored);
+        $this->assertSame((int)$target->id, $restored->courseid);
+        $this->assertSame(0, $restored->targetsectionid);
+        $this->assertCount(3, $restored->restoredsections);
+        [$root, $child, $grandchild] = $restored->restoredsections;
+        $this->assertSame((int)$sections['Section 2']->id, $root->new_section_id);
+        $this->assertSame(0, $root->new_parent_section_id);
+        $this->assertSame((int)$sections['Section 3']->id, $child->new_section_id);
+        $this->assertSame($root->new_section_id, $child->new_parent_section_id);
+        $this->assertSame((int)$sections['Section 4']->id, $grandchild->new_section_id);
+        $this->assertSame($child->new_section_id, $grandchild->new_parent_section_id);
+    }
+
+    /**
+     * An explicit empty subsection selection must not queue its parent's shared backup.
+     */
+    public function test_empty_subsection_selection_is_rejected_before_queueing(): void {
+        global $DB;
+
+        $source = $this->create_course(1);
+        $this->add_page($source, 1, 'Unrelated root page');
+        $subsection = $this->getDataGenerator()->create_module('subsection', [
+            'course' => $source->id, 'section' => 1, 'name' => 'Chosen subsection',
+        ]);
+        $delegated = $DB->get_record('course_sections', [
+            'course' => $source->id, 'component' => 'mod_subsection', 'itemid' => $subsection->id,
+        ], '*', MUST_EXIST);
+        $this->add_page($source, (int)$delegated->section, 'Subsection page');
+        $rootid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $item = $this->items_by_parent($rootid)[$rootid]['Chosen subsection'];
+        $target = $this->create_course(1, [1 => 'Keep target']);
+
+        try {
+            item_into_section::execute(
+                $item->get_id(),
+                (int)$target->sections[1]->id,
+                [],
+                moduleselectionexplicit: true
+            );
+            $this->fail('An explicit empty subsection selection was accepted.');
+        } catch (\moodle_exception $exception) {
+            $this->assertSame('atleast_one_course_module_must_be_included', $exception->errorcode);
+        }
+        $this->assertCount(0, \core\task\manager::get_adhoc_tasks(asynchronous_restore_task::class));
+        $this->assertSame([], $this->module_names((int)$target->sections[1]->id));
+    }
+
+    /**
+     * A default subsection restore must never include siblings from the shared archive.
+     */
+    public function test_subsection_default_selection_is_scoped_to_its_own_children(): void {
+        global $DB;
+
+        $source = $this->create_course(2, [1 => 'Unrelated root', 2 => 'Unrelated child']);
+        $this->add_page($source, 1, 'Unrelated root page');
+        $this->add_page($source, 2, 'Unrelated child page');
+        $this->declare_section_tree([[$source->sections[2]->id, $source->sections[1]->id, 1]]);
+        $subsection = $this->getDataGenerator()->create_module('subsection', [
+            'course' => $source->id, 'section' => 1, 'name' => 'Chosen subsection',
+        ]);
+        $delegated = $DB->get_record('course_sections', [
+            'course' => $source->id, 'component' => 'mod_subsection', 'itemid' => $subsection->id,
+        ], '*', MUST_EXIST);
+        $this->add_page($source, (int)$delegated->section, 'Subsection page');
+        $rootid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $item = $this->items_by_parent($rootid)[$rootid]['Chosen subsection'];
+        $target = $this->create_course(1, [1 => 'Keep target']);
+        $this->add_page($target, 1, 'Existing page');
+
+        $this->restore($item->get_id(), (int)$target->sections[1]->id);
+
+        $this->assertSame(['Chosen subsection', 'Existing page'], $this->module_names((int)$target->sections[1]->id));
+        $restoreddelegated = $DB->get_record('course_sections', [
+            'course' => $target->id, 'component' => 'mod_subsection',
+        ], '*', MUST_EXIST);
+        $this->assertSame(['Subsection page'], $this->module_names((int)$restoreddelegated->id));
+        $this->assertSame(3, $DB->count_records('course_modules', ['course' => $target->id]));
+        $this->assertSame(3, $DB->count_records('course_sections', ['course' => $target->id]));
+        $this->assertSame('Keep target', $DB->get_field('course_sections', 'name', ['id' => $target->sections[1]->id]));
+    }
+
     public function test_flat_restore_preserves_summary_on_empty_nested_section(): void {
         global $DB;
 
@@ -943,8 +1054,22 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $DB->set_field('course_sections', 'summary', '<p>Target summary</p>', ['id' => $targetsectionid]);
         $this->add_section_file($target->id, $targetsectionid, 'old.txt');
 
+        $hookhadreplacement = false;
+        $hooktargetname = null;
+        \core\di::get(\core\hook\manager::class)->phpunit_redirect_hook(
+            before_sections_restored::class,
+            static function (before_sections_restored $hook) use (&$hookhadreplacement, &$hooktargetname): void {
+                $hookhadreplacement = factory::make()->restore()->section_details_replacement()
+                    ->has_snapshot($hook->courseid, $hook->targetsectionid);
+                $hooktargetname = factory::make()->moodle()->db()->get_field('course_sections', 'name', [
+                    'id' => $hook->targetsectionid,
+                ]);
+            }
+        );
         $this->restore($rootitemid, $targetsectionid, replacesectiondetails: true);
 
+        $this->assertTrue($hookhadreplacement, 'Course formats must see the pending replacement before preparing the restore.');
+        $this->assertSame('Target', $hooktargetname, 'Format validation must still see the original target details.');
         $section = $DB->get_record('course_sections', ['id' => $targetsectionid], '*', MUST_EXIST);
         $this->assertSame('Copied', $section->name);
         $this->assertStringContainsString('Copied summary', $section->summary);
@@ -965,7 +1090,7 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $DB->set_field('course_sections', 'summary', '<p>Target summary</p>', ['id' => $targetsectionid]);
         $this->add_section_file($target->id, $targetsectionid, 'keep.txt');
 
-        // Fail after the details were blanked and before the plan runs.
+        // Fail after preparing the replacement snapshot and before the target is blanked.
         \core\di::get(\core\hook\manager::class)->phpunit_redirect_hook(
             before_sections_restored::class,
             static function (before_sections_restored $hook): void {

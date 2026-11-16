@@ -114,6 +114,19 @@ Change Log
       the restore.
     * You can now deselect a subsection while keeping selected activities. Those activities are restored into the
       nearest included parent section.
+    * Copying a subsection item preserves the subsection itself and nests the selected activities inside it, just as
+      when selecting that subsection from a full section copy. The destination section keeps its title and description.
+      Copying an individual activity remains activity-only.
+    * Empty subsection copy selections are rejected without closing the dialog or clearing the clipboard.
+      Delayed validation messages no longer overwrite corrected selections.
+    * Restoring an individual subsection or activity from a shared section backup no longer copies sibling content
+      or unrelated section details. Legacy default selections include only the chosen cart item's own contents.
+      Older root subsection items using course-module IDs are also supported.
+    * Reduced database queries when reading large Sharing Cart item trees while preserving their order and scope.
+    * Fixed section-detail replacement when course formats prepare restores through Sharing Cart hooks, preserving
+      copied titles, descriptions and format-managed images.
+    * Added backup/restore regression coverage for subsection selection, nested section hierarchies, empty selections
+      and generic course-format hooks, without depending on external course-format plugins.
 * 5.2, release 3 2026.09.29
     * Added support for copying sections with a nested structure (e.g. subsections) into the
       cart and restoring them with the structure preserved, via hooks a course format can

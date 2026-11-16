@@ -277,47 +277,10 @@ class import_item_modal_body implements \core\output\named_templatable, \rendera
     private function get_user_msgs(object $section): array {
         $usermsgs = [];
 
-        if ($this->is_subsection_imported_into_default_named_section($section)) {
-            $usermsgs[] = get_string('import_subsection_into_default_named_section_warning', 'block_sharing_cart');
-        }
-
         if (empty($section->course_modules)) {
             $usermsgs[] = get_string('empty_section_restore', 'block_sharing_cart');
         }
 
         return $usermsgs;
-    }
-
-    /**
-     * is_subsection_imported_into_default_named_section
-     *
-     * @param object $section
-     * @return bool
-     */
-    private function is_subsection_imported_into_default_named_section(object $section): bool {
-        if (!isset($section)) {
-            return false;
-        }
-
-        if ($this->item->is_subsection() && $this->clipboardtargetid !== 0) {
-            try {
-                $targetsectionname = $this->db->get_field(
-                    'course_sections',
-                    'name',
-                    [
-                        'id' => $this->clipboardtargetid,
-                    ],
-                    MUST_EXIST
-                );
-            } catch (\Exception $e) {
-                return false;
-            }
-            // Default named sections will have a null name.
-            if (!$targetsectionname) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

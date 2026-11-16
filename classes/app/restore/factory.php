@@ -158,6 +158,15 @@ class factory
     }
 
     /**
+     * Restore selection validation and shared-archive scoping.
+     *
+     * @return selection
+     */
+    public function selection(): selection {
+        return new selection($this->basefactory);
+    }
+
+    /**
      * section_details_replacement
      *
      * @return section_details_replacement

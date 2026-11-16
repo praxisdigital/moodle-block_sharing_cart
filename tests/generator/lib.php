@@ -23,7 +23,7 @@ use block_sharing_cart\app\item\entity;
  * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class block_sharing_cart_generator extends testing_data_generator
+class block_sharing_cart_generator extends testing_block_generator
 {
     /** @var array $createditemsidshistory */
     private array $createditemsidshistory = [];

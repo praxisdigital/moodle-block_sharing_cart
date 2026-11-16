@@ -73,6 +73,9 @@ class handler
             return null;
         }
 
+        // Validate before queueing, including explicit empty selections and IDs from shared-archive siblings.
+        $this->basefactory->restore()->selection()->module_ids($item, $settings);
+
         // The new section is created by the restore task, so its position is worked out when the restore runs.
         if ($asnewsection) {
             $settings['insert_after_section_id'] = $sectionid;

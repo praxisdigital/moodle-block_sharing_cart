@@ -29,7 +29,7 @@ namespace block_sharing_cart\app\restore;
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class section_plan {
-    /** @var int Original id of the restored item's own section; 0 for legacy (non section) items. */
+    /** @var int Original section ID (delegated for a subsection item); 0 for individual activities. */
     public int $rootoldsectionid = 0;
 
     /** @var int Section chosen by the user; 0 = top level of the course. */
