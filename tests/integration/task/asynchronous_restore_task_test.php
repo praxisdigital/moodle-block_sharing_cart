@@ -827,6 +827,75 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         ];
     }
 
+    /**
+     * Unnamed roots inserted as new sections still need a destination label, independent of the cart name.
+     *
+     * @param string|null $sourcename
+     * @param string $targetformat
+     * @param bool $toplevel
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('new_section_destination_name_provider')]
+    public function test_new_section_destination_name_is_available(
+        ?string $sourcename,
+        string $targetformat,
+        bool $toplevel
+    ): void {
+        global $DB, $PAGE;
+
+        $source = $this->create_course(1, [1 => $sourcename]);
+        $this->add_page($source, 1, 'Copied page');
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $item = $this->factory->item()->repository()->get_by_id($rootitemid);
+        $item->set_name('Misleading cart label');
+        $this->factory->item()->repository()->update($item);
+
+        $target = $this->getDataGenerator()->create_course(['format' => $targetformat, 'numsections' => 2]);
+        $targetsectionid = $toplevel ? 0 : (int)$DB->get_field('course_sections', 'id', [
+            'course' => $target->id,
+            'section' => 2,
+        ], MUST_EXIST);
+        $PAGE->set_context(\context_course::instance($target->id));
+        $body = new \block_sharing_cart\output\modal\import_item_modal_body($this->factory, $item, $targetsectionid, true);
+        $context = $body->export_for_template($PAGE->get_renderer('core'));
+        $this->assertNotSame('', $context['restore_target_name']);
+        $this->assertNotSame($item->get_name(), $context['restore_target_name']);
+        $this->assertSame(html_to_text(format_string($sourcename ?? ''), 0, false), $context['restore_source_name']);
+        $this->assertFalse($context['can_replace_section_details']);
+
+        $this->restore($rootitemid, $targetsectionid, insertasnewsection: true, courseid: (int)$target->id);
+
+        $pageid = $DB->get_field('page', 'id', ['course' => $target->id, 'name' => 'Copied page'], MUST_EXIST);
+        $module = get_coursemodule_from_instance('page', (int)$pageid, (int)$target->id, false, MUST_EXIST);
+        $restoredsection = $DB->get_record('course_sections', ['id' => $module->section], '*', MUST_EXIST);
+        $actualname = course_get_format($target->id)->get_section_name($restoredsection);
+        if ($targetformat === 'weeks' && !$toplevel && ($sourcename ?? '') === '') {
+            // Week numbers can change when a section is moved; a generic label is safer than a guessed date range.
+            $this->assertSame('New section', $context['restore_target_name']);
+        } else {
+            $this->assertSame(html_to_text(format_string($actualname), 0, false), $context['restore_target_name']);
+        }
+        if (($sourcename ?? '') === '') {
+            $this->assertSame('', (string)$restoredsection->name);
+        }
+    }
+
+    /**
+     * Provides unnamed and custom titles across top-level, nested and date-based new-section restores.
+     *
+     * @return array<string, array{?string, string, bool}>
+     */
+    public static function new_section_destination_name_provider(): array {
+        return [
+            'unnamed topics root at top level' => [null, 'topics', true],
+            'unnamed topics root under a target' => [null, 'topics', false],
+            'empty topics root at top level' => ['', 'topics', true],
+            'named topics root at top level' => ['Copied title', 'topics', true],
+            'named topics root under a target' => ['Copied & <em>title</em>', 'topics', false],
+            'unnamed weeks root at top level' => [null, 'weeks', true],
+            'unnamed weeks root under a target' => [null, 'weeks', false],
+        ];
+    }
+
     public function test_replace_section_details_takes_the_copied_title_and_description(): void {
         global $DB;
 

@@ -91,6 +91,18 @@ class import_item_modal_body implements \core\output\named_templatable, \rendera
 
         if ($this->asnewsection) {
             $context['restore_target_name'] = $context['restore_source_name'];
+            if ($context['restore_target_name'] === '') {
+                $coursecontext = $this->basefactory->moodle()->page()->context->get_course_context(false);
+                $courseid = $this->clipboardtargetid > 0
+                    ? (int)$this->db->get_field('course_sections', 'course', ['id' => $this->clipboardtargetid])
+                    : (int)($coursecontext->instanceid ?? 0);
+                $context['restore_target_name'] = html_to_text(format_string(
+                    $this->basefactory->restore()->section_planner()->new_section_destination_name(
+                        $courseid,
+                        $this->clipboardtargetid
+                    )
+                ), 0, false);
+            }
             return $context;
         }
 
