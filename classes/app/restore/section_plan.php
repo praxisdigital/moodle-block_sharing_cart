@@ -58,7 +58,7 @@ final class section_plan {
     /** @var array<int, int> Every descendant section's original parent section id, including excluded sections. */
     public array $sectionparents = [];
 
-    /** @var int[]|null Explicitly selected course-module ids; null means use the legacy include-all setting. */
+    /** @var int[]|null Selected course-module ids; [] means none, null means use the legacy include-all setting. */
     public ?array $coursemodulestoinclude = null;
 
     /**

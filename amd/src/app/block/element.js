@@ -780,6 +780,7 @@ export default class BlockElement {
                 itemid: item.getItemId(),
                 sectionid: sectionId,
                 coursemodulestoinclude: courseModuleIds,
+                moduleselectionexplicit: item.isSection(),
                 sectionstoinclude: sectionIds,
                 insertasnewsection: Boolean(options.asNewSection),
                 courseid: options.courseId ?? 0,

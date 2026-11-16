@@ -581,6 +581,104 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         ]));
     }
 
+    /**
+     * Empty explicit selections must not inherit the legacy include-all behaviour.
+     *
+     * @param bool $insertasnewsection
+     * @param bool $explicitselection
+     * @param int[] $moduleids
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('empty_module_selection_provider')]
+    public function test_empty_module_selection_with_selected_custom_section(
+        bool $insertasnewsection,
+        bool $explicitselection,
+        array $moduleids
+    ): void {
+        global $DB;
+
+        $source = $this->create_course(2, [1 => 'Copied root', 2 => 'Custom child']);
+        $this->add_page($source, 1, 'Root activity');
+        $this->add_page($source, 2, 'Custom child activity');
+        $this->declare_section_tree([[$source->sections[2]->id, $source->sections[1]->id, 1]]);
+
+        $subsection = $this->getDataGenerator()->create_module('subsection', [
+            'course' => $source->id,
+            'section' => 1,
+            'name' => 'Root subsection',
+        ]);
+        $delegatedsection = $DB->get_record('course_sections', [
+            'course' => $source->id,
+            'component' => 'mod_subsection',
+            'itemid' => $subsection->id,
+        ], '*', MUST_EXIST);
+        $this->getDataGenerator()->create_module('page', [
+            'course' => $source->id,
+            'section' => $delegatedsection->section,
+            'name' => 'Subsection activity',
+        ]);
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $byparent = $this->items_by_parent($rootitemid);
+        $childitem = $byparent[$rootitemid]['Custom child'];
+
+        $target = $this->create_course(1, [1 => 'Merge target']);
+        // Validate and dispatch in schema order, just as Moodle's AJAX external-function dispatcher does.
+        $request = [
+            'itemid' => $rootitemid,
+            'sectionid' => $insertasnewsection ? 0 : (int)$target->sections[1]->id,
+            'coursemodulestoinclude' => $moduleids,
+            'sectionstoinclude' => [(int)$childitem->get_old_instance_id()],
+            'insertasnewsection' => $insertasnewsection,
+            'courseid' => (int)$target->id,
+        ];
+        if ($explicitselection) {
+            $request['moduleselectionexplicit'] = true;
+        }
+        $params = item_into_section::validate_parameters(item_into_section::execute_parameters(), $request);
+        $this->assertTrue(item_into_section::execute(...array_values($params)));
+        $queuedtasks = array_values(\core\task\manager::get_adhoc_tasks(asynchronous_restore_task::class));
+        $this->assertCount(1, $queuedtasks);
+        $queuedtask = $queuedtasks[0];
+        $this->assertSame($moduleids, $queuedtask->get_custom_data()->backup_settings->course_modules_to_include);
+        $this->runAdhocTasks(asynchronous_restore_task::class);
+
+        $sections = $this->sections_by_name((int)$target->id);
+        $this->assertArrayHasKey('Custom child', $sections);
+        $rootsectionid = (int)($insertasnewsection ? $sections['Copied root']->id : $target->sections[1]->id);
+
+        if ($explicitselection) {
+            $this->assertSame([], $this->module_names($rootsectionid));
+            $this->assertSame([], $this->module_names((int)$sections['Custom child']->id));
+            $this->assertFalse($DB->record_exists('course_modules', ['course' => $target->id]));
+            $this->assertFalse($DB->record_exists('course_sections', [
+                'course' => $target->id,
+                'component' => 'mod_subsection',
+            ]));
+            $this->assertTrue((bool)$queuedtask->get_custom_data()->backup_settings->module_selection_explicit);
+        } else {
+            $this->assertSame(['Root activity', 'Root subsection'], $this->module_names($rootsectionid));
+            $this->assertSame(['Custom child activity'], $this->module_names((int)$sections['Custom child']->id));
+            $restoreddelegatedsection = $DB->get_record('course_sections', [
+                'course' => $target->id,
+                'component' => 'mod_subsection',
+            ], '*', MUST_EXIST);
+            $this->assertSame(['Subsection activity'], $this->module_names((int)$restoreddelegatedsection->id));
+        }
+    }
+
+    /**
+     * @return array<string, array{bool, bool, int[]}>
+     */
+    public static function empty_module_selection_provider(): array {
+        return [
+            'merge explicit empty' => [false, true, []],
+            'new section explicit empty' => [true, true, []],
+            'merge legacy empty' => [false, false, []],
+            'new section legacy empty' => [true, false, []],
+            'merge legacy zero' => [false, false, [0]],
+            'new section legacy zero' => [true, false, [0]],
+        ];
+    }
+
     public function test_legacy_empty_module_list_does_not_restore_subsection_from_excluded_custom_section(): void {
         global $DB;
 

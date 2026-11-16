@@ -52,7 +52,8 @@ final class section_planner {
      * @param int $targetsectionid 0 = top level of the course
      * @param bool $insertasnewsection
      * @param int[] $sectionstoinclude old ids of nested sections to restore; empty = all
-     * @param int[] $coursemodulestoinclude explicitly selected module ids; empty = legacy include-all
+     * @param int[] $coursemodulestoinclude selected module ids; empty or [0] = legacy include-all unless selection is explicit
+     * @param bool $moduleselectionexplicit whether the module list is explicit, including an empty selection
      * @return section_plan
      */
     public function plan(
@@ -61,7 +62,8 @@ final class section_planner {
         int $targetsectionid,
         bool $insertasnewsection,
         array $sectionstoinclude,
-        array $coursemodulestoinclude = []
+        array $coursemodulestoinclude = [],
+        bool $moduleselectionexplicit = false
     ): section_plan {
         $db = $this->basefactory->moodle()->db();
         $courseid = (int)$restorecontroller->get_courseid();
@@ -93,7 +95,7 @@ final class section_planner {
         $plan->rootoldsectionid = (int)$item->get_old_instance_id();
         $plan->selective = true;
         $plan->insertasnewsection = $insertasnewsection;
-        if (!empty($coursemodulestoinclude) && $coursemodulestoinclude !== [0]) {
+        if ($moduleselectionexplicit || (!empty($coursemodulestoinclude) && $coursemodulestoinclude !== [0])) {
             $plan->coursemodulestoinclude = $coursemodulestoinclude;
         }
         $plan->sectionparents[$plan->rootoldsectionid] = 0;
@@ -332,7 +334,7 @@ final class section_planner {
 
                     if (!$isincluded($oldsectionid)) {
                         if (!$selectedexplicitly) {
-                            // Empty module lists retain Moodle's legacy include-all meaning, not an override selection.
+                            // Only explicitly selected modules can be moved out of an excluded section.
                             $task->get_setting('included')->set_value(false);
                             continue;
                         }
