@@ -1,4 +1,4 @@
-@block @block_sharing_cart @javascript @sdgsdfgdfg
+@block @block_sharing_cart @javascript
 Feature: Drag a copied section to a new course position
   As an editing teacher
   I want to drag a copied section between course sections
@@ -38,7 +38,6 @@ Feature: Drag a copied section to a new course position
     And I wait until "//div[contains(@class, 'modal-footer')]//button[@data-action='save']" "xpath_element" exists
     And I click on "//div[contains(@class, 'modal-footer')]//button[@data-action='save']" "xpath_element"
     And I run all adhoc tasks
-    And I reload the page
     Then "//li[@id='section-1']//div[@data-activityname='Before activity']" "xpath_element" should be visible
     And "//li[@id='section-2']//div[@data-activityname='Copied activity']" "xpath_element" should be visible
     And "//li[@id='section-3']//div[@data-activityname='After activity']" "xpath_element" should be visible
