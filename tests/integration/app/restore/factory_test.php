@@ -24,8 +24,8 @@ use block_sharing_cart\app\factory;
  * @package   block_sharing_cart
  * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- * @covers    \block_sharing_cart\app\restore\factory
  */
+#[\PHPUnit\Framework\Attributes\CoversClass(\block_sharing_cart\app\restore\factory::class)]
 final class factory_test extends \advanced_testcase
 {
     /** @var factory $factory */

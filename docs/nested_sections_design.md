@@ -203,7 +203,10 @@ Implementation notes for whoever touches the restore task:
 
 Degraded mode: if the target course's format registers no callback, content is
 still complete and the copied subsections sit as flat sections right after the
-target. Formats that nest simply attach them.
+target. Sections without included activities are omitted in this mode so empty
+structural parents do not become regular sections. Formats that nest mark the
+restore as hierarchy-managed and retain the hierarchy, then attach the copied
+sections.
 
 ### Replacing the target's title and description on merge
 

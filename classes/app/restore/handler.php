@@ -47,8 +47,10 @@ class handler
      * @param entity $item
      * @param int $sectionid target section; 0 means the top level of $courseid (only with insert_as_new_section)
      * @param int $itemid
-     * @param array $settings course_modules_to_include, sections_to_include, insert_as_new_section, replace_section_details
+     * @param array $settings restore selections and nested-section options
      * @param int $courseid required when $sectionid is 0
+     * @param int $beforecmid Place the restored activities before this course module (0 = end of the section).
+     * @param bool $asnewsection Create a new drop-target section after $sectionid.
      * @return asynchronous_restore_task|null
      */
     public function restore_item_into_section(
@@ -56,7 +58,9 @@ class handler
         int $sectionid,
         int $itemid,
         array $settings = [],
-        int $courseid = 0
+        int $courseid = 0,
+        int $beforecmid = 0,
+        bool $asnewsection = false
     ): asynchronous_restore_task|null {
         global $USER, $DB;
 
@@ -68,7 +72,15 @@ class handler
             return null;
         }
 
-        $settings['move_to_section_id'] = $sectionid;
+        // The new section is created by the restore task, so its position is worked out when the restore runs.
+        if ($asnewsection) {
+            $settings['insert_after_section_id'] = $sectionid;
+        } else {
+            $settings['move_to_section_id'] = $sectionid;
+        }
+        if ($beforecmid && !$asnewsection) {
+            $settings['before_cm_id'] = $beforecmid;
+        }
         $settings['move_to_course_id'] = $courseid;
 
         $backupfile = $this->basefactory->item()->repository()->get_stored_file_by_item($item);
@@ -78,7 +90,14 @@ class handler
 
         $this->basefactory->restore()->assert_backup_file_looks_valid($backupfile);
 
-        if (!$this->restore_is_valid($itemid, $sectionid, !empty($settings['insert_as_new_section']))) {
+        if (
+            !$this->restore_is_valid(
+                $itemid,
+                $sectionid,
+                $asnewsection,
+                !empty($settings['insert_as_new_section'])
+            )
+        ) {
             return null;
         }
 
@@ -91,10 +110,20 @@ class handler
      * This function is the backend check of that logic.
      * @param int $itemid
      * @param int $targetsectionid 0 means the top level of the course
+     * @param bool $asnewsection whether to create a section after the target for drag/drop
      * @param bool $insertasnewsection
      */
-    private function restore_is_valid(int $itemid, int $targetsectionid, bool $insertasnewsection = false): bool {
+    private function restore_is_valid(
+        int $itemid,
+        int $targetsectionid,
+        bool $asnewsection = false,
+        bool $insertasnewsection = false
+    ): bool {
         global $DB;
+
+        if ($asnewsection && $insertasnewsection) {
+            return false;
+        }
 
         $sql = "SELECT
                 I1.type AS own_type
@@ -108,8 +137,13 @@ class handler
 
         $subjectitem = $DB->get_record_sql($sql, $params, MUST_EXIST);
 
-        // Creating a new section (top level or under a regular section) only makes sense for section items.
+        // Creating a new section only makes sense for section items.
         if ($insertasnewsection && $subjectitem->own_type !== 'section') {
+            return false;
+        }
+
+        // A drag/drop-created destination must be anchored to a top-level section.
+        if ($asnewsection && $subjectitem->own_type !== 'section') {
             return false;
         }
 
@@ -118,10 +152,25 @@ class handler
             return $insertasnewsection;
         }
 
-        $targetsection = $DB->get_record('course_sections', ['id' => $targetsectionid], MUST_EXIST);
+        $targetsection = $DB->get_record(
+            'course_sections',
+            ['id' => $targetsectionid],
+            'id, component, itemid',
+            MUST_EXIST
+        );
 
         $istargetasection = empty($targetsection->component) && empty($targetsection->itemid);
         $istargetasubsection = !empty($targetsection->component) && $targetsection->component == 'mod_subsection';
+
+        // Drag/drop-created sections are inserted after a top-level section only.
+        if ($asnewsection) {
+            return $subjectitem->own_type === 'section' && $istargetasection;
+        }
+
+        // A section inserted through the modal cannot be merged into a subsection.
+        if ($insertasnewsection && !$istargetasection) {
+            return false;
+        }
 
         // Attempt to restore a section into a non-section?
         if (!$istargetasection) {

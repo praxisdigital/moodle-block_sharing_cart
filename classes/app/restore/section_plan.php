@@ -20,8 +20,8 @@ namespace block_sharing_cart\app\restore;
  * Which sections of a cart backup are restored, and the section number each of them gets.
  *
  * The root section (the restored item's own) either merges into the target section or, with insert_as_new_section,
- * is created as a new section under it (target 0 = top level of the course). Descendant sections always become new
- * sections. Everything else in the backup is excluded.
+ * is created as a new section under it (target 0 = top level of the course). Empty sections can be omitted for flat
+ * course formats. Descendant sections always become new sections. Everything else in the backup is excluded.
  *
  * @package   block_sharing_cart
  * @copyright moxis
@@ -39,6 +39,9 @@ final class section_plan {
 
     /** @var bool Whether the root is created as a new section instead of merging into the target. */
     public bool $insertasnewsection = false;
+
+    /** @var bool Whether an empty structural root is omitted for a flat target format. */
+    public bool $rootomitted = false;
 
     /** @var bool True when the restored item is a section item and other sections in the backup must be excluded. */
     public bool $selective = false;
@@ -95,12 +98,35 @@ final class section_plan {
     }
 
     /**
-     * Old ids of every section that is restored: the root plus the planned ones.
+     * Omits the root section when its only purpose was to contain nested sections.
+     *
+     * @return void
+     */
+    public function omit_root(): void {
+        unset($this->sections[$this->rootoldsectionid]);
+        $this->rootomitted = true;
+    }
+
+    /**
+     * Renumbers planned sections contiguously in their existing restore order.
+     *
+     * @param int $firstnumber first number to assign
+     * @return void
+     */
+    public function renumber_sections(int $firstnumber): void {
+        foreach ($this->sections as $section) {
+            $section->new_section_number = $firstnumber++;
+        }
+    }
+
+    /**
+     * Old ids of every section that is restored: the root (unless omitted) plus the planned sections.
      *
      * @return int[]
      */
     public function included_section_ids(): array {
-        return array_merge([$this->rootoldsectionid], array_keys($this->sections));
+        $rootsectionids = $this->rootomitted ? [] : [$this->rootoldsectionid];
+        return array_merge($rootsectionids, array_keys($this->sections));
     }
 
     /**

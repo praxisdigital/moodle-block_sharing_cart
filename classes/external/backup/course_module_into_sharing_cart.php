@@ -56,7 +56,7 @@ class course_module_into_sharing_cart extends external_api
      * @param array $settings
      */
     public static function execute(int $coursemoduleid, array $settings): object {
-        global $USER;
+        global $USER, $DB;
 
         $basefactory = factory::make();
 
@@ -65,21 +65,57 @@ class course_module_into_sharing_cart extends external_api
             'settings' => $settings,
         ]);
 
-        self::validate_context(
-            \context_module::instance($params['coursemoduleid'])
+        $coursemodule = $DB->get_record_sql(
+            "SELECT cm.id, cm.course, cm.instance, m.name AS modulename
+               FROM {course_modules} cm
+               JOIN {modules} m ON m.id = cm.module
+              WHERE cm.id = :coursemoduleid",
+            ['coursemoduleid' => $params['coursemoduleid']],
+            MUST_EXIST
         );
 
-        $item = $basefactory->item()->repository()->insert_activity(
-            $params['coursemoduleid'],
-            $USER->id,
-            null,
-            entity::STATUS_AWAITING_BACKUP
-        );
+        self::validate_context(\context_module::instance($coursemodule->id));
 
-        $backuptask = $basefactory->backup()->handler()->backup_course_module($coursemoduleid, $item, $settings);
+        if ($coursemodule->modulename === 'subsection') {
+            // The subsection item is represented by its delegated course section, not its course-module ID.
+            $section = $DB->get_record(
+                'course_sections',
+                [
+                    'course' => $coursemodule->course,
+                    'component' => 'mod_subsection',
+                    'itemid' => $coursemodule->instance,
+                ],
+                'id, section, sequence, course, itemid',
+                MUST_EXIST
+            );
+
+            $item = $basefactory->item()->repository()->insert_section(
+                $section,
+                $USER->id,
+                null,
+                entity::STATUS_AWAITING_BACKUP
+            );
+
+            $backuptask = $basefactory->backup()->handler()->backup_section($section, $item, $settings);
+            $taskid = $backuptask['task']->get_id();
+        } else {
+            $item = $basefactory->item()->repository()->insert_activity(
+                $params['coursemoduleid'],
+                $USER->id,
+                null,
+                entity::STATUS_AWAITING_BACKUP
+            );
+
+            $backuptask = $basefactory->backup()->handler()->backup_course_module(
+                $params['coursemoduleid'],
+                $item,
+                $settings
+            );
+            $taskid = $backuptask->get_id();
+        }
 
         $return = $item->to_array();
-        $return['taskid'] = $backuptask->get_id();
+        $return['taskid'] = $taskid;
 
         return (object)$return;
     }

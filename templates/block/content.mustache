@@ -61,7 +61,8 @@
                         {{#str}}no_items, block_sharing_cart{{/str}}
                     </div>
                     <div class="has-items mt-2 text-muted {{^items.0}}d-none{{/items.0}}">
-                        {{#str}}has_items, block_sharing_cart{{/str}}
+                        {{#dropZonesEnabled}}{{#str}}has_items, block_sharing_cart{{/str}}{{/dropZonesEnabled}}
+                        {{^dropZonesEnabled}}{{#str}}has_items_drag, block_sharing_cart{{/str}}{{/dropZonesEnabled}}
                     </div>
                 </div>
             </div>

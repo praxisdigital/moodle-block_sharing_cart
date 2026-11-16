@@ -52,6 +52,16 @@
         cursor: auto;
       }
 
+      // Only the item's own row, so a child item that cannot be dragged does not inherit it.
+      &[data-can-copy-to-course="1"] > .item-body {
+        cursor: move;
+
+        .sharing_cart_item_actions,
+        input[type="checkbox"] {
+          cursor: auto;
+        }
+      }
+
       &[data-status="0"]:not(.alert.alert-info), &[data-module_is_disabled_on_site="1"]:not(.alert.alert-info) {
         .item-body {
           .info {
@@ -134,6 +144,19 @@
             i {
               cursor: pointer;
             }
+
+            // Hide the touch-only copy icon on mouse-only devices; keep it if any coarse pointer is available.
+            @media (hover: hover) and (pointer: fine) {
+              .copy-to-course-touch-only {
+                display: none;
+              }
+            }
+
+            @media (any-pointer: coarse) {
+              .copy-to-course-touch-only {
+                display: inline-block;
+              }
+            }
           }
         }
 
@@ -177,4 +200,3 @@
     }
   }
 }
-

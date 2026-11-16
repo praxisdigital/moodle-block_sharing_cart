@@ -23,6 +23,7 @@ namespace block_sharing_cart\integration\event;
  * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+#[\PHPUnit\Framework\Attributes\CoversClass(\block_sharing_cart\app\factory::class)]
 final class backup_course_module_test extends \advanced_testcase
 {
     /**
@@ -61,7 +62,6 @@ final class backup_course_module_test extends \advanced_testcase
      * test_trigger_event
      *
      * @return void
-     * @covers \block_sharing_cart\app\factory
      */
     public function test_trigger_event(): void {
         global $USER;
