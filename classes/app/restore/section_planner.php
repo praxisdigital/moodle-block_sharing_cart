@@ -45,6 +45,38 @@ final class section_planner {
     }
 
     /**
+     * Names an unnamed new root without borrowing a generated label from the source course.
+     *
+     * @param int $courseid destination course, or 0 when unavailable
+     * @param int $targetsectionid 0 for a top-level insertion
+     * @return string Format-derived name where predictable, otherwise a generic label for the new section.
+     */
+    public function new_section_destination_name(int $courseid, int $targetsectionid): string {
+        $fallback = get_string('newsection', 'format_topics');
+        if ($courseid <= 0) {
+            return $fallback;
+        }
+
+        $format = course_get_format($courseid);
+        if ($format->get_format() === 'topics') {
+            // Topics gives every unnamed section the same generated name, regardless of its eventual number.
+            return $format->get_format_string('newsection');
+        }
+
+        if ($format->get_format() === 'weeks' && $targetsectionid === 0) {
+            // Top-level sections stay at the end, using the same initial number as plan().
+            $nextnumber = 1 + (int)$this->basefactory->moodle()->db()->get_field_sql(
+                'SELECT MAX(section) FROM {course_sections} WHERE course = ?',
+                [$courseid]
+            );
+            return $format->get_default_section_name((object)['section' => $nextnumber]);
+        }
+
+        // Moving a section or applying a format's hierarchy hooks can change its number and generated name.
+        return $fallback;
+    }
+
+    /**
      * Decides which sections of the backup are restored and the section number each of them gets.
      *
      * @param \restore_controller $restorecontroller

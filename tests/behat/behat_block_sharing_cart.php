@@ -166,4 +166,23 @@ class behat_block_sharing_cart extends behat_base
     public function queue_unnamed_section_with_custom_child_in_sharing_cart(int $sectionnumber, int $childnumber): void {
         $this->queue_section_with_custom_child_in_sharing_cart($sectionnumber, $childnumber, true);
     }
+
+    /**
+     * Supplies the course-format integration target without requiring a third-party nesting format in this test.
+     *
+     * @Given /^I add a top-level Sharing Cart restore target for course "([^"]+)"$/
+     * @param string $shortname
+     */
+    public function add_top_level_restore_target(string $shortname): void {
+        global $DB;
+
+        $courseid = (int)$DB->get_field('course', 'id', ['shortname' => $shortname], MUST_EXIST);
+        $this->getSession()->executeScript(<<<JS
+            const target = document.createElement('div');
+            target.dataset.region = 'sharing-cart-course-target';
+            target.dataset.parentSectionId = '0';
+            target.dataset.courseId = '$courseid';
+            document.querySelector('.course-content').prepend(target);
+            JS);
+    }
 }
