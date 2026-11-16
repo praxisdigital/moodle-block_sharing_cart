@@ -43,7 +43,6 @@ Feature: Restore a selected activity from an unchecked custom section
     When I click on "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element"
     And I wait until "//div[contains(concat(' ', normalize-space(@class), ' '), ' queue-item ')]" "xpath_element" exists
     And I run all adhoc tasks
-    And I reload the page
     Then "//li[@id='section-2']//div[@data-activityname='Root activity']" "xpath_element" should be visible
     And "//li[@id='section-2']//div[@data-activityname='Custom child activity']" "xpath_element" should be visible
     And "//li[@data-for='section'][@data-sectionname='Custom child']" "xpath_element" should not exist
@@ -80,7 +79,6 @@ Feature: Restore a selected activity from an unchecked custom section
     When I click on "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element"
     And I wait until "//div[contains(concat(' ', normalize-space(@class), ' '), ' queue-item ')]" "xpath_element" exists
     And I run all adhoc tasks
-    And I reload the page
     Then "//li[@data-for='section'][@data-sectionname='Custom child']" "xpath_element" should exist
     And "//div[contains(@class, 'course-content')]//*[@data-activityname='Root activity']" "xpath_element" should not exist
     And "//div[contains(@class, 'course-content')]//*[@data-activityname='Root subsection']" "xpath_element" should not exist
