@@ -228,6 +228,36 @@ class handler
     }
 
     /**
+     * Reads the stored custom title, without the generated label used by the cart and backup manifest.
+     *
+     * @param \stored_file $file
+     * @param int $sectionid original section id
+     * @return string|null Custom title, empty for an unnamed section, or null when the section XML is unavailable.
+     */
+    public function get_section_custom_name(\stored_file $file, int $sectionid): ?string {
+        $sectionpath = 'sections/section_' . $sectionid . '/section.xml';
+        $tempdir = make_request_directory();
+        try {
+            // Read only section metadata, never extract the backup's activity content or attached files.
+            $packer = get_file_packer('application/vnd.moodle.backup');
+            $packer->extract_to_pathname($file, $tempdir, [$sectionpath]);
+            $xmlpath = $tempdir . '/' . $sectionpath;
+            if (!is_readable($xmlpath)) {
+                return null;
+            }
+            $section = simplexml_load_file($xmlpath, \SimpleXMLElement::class, LIBXML_NONET);
+            if ($section === false || !isset($section->name)) {
+                return null;
+            }
+            $name = (string)$section->name;
+            // Moodle's backup XML transformer encodes database NULL with this marker.
+            return $name === '$@NULL@$' ? '' : $name;
+        } finally {
+            remove_dir($tempdir);
+        }
+    }
+
+    /**
      * get_backup_course_info
      *
      * @param \stored_file $file

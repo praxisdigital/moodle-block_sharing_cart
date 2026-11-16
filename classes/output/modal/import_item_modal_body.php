@@ -71,11 +71,22 @@ class import_item_modal_body implements \core\output\named_templatable, \rendera
      * @return array
      */
     private function get_replace_section_details_context(): array {
+        $sourcename = '';
+        if ($this->item->is_section()) {
+            $file = $this->basefactory->item()->repository()->get_stored_file_by_item($this->item);
+            if ($file) {
+                $sourcename = $this->basefactory->backup()->handler()->get_section_custom_name(
+                    $file,
+                    (int)$this->item->get_old_instance_id()
+                ) ?? '';
+            }
+        }
         $context = [
             'can_replace_section_details' => false,
             'target_section_name' => '',
             'restore_target_name' => '',
-            'restore_source_name' => html_to_text(format_string($this->item->get_name()), 0, false),
+            'restore_source_name' => html_to_text(format_string($sourcename), 0, false),
+            'restore_replacement_name' => html_to_text(format_string($sourcename), 0, false),
         ];
 
         if ($this->asnewsection) {
@@ -92,19 +103,27 @@ class import_item_modal_body implements \core\output\named_templatable, \rendera
             return $context;
         }
 
-        $formattedtargetname = format_string(
-            course_get_format($targetsection->course)->get_section_name($targetsection)
-        );
+        $targetformat = course_get_format($targetsection->course);
+        $formattedtargetname = format_string($targetformat->get_section_name($targetsection));
         $context['target_section_name'] = $formattedtargetname;
         $context['restore_target_name'] = html_to_text($formattedtargetname, 0, false);
         $hasname = (string)$targetsection->name !== '';
-        // Core fills an unnamed merge target with the copied section's name, even without the replace-details option.
-        if (!$hasname && $this->item->is_section()) {
+        // Only a custom title from the backup can rename an unnamed merge target, never the cart's generated label.
+        if (!$hasname && $sourcename !== '' && $this->item->is_section()) {
             $context['restore_target_name'] = $context['restore_source_name'];
         }
 
         if (!$this->item->is_section()) {
             return $context;
+        }
+
+        if ($sourcename === '') {
+            // Replacing with an unnamed source clears a custom target title, revealing its format-derived name.
+            $context['restore_replacement_name'] = html_to_text(
+                format_string($targetformat->get_default_section_name($targetsection)),
+                0,
+                false
+            );
         }
 
         $hassummary = trim(strip_tags((string)$targetsection->summary)) !== ''

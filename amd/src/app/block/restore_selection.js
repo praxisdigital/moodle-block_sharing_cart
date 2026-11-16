@@ -58,7 +58,7 @@ export default class RestoreSelection {
         const root = form.querySelector('.import_form');
         const replaceDetails = root?.querySelector('input[data-action="replace_section_details"]')?.checked;
         const defaultDestination = replaceDetails
-            ? (root?.dataset.restoreSourceName || root?.dataset.restoreTargetName || '')
+            ? (root?.dataset.restoreReplacementName || root?.dataset.restoreTargetName || '')
             : (root?.dataset.restoreTargetName ?? '');
         const hints = [...form.querySelectorAll('[data-region="restore-placement-hint"]')];
 

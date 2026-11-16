@@ -135,9 +135,14 @@ class behat_block_sharing_cart extends behat_base
      * @When /^I queue custom section "(?P<sectionnumber>\d+)" with child "(?P<childnumber>\d+)" in the Sharing Cart$/
      * @param int $sectionnumber root section number
      * @param int $childnumber custom child section number
+     * @param bool $unnamedroot whether the copied root has no custom title
      * @return void
      */
-    public function queue_section_with_custom_child_in_sharing_cart(int $sectionnumber, int $childnumber): void {
+    public function queue_section_with_custom_child_in_sharing_cart(
+        int $sectionnumber,
+        int $childnumber,
+        bool $unnamedroot = false
+    ): void {
         global $DB, $USER;
 
         $rootsectionnode = $this->get_selected_node(
@@ -152,7 +157,7 @@ class behat_block_sharing_cart extends behat_base
         $childsectionid = (int)$childsectionnode->getAttribute('data-id');
         $rootsection = $DB->get_record('course_sections', ['id' => $rootsectionid], '*', MUST_EXIST);
         $childsection = $DB->get_record('course_sections', ['id' => $childsectionid], '*', MUST_EXIST);
-        $rootsection->name = 'Root section';
+        $rootsection->name = $unnamedroot ? null : 'Root section';
         $childsection->name = 'Custom child';
         $DB->set_field('course_sections', 'name', $rootsection->name, ['id' => $rootsectionid]);
         $DB->set_field('course_sections', 'name', $childsection->name, ['id' => $childsectionid]);
@@ -189,5 +194,16 @@ class behat_block_sharing_cart extends behat_base
             ['users' => false, 'anonymize' => false],
             $sectiontree
         );
+    }
+
+    /**
+     * Queues an unnamed root whose generated cart label must not become a restored custom title.
+     *
+     * @When /^I queue unnamed custom section "(\d+)" with child "(\d+)" in the Sharing Cart$/
+     * @param int $sectionnumber
+     * @param int $childnumber
+     */
+    public function queue_unnamed_section_with_custom_child_in_sharing_cart(int $sectionnumber, int $childnumber): void {
+        $this->queue_section_with_custom_child_in_sharing_cart($sectionnumber, $childnumber, true);
     }
 }

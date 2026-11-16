@@ -759,6 +759,74 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         section_into_sharing_cart::execute((int)$source->sections[1]->id, ['users' => false, 'anonymize' => false]);
     }
 
+    /**
+     * Placement names must follow the backed-up title, not a cart label or the current source section name.
+     *
+     * @param string|null $sourcename
+     * @param string|null $targetname
+     * @param bool $replacedetails
+     * @param string $expectedname
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('placement_destination_name_provider')]
+    public function test_placement_destination_name_matches_the_restored_section(
+        ?string $sourcename,
+        ?string $targetname,
+        bool $replacedetails,
+        string $expectedname
+    ): void {
+        global $DB, $PAGE;
+
+        $source = $this->create_course(1, [1 => $sourcename]);
+        $this->add_page($source, 1, 'Copied page');
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $item = $this->factory->item()->repository()->get_by_id($rootitemid);
+        if ($sourcename === null || $sourcename === '') {
+            $this->assertSame('New section', $item->get_name());
+        }
+        $item->set_name('Cart display label');
+        $this->factory->item()->repository()->update($item);
+        $DB->set_field('course_sections', 'name', 'Source renamed after backup', ['id' => $source->sections[1]->id]);
+
+        $target = $this->create_course(2, [2 => $targetname]);
+        $targetsectionid = (int)$target->sections[2]->id;
+        // Make the replacement option available even when the target has no custom title.
+        $DB->set_field('course_sections', 'summary', '<p>Target summary</p>', ['id' => $targetsectionid]);
+        $PAGE->set_context(\context_course::instance($target->id));
+        $body = new \block_sharing_cart\output\modal\import_item_modal_body($this->factory, $item, $targetsectionid);
+        $context = $body->export_for_template($PAGE->get_renderer('core'));
+        $this->assertTrue($context['can_replace_section_details']);
+        $this->assertSame($expectedname, $context[$replacedetails ? 'restore_replacement_name' : 'restore_target_name']);
+        $this->assertSame(html_to_text(format_string($sourcename ?? ''), 0, false), $context['restore_source_name']);
+
+        $this->restore($rootitemid, $targetsectionid, replacesectiondetails: $replacedetails);
+
+        $restoredsection = $DB->get_record('course_sections', ['id' => $targetsectionid], '*', MUST_EXIST);
+        $actualname = course_get_format($target->id)->get_section_name($restoredsection);
+        $this->assertSame($expectedname, html_to_text(format_string($actualname), 0, false));
+        $this->assertSame(['Copied page'], $this->module_names($targetsectionid));
+    }
+
+    /**
+     * Provides named and unnamed source/target combinations, with and without explicit replacement.
+     *
+     * @return array<string, array{?string, ?string, bool, string}>
+     */
+    public static function placement_destination_name_provider(): array {
+        return [
+            'null source and target' => [null, null, false, 'New section'],
+            'empty source and target' => ['', '', false, 'New section'],
+            'null source replacing unnamed target' => [null, null, true, 'New section'],
+            'null source keeps named target' => [null, 'Target title', false, 'Target title'],
+            'null source replaces named target' => [null, 'Target title', true, 'New section'],
+            'custom source names unnamed target' => ['Copied title', null, false, 'Copied title'],
+            'custom source keeps named target' => ['Copied title', 'Target title', false, 'Target title'],
+            'custom source replaces named target' => ['Copied title', 'Target title', true, 'Copied title'],
+            'custom title resembling generated label' => ['Section 1', null, false, 'Section 1'],
+            'numeric custom title' => ['1', null, false, '1'],
+            'formatted custom title' => ['Copied & <em>title</em>', null, false, 'Copied & title'],
+        ];
+    }
+
     public function test_replace_section_details_takes_the_copied_title_and_description(): void {
         global $DB;
 
