@@ -133,3 +133,35 @@ Feature: Restore a selected activity from an unchecked custom section
       | Custom child    | Custom child activity | Other custom activity     | 0        | not exist |
       | Root subsection | Subsection activity   | Other subsection activity | 1        | exist     |
       | Root subsection | Subsection activity   | Other subsection activity | 0        | not exist |
+
+  Scenario Outline: Placement hints use the backed-up custom title rather than the generated cart label
+    Given I log in as "admin"
+    And I am on the "SRC" "Course" page
+    And I switch editing mode on
+    And I queue <kind> section "1" with child "2" in the Sharing Cart
+    And I run all adhoc tasks
+    And I am on the "TARGET" "Course" page
+    And I switch editing mode on
+    And I click on "//a[@data-key='addblock']" "xpath_element"
+    And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists
+    And I click on "//a[@data-blockname='sharing_cart']" "xpath_element"
+    And I wait until "(//div[@class='sharing_cart_item' and @data-type='section']//i[@data-action='copy_to_course'])[1]" "xpath_element" exists
+    And I click on "(//div[@class='sharing_cart_item' and @data-type='section']//i[@data-action='copy_to_course'])[1]" "xpath_element"
+    And I wait until "//li[@id='section-0']//*[@class='clipboard_target']" "xpath_element" exists
+    And I click on "//li[@id='section-0']//*[@class='clipboard_target']" "xpath_element"
+    And I wait until "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element" exists
+    And I set the field with xpath "//input[@data-container='true' and @data-title='Custom child']" to "0"
+    And I set the field with xpath "//div[contains(@class, 'import_form')]//label[contains(., 'Custom child activity')]/input" to "1"
+    Then "//small[@data-region='restore-placement-hint']//strong[normalize-space(.)='<destination>']" "xpath_element" should be visible
+    When I click on "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element"
+    And I wait until "//div[contains(concat(' ', normalize-space(@class), ' '), ' queue-item ')]" "xpath_element" exists
+    And I run all adhoc tasks
+    And I am on the "TARGET" "Course" page
+    Then "//li[@id='section-0'][@data-sectionname='<destination>']" "xpath_element" should exist
+    And "//li[@id='section-0']//*[@data-activityname='Custom child activity']" "xpath_element" should be visible
+    And "//li[@data-for='section'][@data-sectionname='Custom child']" "xpath_element" should not exist
+
+    Examples:
+      | kind           | destination  |
+      | unnamed custom | General      |
+      | custom         | Root section |
