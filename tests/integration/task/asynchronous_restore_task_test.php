@@ -601,6 +601,8 @@ final class asynchronous_restore_task_test extends \advanced_testcase
     }
 
     /**
+     * Provides explicit and legacy empty selections for merge and new-section restores.
+     *
      * @return array<string, array{bool, bool, int[]}>
      */
     public static function empty_module_selection_provider(): array {
