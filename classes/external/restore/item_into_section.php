@@ -75,6 +75,12 @@ class item_into_section extends external_api
                 VALUE_DEFAULT,
                 0
             ),
+            'moduleselectionexplicit' => new external_value(
+                PARAM_BOOL,
+                'Whether coursemodulestoinclude is an explicit selection, including an empty selection',
+                VALUE_DEFAULT,
+                false
+            ),
         ]);
     }
 
@@ -87,7 +93,7 @@ class item_into_section extends external_api
      * @param bool $insertasnewsection
      * @param int $courseid
      * @param bool $replacesectiondetails
-     * @param mixed ...$legacyparameters Legacy asnewsection and beforecmid arguments.
+     * @param mixed ...$legacyparameters Optional asnewsection, beforecmid and moduleselectionexplicit arguments.
      */
     public static function execute(
         int $itemid,
@@ -113,6 +119,7 @@ class item_into_section extends external_api
             'replacesectiondetails' => $replacesectiondetails,
             'asnewsection' => $legacyparameters['asnewsection'] ?? $legacyparameters[0] ?? false,
             'beforecmid' => $legacyparameters['beforecmid'] ?? $legacyparameters[1] ?? 0,
+            'moduleselectionexplicit' => $legacyparameters['moduleselectionexplicit'] ?? $legacyparameters[2] ?? false,
         ]);
 
         // Older pxgrid clients sent asnewsection and beforecmid. Keep accepting both without exposing the newer
@@ -151,6 +158,7 @@ class item_into_section extends external_api
         // Only pass include/exclude list when the user can configure restore in the target course context.
         if (has_capability('moodle/restore:configure', $context)) {
             $settings['course_modules_to_include'] = $params['coursemodulestoinclude'] ?? [];
+            $settings['module_selection_explicit'] = $params['moduleselectionexplicit'];
             $settings['sections_to_include'] = $params['sectionstoinclude'] ?? [];
         }
 

@@ -201,7 +201,8 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 'intval',
                 $backupsettings->course_modules_to_include ?? []
             );
-            if (!empty($coursemodulestoinclude) && $coursemodulestoinclude !== [0]) {
+            $moduleselectionexplicit = !empty($backupsettings->module_selection_explicit);
+            if ($moduleselectionexplicit || (!empty($coursemodulestoinclude) && $coursemodulestoinclude !== [0])) {
                 $this->only_include_specified_course_modules($restorecontroller, $coursemodulestoinclude);
             }
 
@@ -216,7 +217,8 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                     $movetosectionid,
                     $insertasnewsection,
                     array_map('intval', (array)($backupsettings->sections_to_include ?? [])),
-                    $coursemodulestoinclude
+                    $coursemodulestoinclude,
+                    $moduleselectionexplicit
                 );
                 $planner->apply($restorecontroller, $this->sectionplan);
 

@@ -48,6 +48,7 @@ class handler
      * @param int $sectionid target section; 0 means the top level of $courseid (only with insert_as_new_section)
      * @param int $itemid
      * @param array $settings course_modules_to_include, sections_to_include, insert_as_new_section, replace_section_details
+     *     and module_selection_explicit (false by default for legacy callers)
      * @param int $courseid required when $sectionid is 0
      * @return asynchronous_restore_task|null
      */

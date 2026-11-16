@@ -47,3 +47,42 @@ Feature: Restore a selected activity from an unchecked custom section
     Then "//li[@id='section-2']//div[@data-activityname='Root activity']" "xpath_element" should be visible
     And "//li[@id='section-2']//div[@data-activityname='Custom child activity']" "xpath_element" should be visible
     And "//li[@data-for='section'][@data-sectionname='Custom child']" "xpath_element" should not exist
+
+  Scenario: Keeping only a custom section checked restores it without any activities or subsections
+    Given the following "activities" exist:
+      | activity   | name                | course | idnumber       | section |
+      | subsection | Root subsection     | SRC    | rootsubsection | 1       |
+      | page       | Subsection activity | SRC    | subsectionpage | 3       |
+    And I log in as "admin"
+    And I am on the "SRC" "Course" page
+    And I switch editing mode on
+    And I queue custom section "1" with child "2" in the Sharing Cart
+    And I run all adhoc tasks
+    And I am on the "TARGET" "Course" page
+    And I switch editing mode on
+    And I click on "//a[@data-key='addblock']" "xpath_element"
+    And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists
+    And I click on "//a[@data-blockname='sharing_cart']" "xpath_element"
+    And I wait until "(//div[@class='sharing_cart_item' and @data-type='section']//i[@data-action='copy_to_course'])[1]" "xpath_element" exists
+    And I click on "(//div[@class='sharing_cart_item' and @data-type='section']//i[@data-action='copy_to_course'])[1]" "xpath_element"
+    And I wait until "//li[@id='section-2']//*[@class='clipboard_target']" "xpath_element" exists
+    And I click on "//li[@id='section-2']//*[@class='clipboard_target']" "xpath_element"
+    And I wait until "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element" exists
+    And I set the field with xpath "//div[contains(@class, 'import_form')]//label[contains(., 'Root activity')]/input" to "0"
+    And I set the field with xpath "//input[@data-container='true' and @data-title='Root subsection']" to "0"
+    And I set the field with xpath "//div[contains(@class, 'import_form')]//label[contains(., 'Subsection activity')]/input" to "0"
+    And I set the field with xpath "//div[contains(@class, 'import_form')]//label[contains(., 'Custom child activity')]/input" to "0"
+    Then the field with xpath "//input[@data-container='true' and @data-title='Custom child']" matches value "1"
+    And the field with xpath "//div[contains(@class, 'import_form')]//label[contains(., 'Root activity')]/input" matches value "0"
+    And the field with xpath "//input[@data-container='true' and @data-title='Root subsection']" matches value "0"
+    And the field with xpath "//div[contains(@class, 'import_form')]//label[contains(., 'Subsection activity')]/input" matches value "0"
+    And the field with xpath "//div[contains(@class, 'import_form')]//label[contains(., 'Custom child activity')]/input" matches value "0"
+    When I click on "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element"
+    And I wait until "//div[contains(concat(' ', normalize-space(@class), ' '), ' queue-item ')]" "xpath_element" exists
+    And I run all adhoc tasks
+    And I reload the page
+    Then "//li[@data-for='section'][@data-sectionname='Custom child']" "xpath_element" should exist
+    And "//div[contains(@class, 'course-content')]//*[@data-activityname='Root activity']" "xpath_element" should not exist
+    And "//div[contains(@class, 'course-content')]//*[@data-activityname='Root subsection']" "xpath_element" should not exist
+    And "//div[contains(@class, 'course-content')]//*[@data-activityname='Subsection activity']" "xpath_element" should not exist
+    And "//div[contains(@class, 'course-content')]//*[@data-activityname='Custom child activity']" "xpath_element" should not exist
