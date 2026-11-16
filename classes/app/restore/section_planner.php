@@ -127,6 +127,11 @@ final class section_planner {
         $plan->rootoldsectionid = (int)$item->get_old_instance_id();
         $plan->selective = true;
         $plan->insertasnewsection = $insertasnewsection;
+        $plan->explicitsectionids = array_values(array_filter($sectionstoinclude, static fn(int $id): bool => $id > 0));
+        if ($moduleselectionexplicit) {
+            // The dialog also explicitly selects the root item, even when none of its activities are checked.
+            $plan->explicitsectionids[] = $plan->rootoldsectionid;
+        }
         if ($moduleselectionexplicit || (!empty($coursemodulestoinclude) && $coursemodulestoinclude !== [0])) {
             $plan->coursemodulestoinclude = $coursemodulestoinclude;
         }
@@ -177,7 +182,7 @@ final class section_planner {
     }
 
     /**
-     * Omits empty sections when the target format will not recreate nested sections.
+     * Omits empty structural sections, but preserves explicit selections, when the target format will not recreate nesting.
      *
      * @param \restore_controller $restorecontroller
      * @param section_plan $plan
@@ -195,7 +200,8 @@ final class section_planner {
 
         $modulesections = $this->module_section_ids($restorecontroller);
 
-        $sectionswithcontent = [];
+        // Explicit section choices must survive even when their activity selection is empty.
+        $sectionswithcontent = array_fill_keys($plan->explicitsectionids, true);
         foreach ($restorecontroller->get_plan()->get_tasks() as $task) {
             if ($task instanceof \restore_activity_task && $task->get_setting('included')->get_value()) {
                 $oldsectionid = $modulesections[(int)$task->get_old_moduleid()] ?? 0;

@@ -681,6 +681,40 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         ];
     }
 
+    public function test_explicit_empty_grandchild_is_preserved_without_its_excluded_parent(): void {
+        global $DB;
+
+        $source = $this->create_course(3, [1 => 'Copied root', 2 => 'Excluded parent', 3 => 'Selected grandchild']);
+        $this->add_page($source, 1, 'Root activity');
+        $this->add_page($source, 2, 'Parent activity');
+        $this->add_page($source, 3, 'Grandchild activity');
+        $this->declare_section_tree([
+            [$source->sections[2]->id, $source->sections[1]->id, 1],
+            [$source->sections[3]->id, $source->sections[2]->id, 1],
+        ]);
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $target = $this->create_course(1, [1 => 'Existing section']);
+
+        $this->assertTrue(item_into_section::execute(
+            $rootitemid,
+            0,
+            [],
+            [(int)$source->sections[3]->id],
+            insertasnewsection: true,
+            courseid: (int)$target->id,
+            moduleselectionexplicit: true
+        ));
+        $this->runAdhocTasks(asynchronous_restore_task::class);
+
+        $sections = $this->sections_by_name((int)$target->id);
+        $this->assertArrayHasKey('Copied root', $sections);
+        $this->assertArrayHasKey('Selected grandchild', $sections);
+        $this->assertArrayNotHasKey('Excluded parent', $sections);
+        $this->assertSame([], $this->module_names((int)$sections['Copied root']->id));
+        $this->assertSame([], $this->module_names((int)$sections['Selected grandchild']->id));
+        $this->assertFalse($DB->record_exists('course_modules', ['course' => $target->id]));
+    }
+
     public function test_legacy_empty_module_list_does_not_restore_subsection_from_excluded_custom_section(): void {
         global $DB;
 
