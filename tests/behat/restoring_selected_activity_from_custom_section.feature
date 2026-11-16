@@ -84,3 +84,52 @@ Feature: Restore a selected activity from an unchecked custom section
     And "//div[contains(@class, 'course-content')]//*[@data-activityname='Root subsection']" "xpath_element" should not exist
     And "//div[contains(@class, 'course-content')]//*[@data-activityname='Subsection activity']" "xpath_element" should not exist
     And "//div[contains(@class, 'course-content')]//*[@data-activityname='Custom child activity']" "xpath_element" should not exist
+
+  Scenario Outline: Container inclusion stays distinct from partial descendant selection
+    Given the following "activities" exist:
+      | activity   | name                      | course | idnumber       | section |
+      | page       | Other custom activity     | SRC    | othercustom    | 2       |
+      | subsection | Root subsection           | SRC    | rootsubsection | 1       |
+      | page       | Subsection activity       | SRC    | subsectionpage | 3       |
+      | page       | Other subsection activity | SRC    | othersubpage   | 3       |
+    And I log in as "admin"
+    And I am on the "SRC" "Course" page
+    And I switch editing mode on
+    And I queue custom section "1" with child "2" in the Sharing Cart
+    And I run all adhoc tasks
+    And I am on the "TARGET" "Course" page
+    And I switch editing mode on
+    And I click on "//a[@data-key='addblock']" "xpath_element"
+    And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists
+    And I click on "//a[@data-blockname='sharing_cart']" "xpath_element"
+    And I wait until "(//div[@class='sharing_cart_item' and @data-type='section']//i[@data-action='copy_to_course'])[1]" "xpath_element" exists
+    And I click on "(//div[@class='sharing_cart_item' and @data-type='section']//i[@data-action='copy_to_course'])[1]" "xpath_element"
+    And I wait until "//li[@id='section-2']//*[@class='clipboard_target']" "xpath_element" exists
+    And I click on "//li[@id='section-2']//*[@class='clipboard_target']" "xpath_element"
+    And I wait until "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element" exists
+    Then the restore container "<container>" is "1" with "2" of "2" descendants selected
+    When I set the field with xpath "//div[contains(@class, 'import_form')]//label[contains(., '<firstchild>')]/input" to "0"
+    Then the restore container "<container>" is "1" with "1" of "2" descendants selected
+    When I set the field with xpath "//div[contains(@class, 'import_form')]//label[contains(., '<secondchild>')]/input" to "0"
+    Then the restore container "<container>" is "1" with "0" of "2" descendants selected
+    When I set the field with xpath "//input[@data-container='true' and @data-title='<container>']" to "0"
+    Then the restore container "<container>" is "0" with "0" of "2" descendants selected
+    When I set the field with xpath "//div[contains(@class, 'import_form')]//label[contains(., '<secondchild>')]/input" to "1"
+    Then the restore container "<container>" is "0" with "1" of "2" descendants selected
+    When I set the field with xpath "//input[@data-container='true' and @data-title='<container>']" to "<included>"
+    And I set the field with xpath "//div[contains(@class, 'import_form')]//label[contains(., '<firstchild>')]/input" to "0"
+    And I set the field with xpath "//div[contains(@class, 'import_form')]//label[contains(., '<secondchild>')]/input" to "1"
+    Then the restore container "<container>" is "<included>" with "1" of "2" descendants selected
+    When I click on "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element"
+    And I wait until "//div[contains(concat(' ', normalize-space(@class), ' '), ' queue-item ')]" "xpath_element" exists
+    And I run all adhoc tasks
+    Then "//div[contains(@class, 'course-content')]//*[@data-activityname='<secondchild>']" "xpath_element" should exist
+    And "//div[contains(@class, 'course-content')]//*[@data-activityname='<firstchild>']" "xpath_element" should not exist
+    And "//div[contains(@class, 'course-content')]//*[@data-sectionname='<container>' or @data-activityname='<container>']" "xpath_element" should <presence>
+
+    Examples:
+      | container       | firstchild            | secondchild               | included | presence  |
+      | Custom child    | Custom child activity | Other custom activity     | 1        | exist     |
+      | Custom child    | Custom child activity | Other custom activity     | 0        | not exist |
+      | Root subsection | Subsection activity   | Other subsection activity | 1        | exist     |
+      | Root subsection | Subsection activity   | Other subsection activity | 0        | not exist |

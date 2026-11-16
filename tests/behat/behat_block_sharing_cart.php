@@ -26,6 +26,59 @@ require_once(__DIR__ . '/../../../../lib/behat/behat_base.php');
 class behat_block_sharing_cart extends behat_base
 {
     /**
+     * Checks native container inclusion independently of the accessible descendant-selection summary.
+     *
+     * @Then /^the restore container "([^"]+)" is "([01])" with "(\d+)" of "(\d+)" descendants selected$/
+     * @param string $title
+     * @param string $included
+     * @param int $selected
+     * @param int $total
+     */
+    public function assert_restore_container_selection(string $title, string $included, int $selected, int $total): void {
+        $titlejson = json_encode($title);
+        $state = $this->getSession()->evaluateScript(<<<JS
+            (() => {
+                const checkbox = [...document.querySelectorAll('.import_form input[data-container="true"]')]
+                    .find(input => input.dataset.title === $titlejson);
+                if (!checkbox) {
+                    return null;
+                }
+                const summary = checkbox.closest('.form-check')
+                    .querySelector(':scope > [data-region="restore-descendant-selection"]');
+                return {
+                    checked: checkbox.checked,
+                    indeterminate: checkbox.indeterminate,
+                    nativeState: !checkbox.hasAttribute('aria-checked') ||
+                        checkbox.getAttribute('aria-checked') === String(checkbox.checked),
+                    described: Boolean(summary && summary.id &&
+                        (checkbox.getAttribute('aria-describedby') || '').split(/\s+/).includes(summary.id) &&
+                        document.getElementById(summary.id) === summary),
+                    visible: Boolean(summary && summary.getClientRects().length),
+                    live: summary?.getAttribute('aria-live'),
+                    count: summary?.querySelector('[data-region="restore-descendant-count"]')?.textContent,
+                };
+            })()
+            JS);
+        $expected = [
+            'checked' => $included === '1',
+            'indeterminate' => false,
+            'nativeState' => true,
+            'described' => true,
+            'visible' => true,
+            'live' => 'polite',
+            'count' => "$selected / $total",
+        ];
+        foreach ($expected as $key => $value) {
+            if ($state === null || !array_key_exists($key, $state) || $state[$key] !== $value) {
+                throw new \Behat\Mink\Exception\ExpectationException(
+                    "Unexpected $key for restore container '$title': " . json_encode($state),
+                    $this->getSession()
+                );
+            }
+        }
+    }
+
+    /**
      *
      * @Given /^I enable the sharing cart plugin$/
      */

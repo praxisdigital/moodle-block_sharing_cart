@@ -4,7 +4,7 @@ import Notification from 'core/notification';
 /** Restore-dialog selection behavior for sections and their descendants. */
 export default class RestoreSelection {
     /**
-     * Binds cascading selection, partial-state and placement feedback to a restore form.
+     * Binds cascading selection, descendant counts and placement feedback to a restore form.
      *
      * @param {HTMLElement} form
      */
@@ -31,19 +31,28 @@ export default class RestoreSelection {
     }
 
     /**
-     * Updates container partial states and tells users where an individually selected child will land.
+     * Reports descendant selection separately from container inclusion and shows individual child placement.
      *
      * @param {HTMLElement} form
      * @return {Promise<void>}
      */
     static async update(form) {
-        const containers = [...form.querySelectorAll('input[type="checkbox"][data-container="true"]')].reverse();
+        const containers = [...form.querySelectorAll('input[type="checkbox"][data-container="true"]')];
         containers.forEach((containerCheckbox) => {
             const container = containerCheckbox.closest('.form-check');
             const descendants = [...(container?.querySelectorAll(':scope > .item-children input[type="checkbox"][data-id]') ?? [])];
-            const hasSelected = descendants.some((checkbox) => checkbox.checked || checkbox.indeterminate);
-            const hasUnselected = descendants.some((checkbox) => !checkbox.checked || checkbox.indeterminate);
-            containerCheckbox.indeterminate = hasSelected && (!containerCheckbox.checked || hasUnselected);
+            // This checkbox restores the container itself; a mixed state would hide its actual inclusion state.
+            containerCheckbox.indeterminate = false;
+            const summary = container?.querySelector(':scope > [data-region="restore-descendant-selection"]');
+            if (summary) {
+                summary.classList.toggle('d-none', descendants.length === 0);
+                const count = summary.querySelector('[data-region="restore-descendant-count"]');
+                const selected = descendants.filter((checkbox) => checkbox.checked).length;
+                const text = `${selected} / ${descendants.length}`;
+                if (count.textContent !== text) {
+                    count.textContent = text;
+                }
+            }
         });
 
         const root = form.querySelector('.import_form');
