@@ -33,6 +33,7 @@ $string['backup_item'] = 'Copy item';
 $string['backup_settings'] = 'Copy settings';
 $string['backup_without_user_data'] = 'Copy without user data.';
 $string['bulk_delete'] = 'Bulk delete';
+$string['cachedef_section_names'] = 'Backed-up section titles';
 $string['cancel_bulk_delete'] = 'Cancel';
 $string['confirm_copy_item'] = 'Are you sure you want to copy this item?';
 $string['confirm_copy_item_form_text'] = 'Are you sure you want to copy this item?' .

@@ -123,6 +123,9 @@ Change Log
       or unrelated section details. Legacy default selections include only the chosen cart item's own contents.
       Older root subsection items using course-module IDs are also supported.
     * Reduced database queries when reading large Sharing Cart item trees while preserving their order and scope.
+    * Section titles used by restore placement hints are cached during backup processing. Opening the restore dialog
+      no longer decompresses the backup to read a title, avoiding repeated media-size-dependent work.
+      Missing or purged cache entries use generic placement hints; the actual restore is unchanged.
     * Fixed section-detail replacement when course formats prepare restores through Sharing Cart hooks, preserving
       copied titles, descriptions and format-managed images.
     * Added backup/restore regression coverage for subsection selection, nested section hierarchies, empty selections

@@ -32,6 +32,7 @@ $string['backup_item'] = 'Kopiér element';
 $string['backup_settings'] = 'Kopieringsindstillinger';
 $string['backup_without_user_data'] = 'Kopiér uden brugerdata.';
 $string['bulk_delete'] = 'Slet flere';
+$string['cachedef_section_names'] = 'Sikkerhedskopierede sektionstitler';
 $string['cancel_bulk_delete'] = 'Annuller';
 $string['confirm_copy_item'] = 'Er du sikker på, at du vil kopiere denne backup?';
 $string['confirm_copy_item_form_text'] = 'Er du sikker på, at du vil kopiere denne backup? Nedenfor kan du vælge,' .

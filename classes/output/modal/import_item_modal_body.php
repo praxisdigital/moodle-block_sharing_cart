@@ -74,19 +74,19 @@ class import_item_modal_body implements \core\output\named_templatable, \rendera
         $sourcename = '';
         if ($this->item->is_section()) {
             $file = $this->basefactory->item()->repository()->get_stored_file_by_item($this->item);
-            if ($file) {
-                $sourcename = $this->basefactory->backup()->handler()->get_section_custom_name(
-                    $file,
-                    (int)$this->item->get_old_instance_id()
-                ) ?? '';
-            }
+            // A missing cache entry must never cause synchronous archive extraction for a placement hint.
+            $sourcename = $file ? $this->basefactory->backup()->handler()->get_section_custom_name(
+                $file,
+                (int)$this->item->get_old_instance_id()
+            ) : null;
         }
+        $plainname = $sourcename === null ? get_string('section') : html_to_text(format_string($sourcename), 0, false);
         $context = [
             'can_replace_section_details' => false,
             'target_section_name' => '',
             'restore_target_name' => '',
-            'restore_source_name' => html_to_text(format_string($sourcename), 0, false),
-            'restore_replacement_name' => html_to_text(format_string($sourcename), 0, false),
+            'restore_source_name' => $plainname,
+            'restore_replacement_name' => $plainname,
         ];
 
         if ($this->asnewsection) {
@@ -120,7 +120,7 @@ class import_item_modal_body implements \core\output\named_templatable, \rendera
         $context['target_section_name'] = $formattedtargetname;
         $context['restore_target_name'] = html_to_text($formattedtargetname, 0, false);
         $hasname = (string)$targetsection->name !== '';
-        // Only a custom title from the backup can rename an unnamed merge target, never the cart's generated label.
+        // An unnamed target may take the backed-up title. If unknown, use a generic hint, never the cart label.
         if (!$hasname && $sourcename !== '' && $this->item->is_section()) {
             $context['restore_target_name'] = $context['restore_source_name'];
         }

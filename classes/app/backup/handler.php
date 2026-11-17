@@ -228,30 +228,53 @@ class handler
     }
 
     /**
-     * Reads the stored custom title, without the generated label used by the cart and backup manifest.
+     * Read a cached title without opening the archive, including on a cache miss.
      *
      * @param \stored_file $file
      * @param int $sectionid original section id
      * @return string|null Custom title, empty for an unnamed section, or null when the section XML is unavailable.
      */
     public function get_section_custom_name(\stored_file $file, int $sectionid): ?string {
-        $sectionpath = 'sections/section_' . $sectionid . '/section.xml';
+        $names = \cache::make('block_sharing_cart', 'section_names')->get($file->get_contenthash());
+        return $names === false ? null : ($names[$sectionid] ?? null);
+    }
+
+    /**
+     * Cache custom titles in one archive pass during backup processing, including nested section titles.
+     *
+     * TGZ's onlyfiles filter saves disk writes, not decompression: the entire archive is still streamed.
+     *
+     * @param \stored_file $file
+     * @param int[] $sectionids Original section ids.
+     * @return void
+     */
+    public function cache_section_custom_names(\stored_file $file, array $sectionids): void {
+        if (!$sectionids) {
+            return;
+        }
+        $paths = [];
+        foreach (array_unique(array_map('intval', $sectionids)) as $sectionid) {
+            $paths[$sectionid] = 'sections/section_' . $sectionid . '/section.xml';
+        }
         $tempdir = make_request_directory();
         try {
-            // Read only section metadata, never extract the backup's activity content or attached files.
             $packer = get_file_packer('application/vnd.moodle.backup');
-            $packer->extract_to_pathname($file, $tempdir, [$sectionpath]);
-            $xmlpath = $tempdir . '/' . $sectionpath;
-            if (!is_readable($xmlpath)) {
-                return null;
+            $packer->extract_to_pathname($file, $tempdir, array_values($paths));
+            $names = [];
+            foreach ($paths as $sectionid => $sectionpath) {
+                $xmlpath = $tempdir . '/' . $sectionpath;
+                if (!is_readable($xmlpath)) {
+                    continue;
+                }
+                $section = simplexml_load_file($xmlpath, \SimpleXMLElement::class, LIBXML_NONET);
+                if ($section === false || !isset($section->name)) {
+                    continue;
+                }
+                $name = (string)$section->name;
+                // Moodle's backup XML transformer encodes database NULL with this marker.
+                $names[$sectionid] = $name === '$@NULL@$' ? '' : $name;
             }
-            $section = simplexml_load_file($xmlpath, \SimpleXMLElement::class, LIBXML_NONET);
-            if ($section === false || !isset($section->name)) {
-                return null;
-            }
-            $name = (string)$section->name;
-            // Moodle's backup XML transformer encodes database NULL with this marker.
-            return $name === '$@NULL@$' ? '' : $name;
+            \cache::make('block_sharing_cart', 'section_names')->set($file->get_contenthash(), $names);
         } finally {
             remove_dir($tempdir);
         }

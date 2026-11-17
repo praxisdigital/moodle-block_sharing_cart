@@ -905,6 +905,152 @@ final class asynchronous_restore_task_test extends \advanced_testcase
     }
 
     /**
+     * Keep cache reads real, but fail if dialog rendering attempts to extract archive metadata.
+     *
+     * @return factory
+     */
+    private function dialog_factory_without_archive_extraction(): factory {
+        $handler = $this->getMockBuilder(\block_sharing_cart\app\backup\handler::class)
+            ->setConstructorArgs([$this->factory])
+            ->onlyMethods(['cache_section_custom_names'])
+            ->getMock();
+        $handler->expects($this->never())->method('cache_section_custom_names');
+        $backupfactory = $this->getMockBuilder(\block_sharing_cart\app\backup\factory::class)
+            ->setConstructorArgs([$this->factory])
+            ->onlyMethods(['handler'])
+            ->getMock();
+        $backupfactory->method('handler')->willReturn($handler);
+        $factory = $this->getMockBuilder(factory::class)->onlyMethods(['backup'])->getMock();
+        $factory->method('backup')->willReturn($backupfactory);
+        return $factory;
+    }
+
+    /**
+     * Rendering the dialog must not read or decompress the archive.
+     */
+    public function test_restore_dialog_does_not_read_the_backup_archive(): void {
+        global $PAGE;
+
+        $source = $this->create_course(1, [1 => 'Backed-up title']);
+        $this->add_page($source, 1, 'Copied page');
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $item = $this->factory->item()->repository()->get_by_id($rootitemid);
+        $target = $this->create_course(1);
+        $PAGE->set_context(\context_course::instance($target->id));
+
+        $body = new \block_sharing_cart\output\modal\import_item_modal_body(
+            $this->dialog_factory_without_archive_extraction(),
+            $item,
+            (int)$target->sections[1]->id
+        );
+        $context = $body->export_for_template($PAGE->get_renderer('core'));
+
+        $this->assertSame('Backed-up title', $context['restore_source_name']);
+        $this->assertSame('Backed-up title', $context['restore_target_name']);
+    }
+
+    /**
+     * Descendants need their own raw titles, rather than the root title or the generated cart labels.
+     */
+    public function test_nested_section_custom_names_are_cached_from_the_backup(): void {
+        $source = $this->create_course(3, [1 => 'Root & title', 2 => null, 3 => 'Section 3']);
+        $this->add_page($source, 1, 'Root page');
+        $this->add_page($source, 2, 'Unnamed child page');
+        $this->add_page($source, 3, 'Named child page');
+        $this->declare_section_tree([
+            [$source->sections[2]->id, $source->sections[1]->id, 1],
+            [$source->sections[3]->id, $source->sections[1]->id, 2],
+        ]);
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $rootitem = $this->factory->item()->repository()->get_by_id($rootitemid);
+        $file = $this->factory->item()->repository()->get_stored_file_by_item($rootitem);
+        $handler = $this->factory->backup()->handler();
+
+        $names = [];
+        foreach ($this->factory->item()->repository()->get_recursively_by_parent_id($rootitemid) as $item) {
+            if ($item->is_section()) {
+                $names[$item->get_old_instance_id()] = $handler->get_section_custom_name($file, $item->get_old_instance_id());
+            }
+        }
+        $this->assertSame([
+            (int)$source->sections[1]->id => 'Root & title',
+            (int)$source->sections[2]->id => '',
+            (int)$source->sections[3]->id => 'Section 3',
+        ], $names);
+    }
+
+    /**
+     * Cache eviction must not trigger synchronous extraction or inference from a mutable cart name.
+     */
+    public function test_uncached_dialog_uses_generic_hints_without_reading_the_backup(): void {
+        global $DB, $PAGE;
+
+        $source = $this->create_course(1, [1 => 'Original custom title']);
+        $this->add_page($source, 1, 'Copied page');
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $repository = $this->factory->item()->repository();
+        $item = $repository->get_by_id($rootitemid);
+        $item->set_name('Misleading cart label');
+        $repository->update($item);
+        $item = $repository->get_by_id($rootitemid);
+        \cache::make('block_sharing_cart', 'section_names')->purge();
+        $file = $repository->get_stored_file_by_item($item);
+        $this->assertNull($this->factory->backup()->handler()->get_section_custom_name($file, $item->get_old_instance_id()));
+
+        $target = $this->create_course(2, [1 => 'Known target', 2 => null]);
+        $PAGE->set_context(\context_course::instance($target->id));
+        $factory = $this->dialog_factory_without_archive_extraction();
+        foreach ([1 => 'Known target', 2 => get_string('section')] as $sectionnum => $expectedname) {
+            $body = new \block_sharing_cart\output\modal\import_item_modal_body(
+                $factory,
+                $item,
+                (int)$target->sections[$sectionnum]->id
+            );
+            $context = $body->export_for_template($PAGE->get_renderer('core'));
+            $this->assertSame($expectedname, $context['restore_target_name']);
+            $this->assertSame(get_string('section'), $context['restore_replacement_name']);
+        }
+        $body = new \block_sharing_cart\output\modal\import_item_modal_body($factory, $item, 0, true);
+        $context = $body->export_for_template($PAGE->get_renderer('core'));
+        $this->assertSame(get_string('section'), $context['restore_target_name']);
+
+        // The fallback affects hints only: restoration must still take the real title from section.xml.
+        $this->restore($rootitemid, (int)$target->sections[2]->id);
+        $this->assertSame('Original custom title', $DB->get_field('course_sections', 'name', [
+            'id' => $target->sections[2]->id,
+        ]));
+    }
+
+    /**
+     * A different archive must not reuse titles for the same original section id or be extracted on a miss.
+     */
+    public function test_section_title_cache_is_scoped_to_archive_content(): void {
+        global $USER;
+
+        $source = $this->create_course(1, [1 => 'Cached title']);
+        $this->add_page($source, 1, 'Copied page');
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $item = $this->factory->item()->repository()->get_by_id($rootitemid);
+        $file = $this->factory->item()->repository()->get_stored_file_by_item($item);
+        $handler = $this->factory->backup()->handler();
+        $sectionid = (int)$source->sections[1]->id;
+        $this->assertSame('Cached title', $handler->get_section_custom_name($file, $sectionid));
+        $this->assertNull($handler->get_section_custom_name($file, $sectionid + 1000));
+
+        // Intentionally not an archive: a cache miss must not attempt to open it.
+        $otherfile = get_file_storage()->create_file_from_string([
+            'contextid' => \context_user::instance($USER->id)->id,
+            'component' => 'block_sharing_cart',
+            'filearea' => 'backup',
+            'itemid' => $rootitemid,
+            'filepath' => '/',
+            'filename' => 'different-backup.mbz',
+        ], 'Not a backup archive');
+        $this->assertNull($handler->get_section_custom_name($otherfile, $sectionid));
+        $this->assertSame('Cached title', $handler->get_section_custom_name($file, $sectionid));
+    }
+
+    /**
      * Placement names must follow the backed-up title, not a cart label or the current source section name.
      *
      * @param string|null $sourcename

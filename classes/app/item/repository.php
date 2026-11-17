@@ -365,6 +365,10 @@ class repository extends \block_sharing_cart\app\repository
 
         $sections = $this->basefactory->backup()->handler()->get_backup_item_tree($file, $sectiontree);
 
+        if ($rootitem->is_section()) {
+            $this->basefactory->backup()->handler()->cache_section_custom_names($file, array_keys($sections));
+        }
+
         if (isset($sections['lone_activity'])) {
             return;
         }
