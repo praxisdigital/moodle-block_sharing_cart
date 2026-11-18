@@ -39,7 +39,7 @@ final class section_details_replacement_test extends \advanced_testcase {
         global $DB;
 
         $this->resetAfterTest();
-        $this->setAdminUser();
+        self::setAdminUser();
         $course = self::getDataGenerator()->create_course(['format' => 'topics', 'numsections' => 1]);
         $section = $DB->get_record('course_sections', ['course' => $course->id, 'section' => 1], '*', MUST_EXIST);
         course_update_section($course, $section, ['name' => 'Keep title', 'summary' => '<p>Keep description</p>']);
@@ -52,21 +52,21 @@ final class section_details_replacement_test extends \advanced_testcase {
         $replacement = factory::make()->restore()->section_details_replacement();
 
         $replacement->snapshot((int)$course->id, (int)$section->id);
-        $this->assertTrue($replacement->has_snapshot((int)$course->id, (int)$section->id));
-        $this->assertSame('Keep title', $DB->get_field('course_sections', 'name', ['id' => $section->id]));
-        $this->assertSame('<p>Keep description</p>', $DB->get_field('course_sections', 'summary', ['id' => $section->id]));
-        $this->assertNotFalse(get_file_storage()->get_file(...array_values($record)));
+        self::assertTrue($replacement->has_snapshot((int)$course->id, (int)$section->id));
+        self::assertSame('Keep title', $DB->get_field('course_sections', 'name', ['id' => $section->id]));
+        self::assertSame('<p>Keep description</p>', $DB->get_field('course_sections', 'summary', ['id' => $section->id]));
+        self::assertNotFalse(get_file_storage()->get_file(...array_values($record)));
 
         $replacement->blank((int)$course->id, (int)$section->id);
-        $this->assertNull($DB->get_field('course_sections', 'name', ['id' => $section->id]));
-        $this->assertSame('', $DB->get_field('course_sections', 'summary', ['id' => $section->id]));
-        $this->assertFalse(get_file_storage()->get_file(...array_values($record)));
+        self::assertNull($DB->get_field('course_sections', 'name', ['id' => $section->id]));
+        self::assertSame('', $DB->get_field('course_sections', 'summary', ['id' => $section->id]));
+        self::assertFalse(get_file_storage()->get_file(...array_values($record)));
 
-        $this->assertTrue($replacement->rollback((int)$course->id, (int)$section->id));
-        $this->assertSame('Keep title', $DB->get_field('course_sections', 'name', ['id' => $section->id]));
-        $this->assertSame('<p>Keep description</p>', $DB->get_field('course_sections', 'summary', ['id' => $section->id]));
-        $this->assertSame('Keep file', get_file_storage()->get_file(...array_values($record))->get_content());
-        $this->assertFalse($replacement->has_snapshot((int)$course->id, (int)$section->id));
+        self::assertTrue($replacement->rollback((int)$course->id, (int)$section->id));
+        self::assertSame('Keep title', $DB->get_field('course_sections', 'name', ['id' => $section->id]));
+        self::assertSame('<p>Keep description</p>', $DB->get_field('course_sections', 'summary', ['id' => $section->id]));
+        self::assertSame('Keep file', get_file_storage()->get_file(...array_values($record))->get_content());
+        self::assertFalse($replacement->has_snapshot((int)$course->id, (int)$section->id));
     }
 
     /**
@@ -76,7 +76,7 @@ final class section_details_replacement_test extends \advanced_testcase {
         global $DB;
 
         $this->resetAfterTest();
-        $this->setAdminUser();
+        self::setAdminUser();
         $course = self::getDataGenerator()->create_course(['format' => 'topics', 'numsections' => 1]);
         $sectionid = (int)$DB->get_field('course_sections', 'id', ['course' => $course->id, 'section' => 1], MUST_EXIST);
         $this->expectException(\coding_exception::class);

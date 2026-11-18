@@ -93,8 +93,8 @@ final class subsection_identity_test extends \advanced_testcase {
         );
         if ($expected !== null) {
             $owners = array_column($sections, 1, 0);
-            $this->assertSame($expected, $plan->rootoldsectionid);
-            $this->assertSame([...$moduleids, $owners[$expected]], $plan->coursemodulestoinclude);
+            self::assertSame($expected, $plan->rootoldsectionid);
+            self::assertSame([...$moduleids, $owners[$expected]], $plan->coursemodulestoinclude);
         }
     }
 

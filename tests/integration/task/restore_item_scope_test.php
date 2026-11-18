@@ -47,7 +47,7 @@ final class restore_item_scope_test extends \advanced_testcase {
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();
-        $this->setAdminUser();
+        self::setAdminUser();
         $this->expectOutputRegex('/.*/');
     }
 
@@ -145,7 +145,7 @@ final class restore_item_scope_test extends \advanced_testcase {
         }
         $chosen = $kind === 'activity' ? $items['Chosen page'] : $items['Chosen subsection'];
         if (str_starts_with($kind, 'legacy ')) {
-            $this->assertNotSame((int)$subsection->cmid, $delegatedid);
+            self::assertNotSame((int)$subsection->cmid, $delegatedid);
             // Older root subsection records used their owner's CM ID, with no ID-kind field or migration.
             $chosen->set_old_instance_id((int)$subsection->cmid);
             $repository->update($chosen);
@@ -168,16 +168,16 @@ final class restore_item_scope_test extends \advanced_testcase {
         if ($kind === 'empty') {
             try {
                 item_into_section::execute($chosen->get_id(), $targetid, [], moduleselectionexplicit: true);
-                $this->fail('An explicit empty subsection copy was accepted.');
+                self::fail('An explicit empty subsection copy was accepted.');
             } catch (\moodle_exception $exception) {
-                $this->assertSame('atleast_one_course_module_must_be_included', $exception->errorcode);
+                self::assertSame('atleast_one_course_module_must_be_included', $exception->errorcode);
             }
-            $this->assertCount(0, \core\task\manager::get_adhoc_tasks(asynchronous_restore_task::class));
-            $this->assertSame(1, $DB->count_records('course_modules', ['course' => $target->id]));
-            $this->assertSame($beforesections, $DB->count_records('course_sections', ['course' => $target->id]));
+            self::assertCount(0, \core\task\manager::get_adhoc_tasks(asynchronous_restore_task::class));
+            self::assertSame(1, $DB->count_records('course_modules', ['course' => $target->id]));
+            self::assertSame($beforesections, $DB->count_records('course_sections', ['course' => $target->id]));
             return;
         }
-        $this->assertTrue(item_into_section::execute(
+        self::assertTrue(item_into_section::execute(
             $chosen->get_id(),
             $targetid,
             $moduleids,
@@ -185,7 +185,7 @@ final class restore_item_scope_test extends \advanced_testcase {
             moduleselectionexplicit: $explicit
         ));
         $this->runAdhocTasks(asynchronous_restore_task::class);
-        $this->assertStringNotContainsString('Exception thrown during restore execution', $this->getActualOutputForAssertion());
+        self::assertStringNotContainsString('Exception thrown during restore execution', $this->getActualOutputForAssertion());
 
         $names = [];
         rebuild_course_cache($target->id, true);
@@ -203,10 +203,10 @@ final class restore_item_scope_test extends \advanced_testcase {
                 'course' => $target->id, 'component' => 'mod_subsection',
             ], '*', MUST_EXIST);
             $owner = get_coursemodule_from_instance('subsection', $restoreddelegated->itemid, $target->id, false, MUST_EXIST);
-            $this->assertSame($targetid, (int)$owner->section);
+            self::assertSame($targetid, (int)$owner->section);
             $expectedchildren = in_array($kind, ['default', 'standalone', 'legacy standalone', 'root full'], true) ? 2 : 1;
-            $this->assertSame($expectedchildren, $DB->count_records('course_modules', ['section' => $restoreddelegated->id]));
-            $this->assertTrue($DB->record_exists('page', [
+            self::assertSame($expectedchildren, $DB->count_records('course_modules', ['section' => $restoreddelegated->id]));
+            self::assertTrue($DB->record_exists('page', [
                 'course' => $target->id, 'name' => 'Chosen page',
             ]));
         }
@@ -220,24 +220,24 @@ final class restore_item_scope_test extends \advanced_testcase {
             $grandchild = $DB->get_record('course_sections', [
                 'course' => $target->id, 'name' => 'Custom grandchild',
             ], '*', MUST_EXIST);
-            $this->assertEmpty($child->component);
-            $this->assertEmpty($grandchild->component);
-            $this->assertLessThan((int)$grandchild->section, (int)$child->section);
+            self::assertEmpty($child->component);
+            self::assertEmpty($grandchild->component);
+            self::assertLessThan((int)$grandchild->section, (int)$child->section);
         } else {
-            $this->assertSame(
+            self::assertSame(
                 $beforesections + (int)$hassubsection,
                 $DB->count_records('course_sections', ['course' => $target->id])
             );
-            $this->assertSame(
+            self::assertSame(
                 $hassubsection ? 2 : count($expected),
                 $DB->count_records('course_modules', ['section' => $targetid])
             );
         }
-        $this->assertEqualsCanonicalizing($expected, $names);
-        $this->assertSame($targetname, (string)$DB->get_field('course_sections', 'name', ['id' => $targetid]));
-        $this->assertSame('<p>Keep target summary</p>', $DB->get_field('course_sections', 'summary', ['id' => $targetid]));
-        $this->assertTrue($DB->record_exists('course_modules', ['id' => $first->cmid, 'section' => $delegatedid]));
-        $this->assertTrue($DB->record_exists('course_modules', ['id' => $second->cmid, 'section' => $delegatedid]));
+        self::assertEqualsCanonicalizing($expected, $names);
+        self::assertSame($targetname, (string)$DB->get_field('course_sections', 'name', ['id' => $targetid]));
+        self::assertSame('<p>Keep target summary</p>', $DB->get_field('course_sections', 'summary', ['id' => $targetid]));
+        self::assertTrue($DB->record_exists('course_modules', ['id' => $first->cmid, 'section' => $delegatedid]));
+        self::assertTrue($DB->record_exists('course_modules', ['id' => $second->cmid, 'section' => $delegatedid]));
     }
 
     /**
@@ -285,20 +285,20 @@ final class restore_item_scope_test extends \advanced_testcase {
                 $subsectionitem = $item;
             }
         }
-        $this->assertNotNull($subsectionitem);
+        self::assertNotNull($subsectionitem);
         if ($deletesource) {
             delete_course($source, false);
-            $this->assertFalse($DB->record_exists('question', ['id' => $question->id]));
+            self::assertFalse($DB->record_exists('question', ['id' => $question->id]));
         }
         [$target, $targetid] = $this->course('Quiz target');
-        $this->assertTrue(item_into_section::execute(
+        self::assertTrue(item_into_section::execute(
             $subsectionitem->get_id(),
             $targetid,
             [(int)$quiz->cmid],
             moduleselectionexplicit: true
         ));
         $this->runAdhocTasks(asynchronous_restore_task::class);
-        $this->assertStringNotContainsString('Exception thrown during restore execution', $this->getActualOutputForAssertion());
+        self::assertStringNotContainsString('Exception thrown during restore execution', $this->getActualOutputForAssertion());
 
         $restoredquiz = $DB->get_record('quiz', ['course' => $target->id], '*', MUST_EXIST);
         $slot = $DB->get_record('quiz_slots', ['quizid' => $restoredquiz->id], '*', MUST_EXIST);
@@ -309,15 +309,15 @@ final class restore_item_scope_test extends \advanced_testcase {
             'questionbankentryid' => $reference->questionbankentryid,
         ], MUST_EXIST);
         // Moodle may reuse an existing question on the same site; the restored slot must still resolve its content.
-        $this->assertGreaterThan(0, $restoredquestionid);
-        $this->assertSame($question->name, $DB->get_field('question', 'name', ['id' => $restoredquestionid], MUST_EXIST));
-        $this->assertTrue($DB->record_exists('question_answers', ['question' => $restoredquestionid]));
+        self::assertGreaterThan(0, $restoredquestionid);
+        self::assertSame($question->name, $DB->get_field('question', 'name', ['id' => $restoredquestionid], MUST_EXIST));
+        self::assertTrue($DB->record_exists('question_answers', ['question' => $restoredquestionid]));
         $restoredcm = get_coursemodule_from_instance('quiz', $restoredquiz->id, $target->id, false, MUST_EXIST);
         $restoreddelegated = $DB->get_record('course_sections', [
             'course' => $target->id, 'component' => 'mod_subsection',
         ], '*', MUST_EXIST);
-        $this->assertSame((int)$restoreddelegated->id, (int)$restoredcm->section);
-        $this->assertFalse($DB->record_exists('page', ['course' => $target->id]));
+        self::assertSame((int)$restoreddelegated->id, (int)$restoredcm->section);
+        self::assertFalse($DB->record_exists('page', ['course' => $target->id]));
     }
 
     /**

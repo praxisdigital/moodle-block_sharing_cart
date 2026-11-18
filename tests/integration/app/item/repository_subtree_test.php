@@ -39,7 +39,7 @@ final class repository_subtree_test extends \advanced_testcase {
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();
-        $this->setAdminUser();
+        self::setAdminUser();
     }
 
     /**
@@ -81,7 +81,7 @@ final class repository_subtree_test extends \advanced_testcase {
         foreach (factory::make()->item()->repository()->get_recursively_by_parent_id($root->get_id()) as $item) {
             $names[] = $item->get_name();
         }
-        $this->assertSame(['Root', 'A', 'B', 'A1', 'A2', 'A1 leaf', 'A2 leaf', 'B1'], $names);
+        self::assertSame(['Root', 'A', 'B', 'A1', 'A2', 'A1 leaf', 'A2 leaf', 'B1'], $names);
     }
 
     /**
@@ -94,8 +94,8 @@ final class repository_subtree_test extends \advanced_testcase {
 
         $result = factory::make()->item()->repository()->get_recursively_by_parent_id($root->get_id(), $items);
 
-        $this->assertSame($items, $result);
-        $this->assertSame([$root->get_id(), $child->get_id()], $result->pluck(fn(entity $item) => $item->get_id())->to_array(true));
+        self::assertSame($items, $result);
+        self::assertSame([$root->get_id(), $child->get_id()], $result->pluck(fn(entity $item) => $item->get_id())->to_array(true));
     }
 
     /**
@@ -103,9 +103,9 @@ final class repository_subtree_test extends \advanced_testcase {
      */
     public function test_missing_and_empty_roots(): void {
         $repository = factory::make()->item()->repository();
-        $this->assertCount(0, $repository->get_recursively_by_parent_id(-1));
+        self::assertCount(0, $repository->get_recursively_by_parent_id(-1));
         $root = $this->item('Empty');
-        $this->assertCount(1, $repository->get_recursively_by_parent_id($root->get_id()));
+        self::assertCount(1, $repository->get_recursively_by_parent_id($root->get_id()));
     }
 
     /**
@@ -119,6 +119,6 @@ final class repository_subtree_test extends \advanced_testcase {
         $root->set_parent_item_id($b->get_id());
         $repository->update($root);
 
-        $this->assertCount(3, $repository->get_recursively_by_parent_id($root->get_id()));
+        self::assertCount(3, $repository->get_recursively_by_parent_id($root->get_id()));
     }
 }

@@ -55,7 +55,7 @@ final class manual_run_task_test extends \advanced_testcase
      * @return void
      */
     public function test_user_expected_not_allowed(): void {
-        $generator = $this->getDataGenerator();
+        $generator = self::getDataGenerator();
         $USER = $generator->create_user();
         $course = $generator->create_course();
         $coursecontext = course::instance($course->id);
@@ -75,7 +75,7 @@ final class manual_run_task_test extends \advanced_testcase
      * @return void
      */
     public function test_user_with_manager_role_expected_not_allowed(): void {
-        $generator = $this->getDataGenerator();
+        $generator = self::getDataGenerator();
         $USER = $generator->create_user();
         $course = $generator->create_course();
 
@@ -93,7 +93,7 @@ final class manual_run_task_test extends \advanced_testcase
      * @return void
      */
     public function test_user_enrolled_in_course_with_capable_role_expected_allowed(): void {
-        $generator = $this->getDataGenerator();
+        $generator = self::getDataGenerator();
         $USER = $generator->create_user();
         $course = $generator->create_course();
 
@@ -125,7 +125,7 @@ final class manual_run_task_test extends \advanced_testcase
      * @return void
      */
     public function test_user_assign_to_capable_role_expected_allowed(): void {
-        $generator = $this->getDataGenerator();
+        $generator = self::getDataGenerator();
         $USER = $generator->create_user();
 
         $systemcontext = system::instance();
@@ -159,7 +159,7 @@ final class manual_run_task_test extends \advanced_testcase
     public function test_user_with_site_admin_expected_allowed(): void {
         global $USER;
 
-        $generator = $this->getDataGenerator();
+        $generator = self::getDataGenerator();
         $course = $generator->create_course();
         self::setAdminUser();
 

@@ -42,7 +42,7 @@ final class selection_test extends \advanced_testcase {
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();
-        $this->setAdminUser();
+        self::setAdminUser();
         $repository = factory::make()->item()->repository();
         $this->root = $repository->insert_child_section(100, 'Root', 2, 0, 0);
         $this->root->set_parent_item_id(null);
@@ -73,7 +73,7 @@ final class selection_test extends \advanced_testcase {
      */
     #[\PHPUnit\Framework\Attributes\DataProvider('valid_provider')]
     public function test_valid_selection(array $settings, array $expected): void {
-        $this->assertSame($expected, factory::make()->restore()->selection()->module_ids($this->root, $settings));
+        self::assertSame($expected, factory::make()->restore()->selection()->module_ids($this->root, $settings));
     }
 
     /**
@@ -172,8 +172,8 @@ final class selection_test extends \advanced_testcase {
         $ids = factory::make()->restore()->selection()->module_ids($root, []);
         $queries = $DB->perf_get_queries() - $before;
 
-        $this->assertCount($count, $ids);
-        $this->assertLessThanOrEqual(5, $queries, "Validation of $count flat activities issued $queries queries.");
+        self::assertCount($count, $ids);
+        self::assertLessThanOrEqual(5, $queries, "Validation of $count flat activities issued $queries queries.");
     }
 
     /**

@@ -255,13 +255,33 @@ final class section_planner {
         }
 
         $modulesections = $this->module_section_ids($restorecontroller);
+        [$delegatedowners, $delegatedsectionincluded] = $this->delegated_section_context(
+            $restorecontroller,
+            $plan,
+            $modulesections
+        );
 
         // Explicit section choices must survive even when their activity selection is empty.
         $sectionswithcontent = array_fill_keys($plan->explicitsectionids, true);
         foreach ($restorecontroller->get_plan()->get_tasks() as $task) {
-            if ($task instanceof \restore_activity_task && $task->get_setting('included')->get_value()) {
-                $oldsectionid = $modulesections[(int)$task->get_old_moduleid()] ?? 0;
-                $sectionswithcontent[$oldsectionid] = true;
+            if ($task instanceof \restore_activity_task) {
+                $oldmoduleid = (int)$task->get_old_moduleid();
+                $selectedexplicitly = $plan->coursemodulestoinclude !== null
+                    && in_array($oldmoduleid, $plan->coursemodulestoinclude, true);
+                if ($task->get_setting('included')->get_value() || $selectedexplicitly) {
+                    $oldsectionid = $modulesections[$oldmoduleid] ?? 0;
+                    $destinationid = $this->nearest_included_section_id(
+                        $oldsectionid,
+                        $plan,
+                        $delegatedowners,
+                        $delegatedsectionincluded
+                    );
+                    // Selected modules disabled by their container's dependencies can be re-enabled by apply().
+                    // Count their effective destinations now, before an apparently empty destination is omitted.
+                    if ($destinationid !== null && ($destinationid === $oldsectionid || $selectedexplicitly)) {
+                        $sectionswithcontent[$destinationid] = true;
+                    }
+                }
             }
             if ($task instanceof \restore_section_task && $this->section_has_summary($task)) {
                 $sectionswithcontent[$this->old_section_id_of_task($task)] = true;
@@ -371,29 +391,19 @@ final class section_planner {
         $targetnumber = $plan->targetsectionnumber;
         $planned = $plan->sections;
 
-        // Old module id => old section id / inclusion, and delegated section id => parent module / owner section.
+        // Old module id => old section id, and delegated section id => owner section / inclusion.
         $modulesections = $this->module_section_ids($restorecontroller);
-        $delegatedowners = [];
-        $delegatedmodules = [];
-        foreach ($restorecontroller->get_info()->sections ?? [] as $section) {
-            if (!empty($section->parentcmid) && isset($modulesections[(int)$section->parentcmid])) {
-                $delegatedowners[(int)$section->sectionid] = $modulesections[(int)$section->parentcmid];
-                $delegatedmodules[(int)$section->sectionid] = (int)$section->parentcmid;
-            }
-        }
+        [$delegatedowners, $delegatedsectionincluded] = $this->delegated_section_context(
+            $restorecontroller,
+            $plan,
+            $modulesections
+        );
 
         $moduleexplicitlyselected = static function (int $oldmoduleid) use ($plan): bool {
             return $plan->coursemodulestoinclude !== null
                 && in_array($oldmoduleid, $plan->coursemodulestoinclude, true);
         };
         $includedsectionids = $plan->included_section_ids();
-        $delegatedsectionincluded = [];
-        foreach ($delegatedmodules as $delegatedsectionid => $parentmoduleid) {
-            $ownersectionid = $delegatedowners[$delegatedsectionid];
-            $delegatedsectionincluded[$delegatedsectionid] = $plan->coursemodulestoinclude === null
-                ? in_array($ownersectionid, $includedsectionids, true)
-                : $moduleexplicitlyselected($parentmoduleid);
-        }
 
         $isincluded = static function (int $oldsectionid) use ($includedsectionids, $delegatedsectionincluded): bool {
             if (isset($delegatedsectionincluded[$oldsectionid])) {
@@ -509,6 +519,35 @@ final class section_planner {
                 $task->get_setting('included')->set_value($moduleexplicitlyselected((int)$task->get_old_moduleid()));
             }
         }
+    }
+
+    /**
+     * Shared subsection ownership and inclusion rules for empty-section detection and activity placement.
+     *
+     * @param \restore_controller $restorecontroller
+     * @param section_plan $plan
+     * @param array<int, int> $modulesections Old module id => old section id.
+     * @return array{array<int, int>, array<int, bool>} Delegated owners and inclusion, keyed by old section id.
+     */
+    private function delegated_section_context(
+        \restore_controller $restorecontroller,
+        section_plan $plan,
+        array $modulesections
+    ): array {
+        $owners = [];
+        $included = [];
+        $includedsectionids = $plan->included_section_ids();
+        foreach ($restorecontroller->get_info()->sections ?? [] as $section) {
+            $parentmoduleid = (int)($section->parentcmid ?? 0);
+            if ($parentmoduleid && isset($modulesections[$parentmoduleid])) {
+                $sectionid = (int)$section->sectionid;
+                $owners[$sectionid] = $modulesections[$parentmoduleid];
+                $included[$sectionid] = $plan->coursemodulestoinclude === null
+                    ? in_array($owners[$sectionid], $includedsectionids, true)
+                    : in_array($parentmoduleid, $plan->coursemodulestoinclude, true);
+            }
+        }
+        return [$owners, $included];
     }
 
     /**

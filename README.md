@@ -114,6 +114,8 @@ Change Log
       the restore.
     * You can now deselect a subsection while keeping selected activities. Those activities are restored into the
       nearest included parent section.
+    * New sections receiving those selected activities are preserved for older API callers that omit the optional
+      explicit-selection flag, rather than incorrectly placing the activities in General.
     * Copying a subsection item preserves the subsection itself and nests the selected activities inside it, just as
       when selecting that subsection from a full section copy. The destination section keeps its title and description.
       Copying an individual activity remains activity-only.
