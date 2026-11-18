@@ -171,7 +171,7 @@ class item implements \core\output\named_templatable, \renderable {
             $this->item->get_id()
         )->map(
             function (entity $item) use ($backuptasks) {
-                return $this->export_item_for_template($item, $backuptasks);
+                return self::export_item_for_template($item, $backuptasks);
             }
         );
 

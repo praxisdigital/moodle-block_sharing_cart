@@ -61,6 +61,18 @@ final class section_details_replacement {
      * @return void
      */
     public function snapshot_and_blank(int $courseid, int $sectionid): void {
+        $this->snapshot($courseid, $sectionid);
+        $this->blank($courseid, $sectionid);
+    }
+
+    /**
+     * Prepare the replacement snapshot without hiding the original details from course-format preflight checks.
+     *
+     * @param int $courseid
+     * @param int $sectionid
+     * @return void
+     */
+    public function snapshot(int $courseid, int $sectionid): void {
         $db = $this->basefactory->moodle()->db();
         $fs = get_file_storage();
         $context = \core\context\course::instance($courseid);
@@ -94,6 +106,22 @@ final class section_details_replacement {
                 $file
             );
         }
+    }
+
+    /**
+     * Blank the snapshotted fields immediately before core restores the replacement details.
+     *
+     * @param int $courseid
+     * @param int $sectionid
+     * @return void
+     */
+    public function blank(int $courseid, int $sectionid): void {
+        if (!$this->has_snapshot($courseid, $sectionid)) {
+            throw new \coding_exception('Section details cannot be cleared without a replacement snapshot.');
+        }
+        $db = $this->basefactory->moodle()->db();
+        $fs = get_file_storage();
+        $context = \core\context\course::instance($courseid);
 
         $db->update_record('course_sections', (object)[
             'id' => $sectionid,

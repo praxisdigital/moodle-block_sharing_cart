@@ -57,7 +57,7 @@ final class asynchronous_restore_task_test extends \advanced_testcase
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();
-        $this->setAdminUser();
+        self::setAdminUser();
         $this->factory = factory::make();
 
         // The cart tasks mtrace their progress.
@@ -74,7 +74,7 @@ final class asynchronous_restore_task_test extends \advanced_testcase
     private function create_course(int $numsections, array $names = []): object {
         global $DB;
 
-        $course = $this->getDataGenerator()->create_course(['format' => 'topics', 'numsections' => $numsections]);
+        $course = self::getDataGenerator()->create_course(['format' => 'topics', 'numsections' => $numsections]);
         foreach ($names as $number => $name) {
             $DB->set_field('course_sections', 'name', $name, ['course' => $course->id, 'section' => $number]);
         }
@@ -93,9 +93,10 @@ final class asynchronous_restore_task_test extends \advanced_testcase
      * @param object $course as returned by create_course()
      * @param int $sectionnum
      * @param string $name
+     * @return object created page course module
      */
-    private function add_page(object $course, int $sectionnum, string $name): void {
-        $this->getDataGenerator()->create_module('page', [
+    private function add_page(object $course, int $sectionnum, string $name): object {
+        return self::getDataGenerator()->create_module('page', [
             'course' => $course->id,
             'section' => $sectionnum,
             'name' => $name,
@@ -129,7 +130,7 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $this->runAdhocTasks(asynchronous_backup_task::class);
 
         $item = $this->factory->item()->repository()->get_by_id((int)$result->id);
-        $this->assertSame(entity::STATUS_BACKEDUP, $item->get_status());
+        self::assertSame(entity::STATUS_BACKEDUP, $item->get_status());
 
         return (int)$result->id;
     }
@@ -159,6 +160,8 @@ final class asynchronous_restore_task_test extends \advanced_testcase
      * @param int $courseid
      * @param bool $replacesectiondetails
      * @param bool $expectfailure whether the task is expected to log a restore failure
+     * @param int[] $moduleids course modules explicitly selected for restore
+     * @param int[] $sectionids nested sections explicitly selected for restore
      */
     private function restore(
         int $itemid,
@@ -166,21 +169,23 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         bool $insertasnewsection = false,
         int $courseid = 0,
         bool $replacesectiondetails = false,
-        bool $expectfailure = false
+        bool $expectfailure = false,
+        array $moduleids = [],
+        array $sectionids = []
     ): void {
         // Keep this legacy positional call: optional external parameters must remain backwards compatible.
-        $this->assertTrue(item_into_section::execute(
+        self::assertTrue(item_into_section::execute(
             $itemid,
             $sectionid,
-            [],
-            [],
+            $moduleids,
+            $sectionids,
             $insertasnewsection,
             $courseid,
             $replacesectiondetails
         ));
         $this->runAdhocTasks(asynchronous_restore_task::class);
         $output = $this->getActualOutputForAssertion();
-        $this->assertSame(
+        self::assertSame(
             $expectfailure,
             str_contains($output, 'Exception thrown during restore execution'),
             'Unexpected restore outcome. Task output: ' . $output
@@ -254,12 +259,12 @@ final class asynchronous_restore_task_test extends \advanced_testcase
 
         // The cart holds the tree: Root > [Page root, Child > [Page child, Grandchild > [Page grandchild]]].
         $byparent = $this->items_by_parent($rootitemid);
-        $this->assertEqualsCanonicalizing(['Page root', 'Child'], array_keys($byparent[$rootitemid]));
+        self::assertEqualsCanonicalizing(['Page root', 'Child'], array_keys($byparent[$rootitemid]));
         $childitem = $byparent[$rootitemid]['Child'];
-        $this->assertTrue($childitem->is_section());
-        $this->assertEqualsCanonicalizing(['Page child', 'Grandchild'], array_keys($byparent[$childitem->get_id()]));
+        self::assertTrue($childitem->is_section());
+        self::assertEqualsCanonicalizing(['Page child', 'Grandchild'], array_keys($byparent[$childitem->get_id()]));
         $grandchilditem = $byparent[$childitem->get_id()]['Grandchild'];
-        $this->assertEqualsCanonicalizing(['Page grandchild'], array_keys($byparent[$grandchilditem->get_id()]));
+        self::assertEqualsCanonicalizing(['Page grandchild'], array_keys($byparent[$grandchilditem->get_id()]));
 
         $target = $this->create_course(2, [1 => 'Target', 2 => 'After']);
         $this->add_page($target, 1, 'Page target');
@@ -276,26 +281,137 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $this->restore($rootitemid, $targetsectionid);
 
         // The root merged into the target; the descendants are new sections placed directly after it.
-        $this->assertSame(['Page root', 'Page target'], $this->module_names($targetsectionid));
+        self::assertSame(['Page root', 'Page target'], $this->module_names($targetsectionid));
 
         $sections = $this->sections_by_name($target->id);
-        $this->assertEqualsCanonicalizing(['', 'Target', 'Child', 'Grandchild', 'After'], array_keys($sections));
-        $this->assertSame(2, (int)$sections['Child']->section);
-        $this->assertSame(3, (int)$sections['Grandchild']->section);
-        $this->assertSame(4, (int)$sections['After']->section);
-        $this->assertSame(['Page child'], $this->module_names((int)$sections['Child']->id));
-        $this->assertSame(['Page grandchild'], $this->module_names((int)$sections['Grandchild']->id));
+        self::assertEqualsCanonicalizing(['', 'Target', 'Child', 'Grandchild', 'After'], array_keys($sections));
+        self::assertSame(2, (int)$sections['Child']->section);
+        self::assertSame(3, (int)$sections['Grandchild']->section);
+        self::assertSame(4, (int)$sections['After']->section);
+        self::assertSame(['Page child'], $this->module_names((int)$sections['Child']->id));
+        self::assertSame(['Page grandchild'], $this->module_names((int)$sections['Grandchild']->id));
 
         // The format is told the new hierarchy.
-        $this->assertNotNull($payload);
-        $this->assertSame((int)$target->id, $payload->courseid);
-        $this->assertSame($targetsectionid, $payload->targetsectionid);
-        $this->assertCount(2, $payload->restoredsections);
+        self::assertNotNull($payload);
+        self::assertSame((int)$target->id, $payload->courseid);
+        self::assertSame($targetsectionid, $payload->targetsectionid);
+        self::assertCount(2, $payload->restoredsections);
         [$child, $grandchild] = $payload->restoredsections;
-        $this->assertSame((int)$sections['Child']->id, $child->new_section_id);
-        $this->assertSame($targetsectionid, $child->new_parent_section_id);
-        $this->assertSame((int)$sections['Grandchild']->id, $grandchild->new_section_id);
-        $this->assertSame((int)$sections['Child']->id, $grandchild->new_parent_section_id);
+        self::assertSame((int)$sections['Child']->id, $child->new_section_id);
+        self::assertSame($targetsectionid, $child->new_parent_section_id);
+        self::assertSame((int)$sections['Grandchild']->id, $grandchild->new_section_id);
+        self::assertSame((int)$sections['Child']->id, $grandchild->new_parent_section_id);
+    }
+
+    /**
+     * A format's generic hierarchy-managed hook preserves empty structural ancestors for its own hierarchy rebuild.
+     */
+    public function test_managed_hierarchy_preserves_structural_ancestors_and_reports_the_parent_chain(): void {
+        $rootitemid = $this->copy_tree_with_content_only_in_leaf();
+        $target = $this->create_course(1, [1 => 'Existing']);
+        $planned = [];
+        $restored = null;
+        \core\di::get(\core\hook\manager::class)->phpunit_redirect_hook(
+            before_sections_restored::class,
+            static function (before_sections_restored $hook) use (&$planned): void {
+                $planned = $hook->plannedsections;
+                $hook->managessectionhierarchy = true;
+            }
+        );
+        \core\di::get(\core\hook\manager::class)->phpunit_redirect_hook(
+            after_sections_restored::class,
+            static function (after_sections_restored $hook) use (&$restored): void {
+                $restored = $hook;
+            }
+        );
+
+        $this->restore($rootitemid, 0, insertasnewsection: true, courseid: (int)$target->id);
+
+        $sections = $this->sections_by_name((int)$target->id);
+        self::assertEqualsCanonicalizing(['', 'Existing', 'Section 2', 'Section 3', 'Section 4'], array_keys($sections));
+        self::assertSame([], $this->module_names((int)$sections['Section 2']->id));
+        self::assertSame([], $this->module_names((int)$sections['Section 3']->id));
+        self::assertSame(['Leaf activity'], $this->module_names((int)$sections['Section 4']->id));
+        self::assertCount(3, $planned);
+        self::assertNotNull($restored);
+        self::assertSame((int)$target->id, $restored->courseid);
+        self::assertSame(0, $restored->targetsectionid);
+        self::assertCount(3, $restored->restoredsections);
+        [$root, $child, $grandchild] = $restored->restoredsections;
+        self::assertSame((int)$sections['Section 2']->id, $root->new_section_id);
+        self::assertSame(0, $root->new_parent_section_id);
+        self::assertSame((int)$sections['Section 3']->id, $child->new_section_id);
+        self::assertSame($root->new_section_id, $child->new_parent_section_id);
+        self::assertSame((int)$sections['Section 4']->id, $grandchild->new_section_id);
+        self::assertSame($child->new_section_id, $grandchild->new_parent_section_id);
+    }
+
+    /**
+     * An explicit empty subsection selection must not queue its parent's shared backup.
+     */
+    public function test_empty_subsection_selection_is_rejected_before_queueing(): void {
+        global $DB;
+
+        $source = $this->create_course(1);
+        $this->add_page($source, 1, 'Unrelated root page');
+        $subsection = self::getDataGenerator()->create_module('subsection', [
+            'course' => $source->id, 'section' => 1, 'name' => 'Chosen subsection',
+        ]);
+        $delegated = $DB->get_record('course_sections', [
+            'course' => $source->id, 'component' => 'mod_subsection', 'itemid' => $subsection->id,
+        ], '*', MUST_EXIST);
+        $this->add_page($source, (int)$delegated->section, 'Subsection page');
+        $rootid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $item = $this->items_by_parent($rootid)[$rootid]['Chosen subsection'];
+        $target = $this->create_course(1, [1 => 'Keep target']);
+
+        try {
+            item_into_section::execute(
+                $item->get_id(),
+                (int)$target->sections[1]->id,
+                [],
+                moduleselectionexplicit: true
+            );
+            self::fail('An explicit empty subsection selection was accepted.');
+        } catch (\moodle_exception $exception) {
+            self::assertSame('atleast_one_course_module_must_be_included', $exception->errorcode);
+        }
+        self::assertCount(0, \core\task\manager::get_adhoc_tasks(asynchronous_restore_task::class));
+        self::assertSame([], $this->module_names((int)$target->sections[1]->id));
+    }
+
+    /**
+     * A default subsection restore must never include siblings from the shared archive.
+     */
+    public function test_subsection_default_selection_is_scoped_to_its_own_children(): void {
+        global $DB;
+
+        $source = $this->create_course(2, [1 => 'Unrelated root', 2 => 'Unrelated child']);
+        $this->add_page($source, 1, 'Unrelated root page');
+        $this->add_page($source, 2, 'Unrelated child page');
+        $this->declare_section_tree([[$source->sections[2]->id, $source->sections[1]->id, 1]]);
+        $subsection = self::getDataGenerator()->create_module('subsection', [
+            'course' => $source->id, 'section' => 1, 'name' => 'Chosen subsection',
+        ]);
+        $delegated = $DB->get_record('course_sections', [
+            'course' => $source->id, 'component' => 'mod_subsection', 'itemid' => $subsection->id,
+        ], '*', MUST_EXIST);
+        $this->add_page($source, (int)$delegated->section, 'Subsection page');
+        $rootid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $item = $this->items_by_parent($rootid)[$rootid]['Chosen subsection'];
+        $target = $this->create_course(1, [1 => 'Keep target']);
+        $this->add_page($target, 1, 'Existing page');
+
+        $this->restore($item->get_id(), (int)$target->sections[1]->id);
+
+        self::assertSame(['Chosen subsection', 'Existing page'], $this->module_names((int)$target->sections[1]->id));
+        $restoreddelegated = $DB->get_record('course_sections', [
+            'course' => $target->id, 'component' => 'mod_subsection',
+        ], '*', MUST_EXIST);
+        self::assertSame(['Subsection page'], $this->module_names((int)$restoreddelegated->id));
+        self::assertSame(3, $DB->count_records('course_modules', ['course' => $target->id]));
+        self::assertSame(3, $DB->count_records('course_sections', ['course' => $target->id]));
+        self::assertSame('Keep target', $DB->get_field('course_sections', 'name', ['id' => $target->sections[1]->id]));
     }
 
     public function test_flat_restore_preserves_summary_on_empty_nested_section(): void {
@@ -315,9 +431,9 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $this->restore($rootitemid, (int)$target->sections[1]->id);
 
         $sections = $this->sections_by_name((int)$target->id);
-        $this->assertArrayHasKey('Instructions', $sections);
-        $this->assertStringContainsString('Parent instructions', (string)$sections['Instructions']->summary);
-        $this->assertSame(['Page child'], $this->module_names((int)$sections['Child']->id));
+        self::assertArrayHasKey('Instructions', $sections);
+        self::assertStringContainsString('Parent instructions', (string)$sections['Instructions']->summary);
+        self::assertSame(['Page child'], $this->module_names((int)$sections['Child']->id));
     }
 
     public function test_flat_restore_preserves_summary_on_empty_root_inserted_as_new_section(): void {
@@ -333,9 +449,540 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $this->restore($rootitemid, 0, insertasnewsection: true, courseid: (int)$target->id);
 
         $sections = $this->sections_by_name((int)$target->id);
-        $this->assertArrayHasKey('Instructions', $sections);
-        $this->assertStringContainsString('Root instructions', (string)$sections['Instructions']->summary);
-        $this->assertSame(['Page child'], $this->module_names((int)$sections['Child']->id));
+        self::assertArrayHasKey('Instructions', $sections);
+        self::assertStringContainsString('Root instructions', (string)$sections['Instructions']->summary);
+        self::assertSame(['Page child'], $this->module_names((int)$sections['Child']->id));
+    }
+
+    public function test_selected_custom_grandchild_is_reparented_when_its_custom_parent_is_excluded(): void {
+        global $DB;
+
+        $source = $this->create_course(3, [1 => 'Copied root', 2 => 'Excluded parent', 3 => 'Selected grandchild']);
+        $this->add_page($source, 1, 'Root activity');
+        $this->add_page($source, 2, 'Excluded parent activity');
+        $this->add_page($source, 3, 'Grandchild activity');
+        $this->declare_section_tree([
+            [$source->sections[2]->id, $source->sections[1]->id, 1],
+            [$source->sections[3]->id, $source->sections[2]->id, 1],
+        ]);
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $byparent = $this->items_by_parent($rootitemid);
+        $parentitem = $byparent[$rootitemid]['Excluded parent'];
+        $grandchilditem = $byparent[$parentitem->get_id()]['Selected grandchild'];
+        $moduleids = [
+            (int)$byparent[$rootitemid]['Root activity']->get_old_instance_id(),
+            (int)$byparent[$grandchilditem->get_id()]['Grandchild activity']->get_old_instance_id(),
+        ];
+        $selectedsectionids = [(int)$grandchilditem->get_old_instance_id()];
+
+        $target = $this->create_course(1, [1 => 'Merge target']);
+        $targetsectionid = (int)$target->sections[1]->id;
+        $payload = null;
+        \core\di::get(\core\hook\manager::class)->phpunit_redirect_hook(
+            after_sections_restored::class,
+            static function (after_sections_restored $hook) use (&$payload): void {
+                $payload = $hook;
+            }
+        );
+        $this->restore(
+            $rootitemid,
+            $targetsectionid,
+            moduleids: $moduleids,
+            sectionids: $selectedsectionids
+        );
+
+        $sections = $this->sections_by_name($target->id);
+        self::assertArrayHasKey('Selected grandchild', $sections);
+        $grandchildid = (int)$sections['Selected grandchild']->id;
+        self::assertSame(['Grandchild activity'], $this->module_names($grandchildid));
+        self::assertFalse($DB->record_exists('course_sections', [
+            'course' => $target->id,
+            'name' => 'Excluded parent',
+        ]));
+        self::assertNotNull($payload);
+        self::assertCount(1, $payload->restoredsections);
+        self::assertSame($grandchildid, $payload->restoredsections[0]->new_section_id);
+        self::assertSame($targetsectionid, $payload->restoredsections[0]->new_parent_section_id);
+
+        $newtarget = $this->create_course(1, [1 => 'Existing section']);
+        $payload = null;
+        $this->restore(
+            $rootitemid,
+            0,
+            insertasnewsection: true,
+            courseid: (int)$newtarget->id,
+            moduleids: $moduleids,
+            sectionids: $selectedsectionids
+        );
+
+        $sections = $this->sections_by_name($newtarget->id);
+        $newrootid = (int)$sections['Copied root']->id;
+        $newgrandchildid = (int)$sections['Selected grandchild']->id;
+        self::assertSame(['Grandchild activity'], $this->module_names($newgrandchildid));
+        self::assertFalse($DB->record_exists('course_sections', [
+            'course' => $newtarget->id,
+            'name' => 'Excluded parent',
+        ]));
+        self::assertNotNull($payload);
+        self::assertCount(2, $payload->restoredsections);
+        self::assertSame($newgrandchildid, $payload->restoredsections[1]->new_section_id);
+        self::assertSame($newrootid, $payload->restoredsections[1]->new_parent_section_id);
+    }
+
+    public function test_selected_activities_under_excluded_sections_flatten_to_the_nearest_included_section(): void {
+        global $DB;
+
+        $source = $this->create_course(2, [1 => 'Copied root', 2 => 'Excluded child']);
+        $rootpage = $this->add_page($source, 1, 'Page root');
+        $childpage = $this->add_page($source, 2, 'Page child');
+        $this->declare_section_tree([[$source->sections[2]->id, $source->sections[1]->id, 1]]);
+
+        $subsection = self::getDataGenerator()->create_module('subsection', [
+            'course' => $source->id,
+            'section' => 1,
+            'name' => 'Subsection',
+        ]);
+        $delegatedsection = $DB->get_record('course_sections', [
+            'course' => $source->id,
+            'component' => 'mod_subsection',
+            'itemid' => $subsection->id,
+        ], '*', MUST_EXIST);
+        $subsectionpage = self::getDataGenerator()->create_module('page', [
+            'course' => $source->id,
+            'section' => $delegatedsection->section,
+            'name' => 'Page subsection',
+        ]);
+
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $moduleids = [(int)$rootpage->cmid, (int)$childpage->cmid, (int)$subsectionpage->cmid];
+
+        $target = $this->create_course(1, [1 => 'Merge target']);
+        $targetsectionid = (int)$target->sections[1]->id;
+        $this->restore(
+            $rootitemid,
+            $targetsectionid,
+            moduleids: $moduleids,
+            sectionids: [0]
+        );
+
+        self::assertSame(['Page child', 'Page root', 'Page subsection'], $this->module_names($targetsectionid));
+        self::assertFalse($DB->record_exists('course_sections', [
+            'course' => $target->id,
+            'name' => 'Excluded child',
+        ]));
+        self::assertFalse($DB->record_exists('course_modules', [
+            'course' => $target->id,
+            'module' => (int)$DB->get_field('modules', 'id', ['name' => 'subsection'], MUST_EXIST),
+        ]));
+
+        $newtarget = $this->create_course(1, [1 => 'Existing section']);
+        $this->restore(
+            $rootitemid,
+            0,
+            insertasnewsection: true,
+            courseid: (int)$newtarget->id,
+            moduleids: $moduleids,
+            sectionids: [0]
+        );
+
+        $sections = $this->sections_by_name($newtarget->id);
+        self::assertArrayHasKey('Copied root', $sections);
+        self::assertSame(
+            ['Page child', 'Page root', 'Page subsection'],
+            $this->module_names((int)$sections['Copied root']->id)
+        );
+        self::assertFalse($DB->record_exists('course_sections', [
+            'course' => $newtarget->id,
+            'name' => 'Excluded child',
+        ]));
+        self::assertFalse($DB->record_exists('course_modules', [
+            'course' => $newtarget->id,
+            'module' => (int)$DB->get_field('modules', 'id', ['name' => 'subsection'], MUST_EXIST),
+        ]));
+    }
+
+    /**
+     * Legacy API calls omit moduleselectionexplicit but still explicitly select a non-empty module list.
+     *
+     * @param string $kind Selected content under an excluded container.
+     * @param bool $dropafter Whether the task creates the target for a section drag/drop.
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('flattened_only_content_provider')]
+    public function test_new_root_receives_flattened_content_without_the_optional_selection_flag(
+        string $kind,
+        bool $dropafter
+    ): void {
+        global $DB;
+
+        $source = $this->create_course(2, [1 => 'Copied root', 2 => 'Excluded child']);
+        $this->add_page($source, 1, 'Unselected root page');
+        $this->declare_section_tree([[$source->sections[2]->id, $source->sections[1]->id, 1]]);
+        if ($kind === 'custom child') {
+            $selected = $this->add_page($source, 2, 'Selected page');
+            $moduleids = [(int)$selected->cmid];
+        } else {
+            $subsection = self::getDataGenerator()->create_module('subsection', [
+                'course' => $source->id,
+                'section' => 2,
+                'name' => 'Selected subsection',
+            ]);
+            $delegatedsection = $DB->get_record('course_sections', [
+                'course' => $source->id,
+                'component' => 'mod_subsection',
+                'itemid' => $subsection->id,
+            ], '*', MUST_EXIST);
+            $selected = $this->add_page($source, (int)$delegatedsection->section, 'Selected page');
+            $moduleids = [(int)$selected->cmid];
+            if ($kind === 'subsection with owner') {
+                $moduleids[] = (int)$subsection->cmid;
+            }
+        }
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $target = $this->create_course(1, [1 => 'Existing target']);
+        $generalsectionid = (int)$target->sections[0]->id;
+        $targetsectionid = (int)$target->sections[1]->id;
+        $this->add_page($target, 0, 'Existing General page');
+        $this->add_page($target, 1, 'Existing target page');
+
+        $request = [
+            'itemid' => $rootitemid,
+            'sectionid' => $dropafter ? $targetsectionid : 0,
+            'coursemodulestoinclude' => $moduleids,
+            'sectionstoinclude' => [0],
+            'insertasnewsection' => !$dropafter,
+            'courseid' => (int)$target->id,
+            'asnewsection' => $dropafter,
+        ];
+        // Exercise the real external-parameter defaults, not a helper that supplies the optional flag.
+        self::assertArrayNotHasKey('moduleselectionexplicit', $request);
+        $params = item_into_section::validate_parameters(item_into_section::execute_parameters(), $request);
+        self::assertFalse($params['moduleselectionexplicit']);
+        self::assertTrue(item_into_section::execute(...array_values($params)));
+        $this->runAdhocTasks(asynchronous_restore_task::class);
+        self::assertStringNotContainsString('Exception thrown during restore execution', $this->getActualOutputForAssertion());
+
+        $sections = $this->sections_by_name((int)$target->id);
+        self::assertArrayHasKey('Copied root', $sections, 'Flattened content must keep its new root alive.');
+        $newrootid = (int)$sections['Copied root']->id;
+        self::assertGreaterThan(0, (int)$sections['Copied root']->section);
+        self::assertSame(['Existing General page'], $this->module_names($generalsectionid));
+        self::assertSame(['Existing target page'], $this->module_names($targetsectionid));
+        self::assertArrayNotHasKey('Excluded child', $sections);
+        self::assertFalse($DB->record_exists('page', ['course' => $target->id, 'name' => 'Unselected root page']));
+        self::assertSame(3, $DB->count_records('page', ['course' => $target->id]));
+
+        if ($kind === 'subsection with owner') {
+            self::assertSame(['Selected subsection'], $this->module_names($newrootid));
+            $restoreddelegated = $DB->get_record('course_sections', [
+                'course' => $target->id, 'component' => 'mod_subsection',
+            ], '*', MUST_EXIST);
+            self::assertSame(['Selected page'], $this->module_names((int)$restoreddelegated->id));
+            self::assertSame(4, $DB->count_records('course_modules', ['course' => $target->id]));
+        } else {
+            self::assertSame(['Selected page'], $this->module_names($newrootid));
+            self::assertFalse($DB->record_exists('course_sections', [
+                'course' => $target->id, 'component' => 'mod_subsection',
+            ]));
+            self::assertSame(3, $DB->count_records('course_modules', ['course' => $target->id]));
+        }
+    }
+
+    /**
+     * Both new-root creation paths must account for flattened content, including subsection ownership.
+     *
+     * @return array<string, array{string, bool}>
+     */
+    public static function flattened_only_content_provider(): array {
+        $cases = [];
+        foreach (['custom child', 'subsection child', 'subsection with owner'] as $kind) {
+            $cases[$kind . ' inserted at course level'] = [$kind, false];
+            $cases[$kind . ' dropped after a section'] = [$kind, true];
+        }
+        return $cases;
+    }
+
+    public function test_selected_subsection_inside_excluded_custom_section_keeps_its_child_activity_nested(): void {
+        global $DB;
+
+        $source = $this->create_course(2, [1 => 'Copied root', 2 => 'Excluded custom child']);
+        $rootpage = $this->add_page($source, 1, 'Root activity');
+        $this->declare_section_tree([[$source->sections[2]->id, $source->sections[1]->id, 1]]);
+
+        $subsection = self::getDataGenerator()->create_module('subsection', [
+            'course' => $source->id,
+            'section' => 2,
+            'name' => 'Subsection',
+        ]);
+        $delegatedsection = $DB->get_record('course_sections', [
+            'course' => $source->id,
+            'component' => 'mod_subsection',
+            'itemid' => $subsection->id,
+        ], '*', MUST_EXIST);
+        $subsectionpage = self::getDataGenerator()->create_module('page', [
+            'course' => $source->id,
+            'section' => $delegatedsection->section,
+            'name' => 'Subsection activity',
+        ]);
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $byparent = $this->items_by_parent($rootitemid);
+        $customchilditem = $byparent[$rootitemid]['Excluded custom child'];
+        $subsectionitem = $byparent[$customchilditem->get_id()]['Subsection'];
+        $subsectionpageitem = $byparent[$subsectionitem->get_id()]['Subsection activity'];
+        self::assertSame('mod_subsection', $subsectionitem->get_type());
+        $moduleids = [
+            (int)$rootpage->cmid,
+            (int)$subsectionitem->get_old_instance_id(),
+            (int)$subsectionpageitem->get_old_instance_id(),
+        ];
+
+        $target = $this->create_course(1, [1 => 'Merge target']);
+        $targetsectionid = (int)$target->sections[1]->id;
+        $this->restore($rootitemid, $targetsectionid, moduleids: $moduleids, sectionids: [0]);
+
+        $targetdelegatedsection = $DB->get_record('course_sections', [
+            'course' => $target->id,
+            'component' => 'mod_subsection',
+        ], '*', MUST_EXIST);
+        $targetsubsection = get_coursemodule_from_instance(
+            'subsection',
+            (int)$targetdelegatedsection->itemid,
+            (int)$target->id,
+            false,
+            MUST_EXIST
+        );
+
+        self::assertSame(['Root activity', 'Subsection'], $this->module_names($targetsectionid));
+        self::assertSame($targetsectionid, (int)$targetsubsection->section);
+        self::assertSame(['Subsection activity'], $this->module_names((int)$targetdelegatedsection->id));
+        self::assertFalse($DB->record_exists('course_sections', [
+            'course' => $target->id,
+            'name' => 'Excluded custom child',
+        ]));
+
+        $newtarget = $this->create_course(1, [1 => 'Existing section']);
+        $this->restore(
+            $rootitemid,
+            0,
+            insertasnewsection: true,
+            courseid: (int)$newtarget->id,
+            moduleids: $moduleids,
+            sectionids: [0]
+        );
+
+        $sections = $this->sections_by_name($newtarget->id);
+        $newrootsection = $sections['Copied root'];
+        $newdelegatedsection = $DB->get_record('course_sections', [
+            'course' => $newtarget->id,
+            'component' => 'mod_subsection',
+        ], '*', MUST_EXIST);
+        $newsubsection = get_coursemodule_from_instance(
+            'subsection',
+            (int)$newdelegatedsection->itemid,
+            (int)$newtarget->id,
+            false,
+            MUST_EXIST
+        );
+
+        self::assertSame(['Root activity', 'Subsection'], $this->module_names((int)$newrootsection->id));
+        self::assertSame((int)$newrootsection->id, (int)$newsubsection->section);
+        self::assertSame(['Subsection activity'], $this->module_names((int)$newdelegatedsection->id));
+        self::assertFalse($DB->record_exists('course_sections', [
+            'course' => $newtarget->id,
+            'name' => 'Excluded custom child',
+        ]));
+    }
+
+    /**
+     * Empty explicit selections must not inherit the legacy include-all behaviour.
+     *
+     * @param bool $insertasnewsection
+     * @param bool $explicitselection
+     * @param int[] $moduleids
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('empty_module_selection_provider')]
+    public function test_empty_module_selection_with_selected_custom_section(
+        bool $insertasnewsection,
+        bool $explicitselection,
+        array $moduleids
+    ): void {
+        global $DB;
+
+        $source = $this->create_course(2, [1 => 'Copied root', 2 => 'Custom child']);
+        $this->add_page($source, 1, 'Root activity');
+        $this->add_page($source, 2, 'Custom child activity');
+        $this->declare_section_tree([[$source->sections[2]->id, $source->sections[1]->id, 1]]);
+
+        $subsection = self::getDataGenerator()->create_module('subsection', [
+            'course' => $source->id,
+            'section' => 1,
+            'name' => 'Root subsection',
+        ]);
+        $delegatedsection = $DB->get_record('course_sections', [
+            'course' => $source->id,
+            'component' => 'mod_subsection',
+            'itemid' => $subsection->id,
+        ], '*', MUST_EXIST);
+        self::getDataGenerator()->create_module('page', [
+            'course' => $source->id,
+            'section' => $delegatedsection->section,
+            'name' => 'Subsection activity',
+        ]);
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $byparent = $this->items_by_parent($rootitemid);
+        $childitem = $byparent[$rootitemid]['Custom child'];
+
+        $target = $this->create_course(1, [1 => 'Merge target']);
+        // Validate and dispatch in schema order, just as Moodle's AJAX external-function dispatcher does.
+        $request = [
+            'itemid' => $rootitemid,
+            'sectionid' => $insertasnewsection ? 0 : (int)$target->sections[1]->id,
+            'coursemodulestoinclude' => $moduleids,
+            'sectionstoinclude' => [(int)$childitem->get_old_instance_id()],
+            'insertasnewsection' => $insertasnewsection,
+            'courseid' => (int)$target->id,
+        ];
+        if ($explicitselection) {
+            $request['moduleselectionexplicit'] = true;
+        }
+        $params = item_into_section::validate_parameters(item_into_section::execute_parameters(), $request);
+        self::assertTrue(item_into_section::execute(...array_values($params)));
+        $queuedtasks = array_values(\core\task\manager::get_adhoc_tasks(asynchronous_restore_task::class));
+        self::assertCount(1, $queuedtasks);
+        $queuedtask = $queuedtasks[0];
+        self::assertSame($moduleids, $queuedtask->get_custom_data()->backup_settings->course_modules_to_include);
+        $this->runAdhocTasks(asynchronous_restore_task::class);
+
+        $sections = $this->sections_by_name((int)$target->id);
+        self::assertArrayHasKey('Custom child', $sections);
+        $rootsectionid = (int)($insertasnewsection ? $sections['Copied root']->id : $target->sections[1]->id);
+
+        if ($explicitselection) {
+            self::assertSame([], $this->module_names($rootsectionid));
+            self::assertSame([], $this->module_names((int)$sections['Custom child']->id));
+            self::assertFalse($DB->record_exists('course_modules', ['course' => $target->id]));
+            self::assertFalse($DB->record_exists('course_sections', [
+                'course' => $target->id,
+                'component' => 'mod_subsection',
+            ]));
+            self::assertTrue((bool)$queuedtask->get_custom_data()->backup_settings->module_selection_explicit);
+        } else {
+            self::assertSame(['Root activity', 'Root subsection'], $this->module_names($rootsectionid));
+            self::assertSame(['Custom child activity'], $this->module_names((int)$sections['Custom child']->id));
+            $restoreddelegatedsection = $DB->get_record('course_sections', [
+                'course' => $target->id,
+                'component' => 'mod_subsection',
+            ], '*', MUST_EXIST);
+            self::assertSame(['Subsection activity'], $this->module_names((int)$restoreddelegatedsection->id));
+        }
+    }
+
+    /**
+     * Provides explicit and legacy empty selections for merge and new-section restores.
+     *
+     * @return array<string, array{bool, bool, int[]}>
+     */
+    public static function empty_module_selection_provider(): array {
+        return [
+            'merge explicit empty' => [false, true, []],
+            'new section explicit empty' => [true, true, []],
+            'merge legacy empty' => [false, false, []],
+            'new section legacy empty' => [true, false, []],
+            'merge legacy zero' => [false, false, [0]],
+            'new section legacy zero' => [true, false, [0]],
+        ];
+    }
+
+    public function test_explicit_empty_grandchild_is_preserved_without_its_excluded_parent(): void {
+        global $DB;
+
+        $source = $this->create_course(3, [1 => 'Copied root', 2 => 'Excluded parent', 3 => 'Selected grandchild']);
+        $this->add_page($source, 1, 'Root activity');
+        $this->add_page($source, 2, 'Parent activity');
+        $this->add_page($source, 3, 'Grandchild activity');
+        $this->declare_section_tree([
+            [$source->sections[2]->id, $source->sections[1]->id, 1],
+            [$source->sections[3]->id, $source->sections[2]->id, 1],
+        ]);
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $target = $this->create_course(1, [1 => 'Existing section']);
+
+        self::assertTrue(item_into_section::execute(
+            $rootitemid,
+            0,
+            [],
+            [(int)$source->sections[3]->id],
+            insertasnewsection: true,
+            courseid: (int)$target->id,
+            moduleselectionexplicit: true
+        ));
+        $this->runAdhocTasks(asynchronous_restore_task::class);
+
+        $sections = $this->sections_by_name((int)$target->id);
+        self::assertArrayHasKey('Copied root', $sections);
+        self::assertArrayHasKey('Selected grandchild', $sections);
+        self::assertArrayNotHasKey('Excluded parent', $sections);
+        self::assertSame([], $this->module_names((int)$sections['Copied root']->id));
+        self::assertSame([], $this->module_names((int)$sections['Selected grandchild']->id));
+        self::assertFalse($DB->record_exists('course_modules', ['course' => $target->id]));
+    }
+
+    public function test_legacy_empty_module_list_does_not_restore_subsection_from_excluded_custom_section(): void {
+        global $DB;
+
+        $source = $this->create_course(2, [1 => 'Copied root', 2 => 'Excluded custom child']);
+        $rootpage = $this->add_page($source, 1, 'Root activity');
+        $this->declare_section_tree([[$source->sections[2]->id, $source->sections[1]->id, 1]]);
+
+        $subsection = self::getDataGenerator()->create_module('subsection', [
+            'course' => $source->id,
+            'section' => 2,
+            'name' => 'Subsection',
+        ]);
+        $delegatedsection = $DB->get_record('course_sections', [
+            'course' => $source->id,
+            'component' => 'mod_subsection',
+            'itemid' => $subsection->id,
+        ], '*', MUST_EXIST);
+        self::getDataGenerator()->create_module('page', [
+            'course' => $source->id,
+            'section' => $delegatedsection->section,
+            'name' => 'Subsection activity',
+        ]);
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+
+        $target = $this->create_course(1, [1 => 'Merge target']);
+        $targetsectionid = (int)$target->sections[1]->id;
+        $this->restore($rootitemid, $targetsectionid, sectionids: [0]);
+
+        self::assertSame(['Root activity'], $this->module_names($targetsectionid));
+        self::assertFalse($DB->record_exists('course_sections', [
+            'course' => $target->id,
+            'component' => 'mod_subsection',
+        ]));
+        self::assertFalse($DB->record_exists('course_sections', [
+            'course' => $target->id,
+            'name' => 'Excluded custom child',
+        ]));
+
+        $newtarget = $this->create_course(1, [1 => 'Existing section']);
+        $this->restore(
+            $rootitemid,
+            0,
+            insertasnewsection: true,
+            courseid: (int)$newtarget->id,
+            sectionids: [0]
+        );
+
+        $sections = $this->sections_by_name($newtarget->id);
+        self::assertSame(['Root activity'], $this->module_names((int)$sections['Copied root']->id));
+        self::assertFalse($DB->record_exists('course_sections', [
+            'course' => $newtarget->id,
+            'component' => 'mod_subsection',
+        ]));
+        self::assertFalse($DB->record_exists('course_sections', [
+            'course' => $newtarget->id,
+            'name' => 'Excluded custom child',
+        ]));
     }
 
     public function test_section_without_activities_but_with_populated_descendants_can_be_copied(): void {
@@ -346,8 +993,8 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
 
         $byparent = $this->items_by_parent($rootitemid);
-        $this->assertSame(['Child'], array_keys($byparent[$rootitemid]));
-        $this->assertSame(['Page child'], array_keys($byparent[$byparent[$rootitemid]['Child']->get_id()]));
+        self::assertSame(['Child'], array_keys($byparent[$rootitemid]));
+        self::assertSame(['Page child'], array_keys($byparent[$byparent[$rootitemid]['Child']->get_id()]));
     }
 
     public function test_empty_section_without_descendants_is_rejected(): void {
@@ -355,6 +1002,289 @@ final class asynchronous_restore_task_test extends \advanced_testcase
 
         $this->expectException(\moodle_exception::class);
         section_into_sharing_cart::execute((int)$source->sections[1]->id, ['users' => false, 'anonymize' => false]);
+    }
+
+    /**
+     * Keep cache reads real, but fail if dialog rendering attempts to extract archive metadata.
+     *
+     * @return factory
+     */
+    private function dialog_factory_without_archive_extraction(): factory {
+        $handler = $this->getMockBuilder(\block_sharing_cart\app\backup\handler::class)
+            ->setConstructorArgs([$this->factory])
+            ->onlyMethods(['cache_section_custom_names'])
+            ->getMock();
+        $handler->expects($this->never())->method('cache_section_custom_names');
+        $backupfactory = $this->getMockBuilder(\block_sharing_cart\app\backup\factory::class)
+            ->setConstructorArgs([$this->factory])
+            ->onlyMethods(['handler'])
+            ->getMock();
+        $backupfactory->method('handler')->willReturn($handler);
+        $factory = $this->getMockBuilder(factory::class)->onlyMethods(['backup'])->getMock();
+        $factory->method('backup')->willReturn($backupfactory);
+        return $factory;
+    }
+
+    /**
+     * Rendering the dialog must not read or decompress the archive.
+     */
+    public function test_restore_dialog_does_not_read_the_backup_archive(): void {
+        global $PAGE;
+
+        $source = $this->create_course(1, [1 => 'Backed-up title']);
+        $this->add_page($source, 1, 'Copied page');
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $item = $this->factory->item()->repository()->get_by_id($rootitemid);
+        $target = $this->create_course(1);
+        $PAGE->set_context(\context_course::instance($target->id));
+
+        $body = new \block_sharing_cart\output\modal\import_item_modal_body(
+            $this->dialog_factory_without_archive_extraction(),
+            $item,
+            (int)$target->sections[1]->id
+        );
+        $context = $body->export_for_template($PAGE->get_renderer('core'));
+
+        self::assertSame('Backed-up title', $context['restore_source_name']);
+        self::assertSame('Backed-up title', $context['restore_target_name']);
+    }
+
+    /**
+     * Descendants need their own raw titles, rather than the root title or the generated cart labels.
+     */
+    public function test_nested_section_custom_names_are_cached_from_the_backup(): void {
+        $source = $this->create_course(3, [1 => 'Root & title', 2 => null, 3 => 'Section 3']);
+        $this->add_page($source, 1, 'Root page');
+        $this->add_page($source, 2, 'Unnamed child page');
+        $this->add_page($source, 3, 'Named child page');
+        $this->declare_section_tree([
+            [$source->sections[2]->id, $source->sections[1]->id, 1],
+            [$source->sections[3]->id, $source->sections[1]->id, 2],
+        ]);
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $rootitem = $this->factory->item()->repository()->get_by_id($rootitemid);
+        $file = $this->factory->item()->repository()->get_stored_file_by_item($rootitem);
+        $handler = $this->factory->backup()->handler();
+
+        $names = [];
+        foreach ($this->factory->item()->repository()->get_recursively_by_parent_id($rootitemid) as $item) {
+            if ($item->is_section()) {
+                $names[$item->get_old_instance_id()] = $handler->get_section_custom_name($file, $item->get_old_instance_id());
+            }
+        }
+        self::assertSame([
+            (int)$source->sections[1]->id => 'Root & title',
+            (int)$source->sections[2]->id => '',
+            (int)$source->sections[3]->id => 'Section 3',
+        ], $names);
+    }
+
+    /**
+     * Cache eviction must not trigger synchronous extraction or inference from a mutable cart name.
+     */
+    public function test_uncached_dialog_uses_generic_hints_without_reading_the_backup(): void {
+        global $DB, $PAGE;
+
+        $source = $this->create_course(1, [1 => 'Original custom title']);
+        $this->add_page($source, 1, 'Copied page');
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $repository = $this->factory->item()->repository();
+        $item = $repository->get_by_id($rootitemid);
+        $item->set_name('Misleading cart label');
+        $repository->update($item);
+        $item = $repository->get_by_id($rootitemid);
+        \cache::make('block_sharing_cart', 'section_names')->purge();
+        $file = $repository->get_stored_file_by_item($item);
+        self::assertNull($this->factory->backup()->handler()->get_section_custom_name($file, $item->get_old_instance_id()));
+
+        $target = $this->create_course(2, [1 => 'Known target', 2 => null]);
+        $PAGE->set_context(\context_course::instance($target->id));
+        $factory = $this->dialog_factory_without_archive_extraction();
+        foreach ([1 => 'Known target', 2 => get_string('section')] as $sectionnum => $expectedname) {
+            $body = new \block_sharing_cart\output\modal\import_item_modal_body(
+                $factory,
+                $item,
+                (int)$target->sections[$sectionnum]->id
+            );
+            $context = $body->export_for_template($PAGE->get_renderer('core'));
+            self::assertSame($expectedname, $context['restore_target_name']);
+            self::assertSame(get_string('section'), $context['restore_replacement_name']);
+        }
+        $body = new \block_sharing_cart\output\modal\import_item_modal_body($factory, $item, 0, true);
+        $context = $body->export_for_template($PAGE->get_renderer('core'));
+        self::assertSame(get_string('section'), $context['restore_target_name']);
+
+        // The fallback affects hints only: restoration must still take the real title from section.xml.
+        $this->restore($rootitemid, (int)$target->sections[2]->id);
+        self::assertSame('Original custom title', $DB->get_field('course_sections', 'name', [
+            'id' => $target->sections[2]->id,
+        ]));
+    }
+
+    /**
+     * A different archive must not reuse titles for the same original section id or be extracted on a miss.
+     */
+    public function test_section_title_cache_is_scoped_to_archive_content(): void {
+        global $USER;
+
+        $source = $this->create_course(1, [1 => 'Cached title']);
+        $this->add_page($source, 1, 'Copied page');
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $item = $this->factory->item()->repository()->get_by_id($rootitemid);
+        $file = $this->factory->item()->repository()->get_stored_file_by_item($item);
+        $handler = $this->factory->backup()->handler();
+        $sectionid = (int)$source->sections[1]->id;
+        self::assertSame('Cached title', $handler->get_section_custom_name($file, $sectionid));
+        self::assertNull($handler->get_section_custom_name($file, $sectionid + 1000));
+
+        // Intentionally not an archive: a cache miss must not attempt to open it.
+        $otherfile = get_file_storage()->create_file_from_string([
+            'contextid' => \context_user::instance($USER->id)->id,
+            'component' => 'block_sharing_cart',
+            'filearea' => 'backup',
+            'itemid' => $rootitemid,
+            'filepath' => '/',
+            'filename' => 'different-backup.mbz',
+        ], 'Not a backup archive');
+        self::assertNull($handler->get_section_custom_name($otherfile, $sectionid));
+        self::assertSame('Cached title', $handler->get_section_custom_name($file, $sectionid));
+    }
+
+    /**
+     * Placement names must follow the backed-up title, not a cart label or the current source section name.
+     *
+     * @param string|null $sourcename
+     * @param string|null $targetname
+     * @param bool $replacedetails
+     * @param string $expectedname
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('placement_destination_name_provider')]
+    public function test_placement_destination_name_matches_the_restored_section(
+        ?string $sourcename,
+        ?string $targetname,
+        bool $replacedetails,
+        string $expectedname
+    ): void {
+        global $DB, $PAGE;
+
+        $source = $this->create_course(1, [1 => $sourcename]);
+        $this->add_page($source, 1, 'Copied page');
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $item = $this->factory->item()->repository()->get_by_id($rootitemid);
+        if ($sourcename === null || $sourcename === '') {
+            self::assertSame('New section', $item->get_name());
+        }
+        $item->set_name('Cart display label');
+        $this->factory->item()->repository()->update($item);
+        $DB->set_field('course_sections', 'name', 'Source renamed after backup', ['id' => $source->sections[1]->id]);
+
+        $target = $this->create_course(2, [2 => $targetname]);
+        $targetsectionid = (int)$target->sections[2]->id;
+        // Make the replacement option available even when the target has no custom title.
+        $DB->set_field('course_sections', 'summary', '<p>Target summary</p>', ['id' => $targetsectionid]);
+        $PAGE->set_context(\context_course::instance($target->id));
+        $body = new \block_sharing_cart\output\modal\import_item_modal_body($this->factory, $item, $targetsectionid);
+        $context = $body->export_for_template($PAGE->get_renderer('core'));
+        self::assertTrue($context['can_replace_section_details']);
+        self::assertSame($expectedname, $context[$replacedetails ? 'restore_replacement_name' : 'restore_target_name']);
+        self::assertSame(html_to_text(format_string($sourcename ?? ''), 0, false), $context['restore_source_name']);
+
+        $this->restore($rootitemid, $targetsectionid, replacesectiondetails: $replacedetails);
+
+        $restoredsection = $DB->get_record('course_sections', ['id' => $targetsectionid], '*', MUST_EXIST);
+        $actualname = course_get_format($target->id)->get_section_name($restoredsection);
+        self::assertSame($expectedname, html_to_text(format_string($actualname), 0, false));
+        self::assertSame(['Copied page'], $this->module_names($targetsectionid));
+    }
+
+    /**
+     * Provides named and unnamed source/target combinations, with and without explicit replacement.
+     *
+     * @return array<string, array{?string, ?string, bool, string}>
+     */
+    public static function placement_destination_name_provider(): array {
+        return [
+            'null source and target' => [null, null, false, 'New section'],
+            'empty source and target' => ['', '', false, 'New section'],
+            'null source replacing unnamed target' => [null, null, true, 'New section'],
+            'null source keeps named target' => [null, 'Target title', false, 'Target title'],
+            'null source replaces named target' => [null, 'Target title', true, 'New section'],
+            'custom source names unnamed target' => ['Copied title', null, false, 'Copied title'],
+            'custom source keeps named target' => ['Copied title', 'Target title', false, 'Target title'],
+            'custom source replaces named target' => ['Copied title', 'Target title', true, 'Copied title'],
+            'custom title resembling generated label' => ['Section 1', null, false, 'Section 1'],
+            'numeric custom title' => ['1', null, false, '1'],
+            'formatted custom title' => ['Copied & <em>title</em>', null, false, 'Copied & title'],
+        ];
+    }
+
+    /**
+     * Unnamed roots inserted as new sections still need a destination label, independent of the cart name.
+     *
+     * @param string|null $sourcename
+     * @param string $targetformat
+     * @param bool $toplevel
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('new_section_destination_name_provider')]
+    public function test_new_section_destination_name_is_available(
+        ?string $sourcename,
+        string $targetformat,
+        bool $toplevel
+    ): void {
+        global $DB, $PAGE;
+
+        $source = $this->create_course(1, [1 => $sourcename]);
+        $this->add_page($source, 1, 'Copied page');
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $item = $this->factory->item()->repository()->get_by_id($rootitemid);
+        $item->set_name('Misleading cart label');
+        $this->factory->item()->repository()->update($item);
+
+        $target = self::getDataGenerator()->create_course(['format' => $targetformat, 'numsections' => 2]);
+        $targetsectionid = $toplevel ? 0 : (int)$DB->get_field('course_sections', 'id', [
+            'course' => $target->id,
+            'section' => 2,
+        ], MUST_EXIST);
+        $PAGE->set_context(\context_course::instance($target->id));
+        $body = new \block_sharing_cart\output\modal\import_item_modal_body($this->factory, $item, $targetsectionid, true);
+        $context = $body->export_for_template($PAGE->get_renderer('core'));
+        self::assertNotSame('', $context['restore_target_name']);
+        self::assertNotSame($item->get_name(), $context['restore_target_name']);
+        self::assertSame(html_to_text(format_string($sourcename ?? ''), 0, false), $context['restore_source_name']);
+        self::assertFalse($context['can_replace_section_details']);
+
+        $this->restore($rootitemid, $targetsectionid, insertasnewsection: true, courseid: (int)$target->id);
+
+        $pageid = $DB->get_field('page', 'id', ['course' => $target->id, 'name' => 'Copied page'], MUST_EXIST);
+        $module = get_coursemodule_from_instance('page', (int)$pageid, (int)$target->id, false, MUST_EXIST);
+        $restoredsection = $DB->get_record('course_sections', ['id' => $module->section], '*', MUST_EXIST);
+        $actualname = course_get_format($target->id)->get_section_name($restoredsection);
+        if ($targetformat === 'weeks' && !$toplevel && ($sourcename ?? '') === '') {
+            // Week numbers can change when a section is moved; a generic label is safer than a guessed date range.
+            self::assertSame('New section', $context['restore_target_name']);
+        } else {
+            self::assertSame(html_to_text(format_string($actualname), 0, false), $context['restore_target_name']);
+        }
+        if (($sourcename ?? '') === '') {
+            self::assertSame('', (string)$restoredsection->name);
+        }
+    }
+
+    /**
+     * Provides unnamed and custom titles across top-level, nested and date-based new-section restores.
+     *
+     * @return array<string, array{?string, string, bool}>
+     */
+    public static function new_section_destination_name_provider(): array {
+        return [
+            'unnamed topics root at top level' => [null, 'topics', true],
+            'unnamed topics root under a target' => [null, 'topics', false],
+            'empty topics root at top level' => ['', 'topics', true],
+            'named topics root at top level' => ['Copied title', 'topics', true],
+            'named topics root under a target' => ['Copied & <em>title</em>', 'topics', false],
+            'unnamed weeks root at top level' => [null, 'weeks', true],
+            'unnamed weeks root under a target' => [null, 'weeks', false],
+        ];
     }
 
     public function test_replace_section_details_takes_the_copied_title_and_description(): void {
@@ -370,14 +1300,28 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $DB->set_field('course_sections', 'summary', '<p>Target summary</p>', ['id' => $targetsectionid]);
         $this->add_section_file($target->id, $targetsectionid, 'old.txt');
 
+        $hookhadreplacement = false;
+        $hooktargetname = null;
+        \core\di::get(\core\hook\manager::class)->phpunit_redirect_hook(
+            before_sections_restored::class,
+            static function (before_sections_restored $hook) use (&$hookhadreplacement, &$hooktargetname): void {
+                $hookhadreplacement = factory::make()->restore()->section_details_replacement()
+                    ->has_snapshot($hook->courseid, $hook->targetsectionid);
+                $hooktargetname = factory::make()->moodle()->db()->get_field('course_sections', 'name', [
+                    'id' => $hook->targetsectionid,
+                ]);
+            }
+        );
         $this->restore($rootitemid, $targetsectionid, replacesectiondetails: true);
 
+        self::assertTrue($hookhadreplacement, 'Course formats must see the pending replacement before preparing the restore.');
+        self::assertSame('Target', $hooktargetname, 'Format validation must still see the original target details.');
         $section = $DB->get_record('course_sections', ['id' => $targetsectionid], '*', MUST_EXIST);
-        $this->assertSame('Copied', $section->name);
-        $this->assertStringContainsString('Copied summary', $section->summary);
-        $this->assertFalse($this->section_file_exists($target->id, $targetsectionid, 'old.txt'));
-        $this->assertFalse($this->factory->restore()->section_details_replacement()->has_snapshot($target->id, $targetsectionid));
-        $this->assertSame(['Page copied'], $this->module_names($targetsectionid));
+        self::assertSame('Copied', $section->name);
+        self::assertStringContainsString('Copied summary', $section->summary);
+        self::assertFalse($this->section_file_exists($target->id, $targetsectionid, 'old.txt'));
+        self::assertFalse($this->factory->restore()->section_details_replacement()->has_snapshot($target->id, $targetsectionid));
+        self::assertSame(['Page copied'], $this->module_names($targetsectionid));
     }
 
     public function test_replace_section_details_is_rolled_back_when_the_restore_fails(): void {
@@ -392,7 +1336,7 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $DB->set_field('course_sections', 'summary', '<p>Target summary</p>', ['id' => $targetsectionid]);
         $this->add_section_file($target->id, $targetsectionid, 'keep.txt');
 
-        // Fail after the details were blanked and before the plan runs.
+        // Fail after preparing the replacement snapshot and before the target is blanked.
         \core\di::get(\core\hook\manager::class)->phpunit_redirect_hook(
             before_sections_restored::class,
             static function (before_sections_restored $hook): void {
@@ -403,11 +1347,11 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $this->restore($rootitemid, $targetsectionid, replacesectiondetails: true, expectfailure: true);
 
         $section = $DB->get_record('course_sections', ['id' => $targetsectionid], '*', MUST_EXIST);
-        $this->assertSame('Target', $section->name);
-        $this->assertSame('<p>Target summary</p>', $section->summary);
-        $this->assertTrue($this->section_file_exists($target->id, $targetsectionid, 'keep.txt'));
-        $this->assertFalse($this->factory->restore()->section_details_replacement()->has_snapshot($target->id, $targetsectionid));
-        $this->assertSame([], $this->module_names($targetsectionid));
+        self::assertSame('Target', $section->name);
+        self::assertSame('<p>Target summary</p>', $section->summary);
+        self::assertTrue($this->section_file_exists($target->id, $targetsectionid, 'keep.txt'));
+        self::assertFalse($this->factory->restore()->section_details_replacement()->has_snapshot($target->id, $targetsectionid));
+        self::assertSame([], $this->module_names($targetsectionid));
     }
 
     public function test_insert_as_new_top_level_section(): void {
@@ -430,17 +1374,17 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $this->restore($rootitemid, 0, insertasnewsection: true, courseid: (int)$target->id);
 
         $sections = $this->sections_by_name($target->id);
-        $this->assertEqualsCanonicalizing(['', 'Existing', 'Copied', 'Child'], array_keys($sections));
-        $this->assertSame(2, (int)$sections['Copied']->section);
-        $this->assertSame(3, (int)$sections['Child']->section);
-        $this->assertSame(['Page copied'], $this->module_names((int)$sections['Copied']->id));
-        $this->assertSame(['Page child'], $this->module_names((int)$sections['Child']->id));
-        $this->assertSame([], $this->module_names((int)$sections['Existing']->id));
+        self::assertEqualsCanonicalizing(['', 'Existing', 'Copied', 'Child'], array_keys($sections));
+        self::assertSame(2, (int)$sections['Copied']->section);
+        self::assertSame(3, (int)$sections['Child']->section);
+        self::assertSame(['Page copied'], $this->module_names((int)$sections['Copied']->id));
+        self::assertSame(['Page child'], $this->module_names((int)$sections['Child']->id));
+        self::assertSame([], $this->module_names((int)$sections['Existing']->id));
 
-        $this->assertSame(0, $payload->targetsectionid);
+        self::assertSame(0, $payload->targetsectionid);
         [$copied, $child] = $payload->restoredsections;
-        $this->assertSame(0, $copied->new_parent_section_id);
-        $this->assertSame((int)$sections['Copied']->id, $child->new_parent_section_id);
+        self::assertSame(0, $copied->new_parent_section_id);
+        self::assertSame((int)$sections['Copied']->id, $child->new_parent_section_id);
     }
 
     public function test_flat_restore_omits_empty_ancestors_and_keeps_only_populated_leaf(): void {
@@ -452,17 +1396,17 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $this->restore($rootitemid, 0, insertasnewsection: true, courseid: (int)$target->id);
 
         $sections = $DB->get_records('course_sections', ['course' => $target->id], 'section ASC');
-        $this->assertCount(3, $sections);
-        $this->assertEqualsCanonicalizing(['', 'Existing', 'Section 4'], array_map(
+        self::assertCount(3, $sections);
+        self::assertEqualsCanonicalizing(['', 'Existing', 'Section 4'], array_map(
             static fn(object $section): string => (string)$section->name,
             array_values($sections)
         ));
-        $this->assertFalse($DB->record_exists('course_sections', ['course' => $target->id, 'name' => 'Section 2']));
-        $this->assertFalse($DB->record_exists('course_sections', ['course' => $target->id, 'name' => 'Section 3']));
+        self::assertFalse($DB->record_exists('course_sections', ['course' => $target->id, 'name' => 'Section 2']));
+        self::assertFalse($DB->record_exists('course_sections', ['course' => $target->id, 'name' => 'Section 3']));
 
         $leaf = $DB->get_record('course_sections', ['course' => $target->id, 'name' => 'Section 4'], '*', MUST_EXIST);
-        $this->assertSame(2, (int)$leaf->section);
-        $this->assertSame(['Leaf activity'], $this->module_names((int)$leaf->id));
+        self::assertSame(2, (int)$leaf->section);
+        self::assertSame(['Leaf activity'], $this->module_names((int)$leaf->id));
     }
 
     public function test_flat_drop_restore_removes_empty_placeholder_and_ancestors(): void {
@@ -478,21 +1422,21 @@ final class asynchronous_restore_task_test extends \advanced_testcase
             itemid: $rootitemid,
             asnewsection: true
         );
-        $this->assertInstanceOf(asynchronous_restore_task::class, $task);
+        self::assertInstanceOf(asynchronous_restore_task::class, $task);
         $this->runAdhocTasks(asynchronous_restore_task::class);
 
         $sections = array_values($DB->get_records('course_sections', ['course' => $target->id], 'section ASC'));
-        $this->assertCount(4, $sections);
-        $this->assertEqualsCanonicalizing(['', 'Before', 'Section 4', 'After'], array_map(
+        self::assertCount(4, $sections);
+        self::assertEqualsCanonicalizing(['', 'Before', 'Section 4', 'After'], array_map(
             static fn(object $section): string => (string)$section->name,
             $sections
         ));
-        $this->assertFalse($DB->record_exists('course_sections', ['course' => $target->id, 'name' => 'Section 2']));
-        $this->assertFalse($DB->record_exists('course_sections', ['course' => $target->id, 'name' => 'Section 3']));
+        self::assertFalse($DB->record_exists('course_sections', ['course' => $target->id, 'name' => 'Section 2']));
+        self::assertFalse($DB->record_exists('course_sections', ['course' => $target->id, 'name' => 'Section 3']));
 
         $leaf = $DB->get_record('course_sections', ['course' => $target->id, 'name' => 'Section 4'], '*', MUST_EXIST);
-        $this->assertSame(2, (int)$leaf->section);
-        $this->assertSame(['Leaf activity'], $this->module_names((int)$leaf->id));
+        self::assertSame(2, (int)$leaf->section);
+        self::assertSame(['Leaf activity'], $this->module_names((int)$leaf->id));
     }
 
     /**

@@ -19,6 +19,7 @@ namespace block_sharing_cart\integration\task;
 use block_sharing_cart\app\factory;
 use block_sharing_cart\app\item\entity;
 use block_sharing_cart\external\restore\item_into_section;
+use block_sharing_cart\hook\restore\before_sections_restored;
 use block_sharing_cart\task\asynchronous_restore_task;
 
 defined('MOODLE_INTERNAL') || die();
@@ -344,21 +345,32 @@ final class restore_drop_position_test extends \advanced_testcase {
     }
 
     public function test_new_section_is_removed_again_when_the_restore_fails(): void {
+        global $DB;
+
         self::setAdminUser();
         $course = $this->create_target_course();
         [$item] = $this->section_in_cart();
 
-        // No course module in the backup matches, so the restore fails after the new section was created.
+        // Invalid IDs are now rejected before queueing. Fail through the format hook after creating the placeholder.
+        $createdsectionid = null;
+        \core\di::get(\core\hook\manager::class)->phpunit_redirect_hook(
+            before_sections_restored::class,
+            static function (before_sections_restored $hook) use (&$createdsectionid): void {
+                $createdsectionid = $hook->targetsectionid;
+                throw new \Exception('Simulated restore failure after creating the target section');
+            }
+        );
         $task = $this->factory->restore()->handler()->restore_item_into_section(
             item: $item,
             sectionid: $this->section_id($course->id, 1),
             itemid: $item->get_id(),
-            settings: ['course_modules_to_include' => [-1]],
             asnewsection: true
         );
         $this->execute_restore_task($task, expectfailure: true);
 
         self::assertTrue($task->get_custom_data()->noretry);
+        self::assertNotNull($createdsectionid);
+        self::assertFalse($DB->record_exists('course_sections', ['id' => $createdsectionid]));
         self::assertSame(['', 'S1', 'S2', 'S3'], array_map('strval', $this->section_names($course->id)));
         self::assertSame(['S2a', 'S2b'], $this->section_cm_names($course->id, 2));
     }

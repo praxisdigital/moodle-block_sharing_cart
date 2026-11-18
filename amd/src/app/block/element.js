@@ -5,6 +5,7 @@ import ModalEvents from 'core/modal_events';
 import {get_string as getString, get_strings as getStrings} from 'core/str';
 import Ajax from "core/ajax";
 import Notification from "core/notification";
+import RestoreSelection from './restore_selection';
 
 /**
  * @typedef BackupSettings
@@ -754,52 +755,12 @@ export default class BlockElement {
      * @param {DropTarget|null} dropTarget Set when the item was dragged to a position in the course.
      */
     importItem(item, sectionId, modal, options = {}, dropTarget = null) {
-        this.#course.clearClipboard();
-
-        // A nested section that is unchecked drops everything beneath it, whatever the state of the child boxes.
-        const isUnderUncheckedSection = (checkbox) => {
-            let parent = checkbox.closest('.form-check')?.parentElement?.closest('.form-check');
-            while (parent) {
-                const parentCheckbox = parent.querySelector(':scope > label > input[type="checkbox"]');
-                if (parentCheckbox && parentCheckbox.dataset.type === 'section' && !parentCheckbox.checked) {
-                    return true;
-                }
-                parent = parent.parentElement?.closest('.form-check');
-            }
-            return false;
-        };
-
-        const replaceSectionDetails = Boolean(
-            modal.querySelector('input[data-action="replace_section_details"]')?.checked
-        );
-
-        const courseModuleIds = [];
-        const sectionIds = [];
-        modal.querySelectorAll('input[type="checkbox"]:checked').forEach((checkbox) => {
-            // Option boxes (e.g. replace section details) are not content selections.
-            if (checkbox.dataset.type === 'option' || isUnderUncheckedSection(checkbox)) {
-                return;
-            }
-            if (checkbox.dataset.type === 'section') {
-                sectionIds.push(checkbox.dataset.id);
-            } else {
-                courseModuleIds.push(checkbox.dataset.id);
-            }
-        });
-
-        // The backend treats an empty list as "all nested sections", so signal "none" explicitly.
+        const {courseModuleIds, sectionIds, replaceSectionDetails} = RestoreSelection.read(modal);
         const hasNestedSections = modal.querySelector('input[type="checkbox"][data-type="section"]') !== null;
-        if (hasNestedSections && sectionIds.length === 0) {
-            sectionIds.push(0);
-        }
 
-        if (item.isSection() && courseModuleIds.length === 0 && (!hasNestedSections || sectionIds[0] === 0)) {
-            modal.querySelectorAll('.form-check-input').forEach(async(item) => {
-                item.setCustomValidity(
-                    await getString('atleast_one_course_module_must_be_included', 'block_sharing_cart')
-                );
-                item.reportValidity();
-            });
+        if ((item.isSection() || item.isSubsection()) && courseModuleIds.length === 0 &&
+                (!hasNestedSections || sectionIds[0] === 0)) {
+            RestoreSelection.reportEmpty(modal).catch(Notification.exception);
             return false;
         }
 
@@ -807,12 +768,15 @@ export default class BlockElement {
             courseModuleIds.push(item.getItemOldInstanceId());
         }
 
+        this.#course.clearClipboard();
+
         Ajax.call([{
             methodname: 'block_sharing_cart_restore_item_from_sharing_cart_into_section',
             args: {
                 itemid: item.getItemId(),
                 sectionid: sectionId,
                 coursemodulestoinclude: courseModuleIds,
+                moduleselectionexplicit: true,
                 sectionstoinclude: sectionIds,
                 insertasnewsection: Boolean(options.asNewSection),
                 courseid: options.courseId ?? 0,
@@ -903,9 +867,14 @@ export default class BlockElement {
             removeOnClose: true,
         });
         modal.getRoot().on(ModalEvents.shown, () => this.#baseFactory.moodle().template().runTemplateJS(js));
+        RestoreSelection.bind(modal.getRoot()[0]);
         modal.getRoot().on(
             ModalEvents.save,
-            this.importItem.bind(this, item, sectionId, modal.getRoot()[0], options, dropTarget)
+            (event) => {
+                if (!this.importItem(item, sectionId, modal.getRoot()[0], options, dropTarget)) {
+                    event.preventDefault();
+                }
+            }
         );
         await modal.show();
     }

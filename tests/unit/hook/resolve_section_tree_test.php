@@ -43,7 +43,7 @@ final class resolve_section_tree_test extends \basic_testcase {
 
         $ids = array_map(static fn(object $node): int => $node->section_id, $hook->get_tree());
 
-        $this->assertSame([11, 111, 1111, 12], $ids);
+        self::assertSame([11, 111, 1111, 12], $ids);
     }
 
     /**
@@ -61,7 +61,7 @@ final class resolve_section_tree_test extends \basic_testcase {
 
         $ids = array_map(static fn(object $node): int => $node->section_id, $hook->get_tree());
 
-        $this->assertSame([11], $ids);
+        self::assertSame([11], $ids);
     }
 
     /**
@@ -72,6 +72,6 @@ final class resolve_section_tree_test extends \basic_testcase {
     public function test_empty_tree_for_flat_formats(): void {
         $hook = new resolve_section_tree(courseid: 1, sectionid: 10);
 
-        $this->assertSame([], $hook->get_tree());
+        self::assertSame([], $hook->get_tree());
     }
 }

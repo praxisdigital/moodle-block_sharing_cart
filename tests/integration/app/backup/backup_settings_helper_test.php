@@ -86,21 +86,21 @@ final class backup_settings_helper_test extends \advanced_testcase
         $backupplansettings = $this->helper->construct_backup_plan_settings($this->customdata1, $backupcontrollercontext, $item);
 
         // Section asserts.
-        $this->assertTrue($backupplansettings[$this->get_section_include($this->section1course1)]);
-        $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->section1course1)]);
+        self::assertTrue($backupplansettings[$this->get_section_include($this->section1course1)]);
+        self::assertFalse($backupplansettings[$this->get_section_userinfo($this->section1course1)]);
 
         // Module asserts.
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->page1course1, 'page')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->page1course1, 'page')]);
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->book1course1, 'book')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->book1course1, 'book')]);
+        self::assertTrue($backupplansettings[$this->get_module_include($this->page1course1, 'page')]);
+        self::assertFalse($backupplansettings[$this->get_module_userinfo($this->page1course1, 'page')]);
+        self::assertTrue($backupplansettings[$this->get_module_include($this->book1course1, 'book')]);
+        self::assertFalse($backupplansettings[$this->get_module_userinfo($this->book1course1, 'book')]);
 
         $item->set_old_instance_id($this->section2course1->id);
         $backupplansettings = $this->helper->construct_backup_plan_settings($this->customdata1, $backupcontrollercontext, $item);
 
         // Section asserts.
-        $this->assertTrue($backupplansettings[$this->get_section_include($this->section2course1)]);
-        $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->section2course1)]);
+        self::assertTrue($backupplansettings[$this->get_section_include($this->section2course1)]);
+        self::assertFalse($backupplansettings[$this->get_section_userinfo($this->section2course1)]);
     }
 
     /**
@@ -114,7 +114,7 @@ final class backup_settings_helper_test extends \advanced_testcase
         $this->customdata1->item["old_instance_id"] = $this->section1course1->id;
         $this->customdata1->item["type"] = "section";
 
-        $this->setAdminUser();
+        self::setAdminUser();
 
         $item = $this->basefactory->item()->entity((object)$this->customdata1->item);
         $backupcontrollercontext = \core\context\course::instance($this->course1->id);
@@ -122,21 +122,21 @@ final class backup_settings_helper_test extends \advanced_testcase
         $backupplansettings = $this->helper->construct_backup_plan_settings($this->customdata1, $backupcontrollercontext, $item);
 
         // Section asserts.
-        $this->assertTrue($backupplansettings[$this->get_section_include($this->section1course1)]);
-        $this->assertTrue($backupplansettings[$this->get_section_userinfo($this->section1course1)]);
+        self::assertTrue($backupplansettings[$this->get_section_include($this->section1course1)]);
+        self::assertTrue($backupplansettings[$this->get_section_userinfo($this->section1course1)]);
 
         // Module asserts.
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->page1course1, 'page')]);
-        $this->assertTrue($backupplansettings[$this->get_module_userinfo($this->page1course1, 'page')]);
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->book1course1, 'book')]);
-        $this->assertTrue($backupplansettings[$this->get_module_userinfo($this->book1course1, 'book')]);
+        self::assertTrue($backupplansettings[$this->get_module_include($this->page1course1, 'page')]);
+        self::assertTrue($backupplansettings[$this->get_module_userinfo($this->page1course1, 'page')]);
+        self::assertTrue($backupplansettings[$this->get_module_include($this->book1course1, 'book')]);
+        self::assertTrue($backupplansettings[$this->get_module_userinfo($this->book1course1, 'book')]);
 
         $item->set_old_instance_id($this->section2course1->id);
         $backupplansettings = $this->helper->construct_backup_plan_settings($this->customdata1, $backupcontrollercontext, $item);
 
         // Section asserts.
-        $this->assertTrue($backupplansettings[$this->get_section_include($this->section2course1)]);
-        $this->assertTrue($backupplansettings[$this->get_section_userinfo($this->section2course1)]);
+        self::assertTrue($backupplansettings[$this->get_section_include($this->section2course1)]);
+        self::assertTrue($backupplansettings[$this->get_section_userinfo($this->section2course1)]);
     }
 
     /**
@@ -145,7 +145,7 @@ final class backup_settings_helper_test extends \advanced_testcase
     // phpcs:ignore moodle.Files.LineLength.TooLong
     public function test_construct_backup_plan_settings_terminates_with_error_when_users_are_set_to_true_and_lacks_capability(): void {
         if (!class_exists('core\exception\required_capability_exception')) {
-            $this->markTestSkipped(
+            self::markTestSkipped(
                 'Skipping test. Required class core\exception\required_capability_exception ' .
                 'does not exist in this version of moodle'
             );
@@ -169,7 +169,7 @@ final class backup_settings_helper_test extends \advanced_testcase
     // phpcs:ignore moodle.Files.LineLength.TooLong
     public function test_construct_backup_plan_settings_terminates_with_error_when_anonymize_are_set_to_true_and_lacks_capability(): void {
         if (!class_exists('core\exception\required_capability_exception')) {
-            $this->markTestSkipped(
+            self::markTestSkipped(
                 'Skipping test. Required class core\exception\required_capability_exception ' .
                 'does not exist in this version of moodle'
             );

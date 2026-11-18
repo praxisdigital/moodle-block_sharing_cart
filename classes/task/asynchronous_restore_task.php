@@ -42,7 +42,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
     /** @var section_plan|null Where the restored sections go; null when the restore has no target section. */
     private ?section_plan $sectionplan = null;
 
-    /** @var int Section whose title and description were blanked for replacement; 0 when none. */
+    /** @var int Section with a prepared replacement snapshot; 0 when none. */
     private int $replacedsectionid = 0;
 
     /**
@@ -201,6 +201,12 @@ class asynchronous_restore_task extends \core\task\adhoc_task
 
             $customdata = $this->get_custom_data();
             $backupsettings = $customdata->backup_settings ?? (object)[];
+            $item = $this->factory()->item()->repository()->get_by_id((int)($customdata->item->id ?? 0));
+            if (!$item) {
+                throw new \moodle_exception('invalidrecord', 'error');
+            }
+            // Repeat queue-time validation before creating sections or changing the destination.
+            $coursemodulestoinclude = $this->factory()->restore()->selection()->module_ids($item, (array)$backupsettings);
             $insertaftersectionid = (int)($backupsettings->insert_after_section_id ?? 0);
             if ($insertaftersectionid) {
                 $movetosectionid = $this->create_section_after($restorecontroller->get_courseid(), $insertaftersectionid);
@@ -210,27 +216,31 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 $this->set_custom_data($customdata);
             }
 
-            $coursemodulestoinclude = array_map(
-                'intval',
-                $backupsettings->course_modules_to_include ?? []
-            );
-            if (!empty($coursemodulestoinclude) && $coursemodulestoinclude !== [0]) {
-                $this->only_include_specified_course_modules($restorecontroller, $coursemodulestoinclude);
-            }
+            $moduleselectionexplicit = !empty($backupsettings->module_selection_explicit);
+            $planner = $this->factory()->restore()->section_planner();
+            $activityuserinfo = $planner->activity_userinfo_settings($restorecontroller);
+            $this->only_include_specified_course_modules($restorecontroller, $coursemodulestoinclude);
 
             $movetosectionid = (int)($backupsettings->move_to_section_id ?? 0);
             $insertasnewsection = !empty($backupsettings->insert_as_new_section);
             if ($movetosectionid > 0 || $insertasnewsection) {
-                $planner = $this->factory()->restore()->section_planner();
-                $item = $this->factory()->item()->repository()->get_by_id((int)($customdata->item->id ?? 0));
-
                 $this->sectionplan = $planner->plan(
                     $restorecontroller,
                     $item,
                     $movetosectionid,
                     $insertasnewsection,
-                    array_map('intval', (array)($backupsettings->sections_to_include ?? []))
+                    array_map('intval', (array)($backupsettings->sections_to_include ?? [])),
+                    // Keep legacy section-list intent: default descendants must not become explicit flatten requests.
+                    $item->is_section()
+                        ? array_map('intval', (array)($backupsettings->course_modules_to_include ?? []))
+                        : $coursemodulestoinclude,
+                    $moduleselectionexplicit
                 );
+
+                // Formats inspect the snapshot to distinguish an explicit replacement from a content-only merge.
+                if (!empty($backupsettings->replace_section_details) && $this->sectionplan->merges_into_target()) {
+                    $this->prepare_section_details_replacement($restorecontroller);
+                }
 
                 $beforessectionsrestored = new before_sections_restored(
                     restoreid: $restorecontroller->get_restoreid(),
@@ -248,10 +258,13 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                     );
                 }
 
-                $planner->apply($restorecontroller, $this->sectionplan);
+                $planner->apply($restorecontroller, $this->sectionplan, $activityuserinfo);
 
-                if (!empty($backupsettings->replace_section_details) && $this->sectionplan->merges_into_target()) {
-                    $this->replace_section_details($restorecontroller);
+                if ($this->replacedsectionid > 0) {
+                    $this->factory()->restore()->section_details_replacement()->blank(
+                        (int)$restorecontroller->get_courseid(),
+                        $this->replacedsectionid
+                    );
                 }
             }
 
@@ -429,16 +442,16 @@ class asynchronous_restore_task extends \core\task\adhoc_task
     }
 
     /**
-     * Blanks the target section's title and description so the restore fills them from the copy.
+     * Prepare a rollback snapshot and replacement intent without changing the target before format validation.
      *
      * @param \restore_controller $restorecontroller
      * @return void
      */
-    private function replace_section_details(\restore_controller $restorecontroller): void {
+    private function prepare_section_details_replacement(\restore_controller $restorecontroller): void {
         $sectionid = $this->sectionplan->targetsectionid;
-        mtrace("...Replacing the title and description of section (id: $sectionid) with the copied section's");
+        mtrace("...Preparing replacement of the title and description of section (id: $sectionid)");
 
-        $this->factory()->restore()->section_details_replacement()->snapshot_and_blank(
+        $this->factory()->restore()->section_details_replacement()->snapshot(
             (int)$restorecontroller->get_courseid(),
             $sectionid
         );
@@ -446,7 +459,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
     }
 
     /**
-     * Drops the snapshot taken by replace_section_details() once the restore succeeded.
+     * Drops the replacement snapshot once the restore succeeded.
      *
      * @param \restore_controller $restorecontroller
      * @return void
