@@ -526,7 +526,7 @@ final class section_planner {
      *
      * @param \restore_controller $restorecontroller
      * @param section_plan $plan
-     * @param array<int, int> $modulesections Old module id => old section id.
+     * @param array $modulesections Old module id => old section id.
      * @return array{array<int, int>, array<int, bool>} Delegated owners and inclusion, keyed by old section id.
      */
     private function delegated_section_context(
