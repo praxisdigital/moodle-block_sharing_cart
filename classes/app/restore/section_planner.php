@@ -380,14 +380,31 @@ final class section_planner {
     }
 
     /**
+     * Capture effective user-data choices before excluding containers can clear their dependent activity settings.
+     *
+     * @param \restore_controller $restorecontroller
+     * @return array Original module id => effective userinfo setting.
+     */
+    public function activity_userinfo_settings(\restore_controller $restorecontroller): array {
+        $settings = [];
+        foreach ($restorecontroller->get_plan()->get_tasks() as $task) {
+            if ($task instanceof \restore_activity_task) {
+                $settings[(int)$task->get_old_moduleid()] = (bool)$task->get_setting('userinfo')->get_value();
+            }
+        }
+        return $settings;
+    }
+
+    /**
      * Rewrite the section numbers in the extracted backup and switch off the section (and module) tasks that are not
      * part of the plan.
      *
      * @param \restore_controller $restorecontroller
      * @param section_plan $plan
+     * @param array $activityuserinfo Effective activity user-data settings captured before scoping.
      * @return void
      */
-    public function apply(\restore_controller $restorecontroller, section_plan $plan): void {
+    public function apply(\restore_controller $restorecontroller, section_plan $plan, array $activityuserinfo = []): void {
         $targetnumber = $plan->targetsectionnumber;
         $planned = $plan->sections;
 
@@ -515,8 +532,25 @@ final class section_planner {
         // Disabling section tasks can disable their activities through core setting dependencies.
         // Restore only the scoped content (and the chosen subsection's owner) after applying all section settings.
         foreach ($restorecontroller->get_plan()->get_tasks() as $task) {
-            if ($task instanceof \restore_activity_task && !$plan->selective) {
-                $task->get_setting('included')->set_value($moduleexplicitlyselected((int)$task->get_old_moduleid()));
+            if ($task instanceof \restore_activity_task) {
+                $oldmoduleid = (int)$task->get_old_moduleid();
+                if (!$plan->selective) {
+                    $task->get_setting('included')->set_value($moduleexplicitlyselected($oldmoduleid));
+                }
+                $userinfo = $task->get_setting('userinfo');
+                if (
+                    $task->get_setting('included')->get_value()
+                    && isset($activityuserinfo[$oldmoduleid])
+                    && $restorecontroller->get_plan()->get_setting('users')->get_value()
+                    && !in_array(
+                        $userinfo->get_status(),
+                        [\base_setting::LOCKED_BY_PERMISSION, \base_setting::LOCKED_BY_CONFIG],
+                        true
+                    )
+                ) {
+                    // Removing an unrelated section must not discard the selected activity's attempts or grades.
+                    $userinfo->set_value($activityuserinfo[$oldmoduleid]);
+                }
             }
         }
     }

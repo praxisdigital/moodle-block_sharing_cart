@@ -321,6 +321,207 @@ final class restore_item_scope_test extends \advanced_testcase {
     }
 
     /**
+     * Real attempts, responses, quiz grades and gradebook grades survive item scoping when user data was backed up.
+     *
+     * @param string $kind Individual quiz, subsection owner, or a flattened selection.
+     * @param bool $users Whether the archive includes user data.
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('quiz_user_data_provider')]
+    public function test_selected_quiz_preserves_its_backed_up_user_data(string $kind, bool $users): void {
+        global $DB;
+
+        [$source, $rootid] = $this->course('Unrelated source title');
+        $DB->set_field('course_sections', 'summary', '<p>Unrelated source summary</p>', ['id' => $rootid]);
+        $this->activity($source, $rootid, 'Unrelated page');
+        $quizsectionid = $rootid;
+        if ($kind !== 'individual quiz') {
+            $subsection = $this->activity($source, $rootid, 'Chosen subsection', 'subsection');
+            $quizsectionid = (int)$DB->get_field('course_sections', 'id', [
+                'course' => $source->id, 'component' => 'mod_subsection', 'itemid' => $subsection->id,
+            ], MUST_EXIST);
+        }
+        $quiz = $this->activity($source, $quizsectionid, 'Selected quiz', 'quiz');
+        $generator = self::getDataGenerator();
+        $questions = $generator->get_plugin_generator('core_question');
+        $category = $questions->create_question_category(['contextid' => \context_course::instance($source->id)->id]);
+        $question = $questions->create_question('truefalse', null, ['category' => $category->id]);
+        quiz_add_quiz_question($question->id, $quiz);
+        \mod_quiz\quiz_settings::create($quiz->id)->get_grade_calculator()->recompute_quiz_sumgrades();
+        $student = $generator->create_user();
+        $generator->enrol_user($student->id, $source->id, 'student');
+        self::setUser($student);
+        $quizgenerator = $generator->get_plugin_generator('mod_quiz');
+        $attempt = $quizgenerator->create_attempt($quiz->id, $student->id);
+        $quizgenerator->submit_responses($attempt->id, [1 => get_string('true', 'qtype_truefalse')], false, true);
+        self::setAdminUser();
+        $sourceattempt = $DB->get_record('quiz_attempts', ['id' => $attempt->id], '*', MUST_EXIST);
+        $sourcegrade = $DB->get_record('quiz_grades', ['quiz' => $quiz->id, 'userid' => $student->id], '*', MUST_EXIST);
+        self::assertSame('finished', $sourceattempt->state);
+        self::assertGreaterThan(0, (float)$sourcegrade->grade);
+
+        $backup = section_into_sharing_cart::execute($rootid, ['users' => $users, 'anonymize' => false]);
+        $this->runAdhocTasks(asynchronous_backup_task::class);
+        $repository = factory::make()->item()->repository();
+        $items = [];
+        foreach ($repository->get_recursively_by_parent_id((int)$backup->id) as $item) {
+            $items[$item->get_name()] = $item;
+        }
+        $chosen = match ($kind) {
+            'subsection' => $items['Chosen subsection'],
+            'flattened quiz' => $items['Unrelated source title'],
+            default => $items['Selected quiz'],
+        };
+        [$target, $targetid] = $this->course('Keep target title');
+        $DB->set_field('course_sections', 'summary', '<p>Keep target summary</p>', ['id' => $targetid]);
+        $generator->enrol_user($student->id, $target->id, 'student');
+        self::assertTrue(item_into_section::execute(
+            $chosen->get_id(),
+            $targetid,
+            [(int)$quiz->cmid],
+            sectionstoinclude: $kind === 'flattened quiz' ? [0] : [],
+            moduleselectionexplicit: true
+        ));
+        $this->runAdhocTasks(asynchronous_restore_task::class);
+        self::assertStringNotContainsString('Exception thrown during restore execution', $this->getActualOutputForAssertion());
+
+        $restoredquiz = $DB->get_record('quiz', ['course' => $target->id], '*', MUST_EXIST);
+        $restoredcm = get_coursemodule_from_instance('quiz', $restoredquiz->id, $target->id, false, MUST_EXIST);
+        $attempts = $DB->get_records('quiz_attempts', ['quiz' => $restoredquiz->id]);
+        $grades = $DB->get_records('quiz_grades', ['quiz' => $restoredquiz->id]);
+        $gradeitemid = (int)$DB->get_field('grade_items', 'id', [
+            'courseid' => $target->id, 'itemtype' => 'mod', 'itemmodule' => 'quiz', 'iteminstance' => $restoredquiz->id,
+        ], MUST_EXIST);
+        self::assertCount((int)$users, $attempts);
+        self::assertCount((int)$users, $grades);
+        if ($users) {
+            $restoredattempt = reset($attempts);
+            $restoredgrade = reset($grades);
+            self::assertSame((int)$student->id, (int)$restoredattempt->userid);
+            self::assertSame('finished', $restoredattempt->state);
+            self::assertEqualsWithDelta((float)$sourceattempt->sumgrades, (float)$restoredattempt->sumgrades, 0.00001);
+            self::assertSame((int)$student->id, (int)$restoredgrade->userid);
+            self::assertEqualsWithDelta((float)$sourcegrade->grade, (float)$restoredgrade->grade, 0.00001);
+            $usage = \question_engine::load_questions_usage_by_activity($restoredattempt->uniqueid);
+            self::assertSame('1', (string)$usage->get_question_attempt(1)->get_last_qt_var('answer'));
+            $gradebookgrade = $DB->get_record('grade_grades', [
+                'itemid' => $gradeitemid, 'userid' => $student->id,
+            ], '*', MUST_EXIST);
+            self::assertEqualsWithDelta((float)$sourcegrade->grade, (float)$gradebookgrade->finalgrade, 0.00001);
+        } else {
+            self::assertFalse($DB->record_exists_select(
+                'grade_grades',
+                'itemid = ? AND userid = ? AND finalgrade IS NOT NULL',
+                [$gradeitemid, $student->id]
+            ));
+        }
+        self::assertFalse($DB->record_exists('page', ['course' => $target->id]));
+        self::assertSame('Keep target title', $DB->get_field('course_sections', 'name', ['id' => $targetid]));
+        self::assertSame('<p>Keep target summary</p>', $DB->get_field('course_sections', 'summary', ['id' => $targetid]));
+        // Core may create a question-bank activity to hold restored questions; it is a quiz dependency, not a sibling copy.
+        self::assertSame($kind === 'subsection' ? 2 : 1, $DB->count_records_sql(
+            'SELECT COUNT(cm.id)
+               FROM {course_modules} cm
+               JOIN {modules} m ON m.id = cm.module
+              WHERE cm.course = ? AND m.name <> ?',
+            [$target->id, 'qbank']
+        ));
+        if ($kind === 'subsection') {
+            $delegated = $DB->get_record('course_sections', [
+                'course' => $target->id, 'component' => 'mod_subsection',
+            ], '*', MUST_EXIST);
+            self::assertSame((int)$delegated->id, (int)$restoredcm->section);
+        } else {
+            self::assertSame($targetid, (int)$restoredcm->section);
+            self::assertFalse($DB->record_exists('course_sections', ['course' => $target->id, 'component' => 'mod_subsection']));
+        }
+    }
+
+    /**
+     * Container dependencies must not alter either an enabled or a disabled user-data choice.
+     *
+     * @return array
+     */
+    public static function quiz_user_data_provider(): array {
+        $cases = [];
+        foreach (['individual quiz', 'quiz inside subsection', 'subsection', 'flattened quiz'] as $kind) {
+            $cases[$kind . ' with user data'] = [$kind, true];
+            $cases[$kind . ' without user data'] = [$kind, false];
+        }
+        return $cases;
+    }
+
+    /**
+     * Preserving activity settings must not opt in to user data disabled by a caller or a restore restriction.
+     *
+     * @param string $restriction The effective choice or restriction to preserve.
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('user_data_restriction_provider')]
+    public function test_preserving_user_data_does_not_override_restore_restrictions(string $restriction): void {
+        [$source, $rootid] = $this->course('Source section');
+        $page = $this->activity($source, $rootid, 'Selected page');
+        $backup = section_into_sharing_cart::execute($rootid, ['users' => true, 'anonymize' => false]);
+        $this->runAdhocTasks(asynchronous_backup_task::class);
+        $factory = factory::make();
+        $repository = $factory->item()->repository();
+        $root = $repository->get_by_id((int)$backup->id);
+        $selected = $repository->get_by_parent_item_id($root->get_id())->first();
+        self::assertSame('Selected page', $selected->get_name());
+        [$target, $targetid] = $this->course('Target section');
+        $controller = $factory->restore()->restore_controller(
+            $repository->get_stored_file_by_item($root),
+            (int)$target->id,
+            (int)get_admin()->id
+        );
+        try {
+            self::assertTrue($controller->execute_precheck(true));
+            $activitytask = null;
+            foreach ($controller->get_plan()->get_tasks() as $task) {
+                if ($task instanceof \restore_activity_task && (int)$task->get_old_moduleid() === (int)$page->cmid) {
+                    $activitytask = $task;
+                }
+            }
+            self::assertNotNull($activitytask);
+            $userinfo = $activitytask->get_setting('userinfo');
+            self::assertTrue((bool)$userinfo->get_value(), 'The fixture must initially allow user data.');
+            $planner = $factory->restore()->section_planner();
+            if ($restriction === 'global users disabled') {
+                // A later global restriction must also take precedence over a previously enabled snapshot.
+                $saved = $planner->activity_userinfo_settings($controller);
+                $controller->get_plan()->get_setting('users')->set_value(false);
+                self::assertTrue($saved[(int)$page->cmid]);
+            } else {
+                $userinfo->set_value(false);
+                if ($restriction !== 'activity disabled') {
+                    $userinfo->set_status($restriction === 'permission lock'
+                        ? \base_setting::LOCKED_BY_PERMISSION : \base_setting::LOCKED_BY_CONFIG);
+                }
+                $saved = $planner->activity_userinfo_settings($controller);
+                self::assertFalse($saved[(int)$page->cmid]);
+            }
+            $plan = $planner->plan($controller, $selected, $targetid, false, [], [(int)$page->cmid]);
+            $planner->apply($controller, $plan, $saved);
+            self::assertTrue((bool)$activitytask->get_setting('included')->get_value());
+            self::assertFalse((bool)$userinfo->get_value());
+        } finally {
+            $controller->destroy();
+        }
+    }
+
+    /**
+     * Existing effective exclusions must not be mistaken for dependency-induced user-data loss.
+     *
+     * @return array
+     */
+    public static function user_data_restriction_provider(): array {
+        return [
+            'activity disabled' => ['activity disabled'],
+            'global users disabled' => ['global users disabled'],
+            'permission lock' => ['permission lock'],
+            'configuration lock' => ['configuration lock'],
+        ];
+    }
+
+    /**
      * Quiz copies with and without the source still present.
      *
      * @return array<string, array{bool}>

@@ -124,6 +124,8 @@ Change Log
     * Restoring an individual subsection or activity from a shared section backup no longer copies sibling content
       or unrelated section details. Legacy default selections include only the chosen cart item's own contents.
       Older root subsection items using course-module IDs are also supported.
+    * Selected activities retain backed-up user data when their original section is excluded. Quiz attempts,
+      responses and grades are preserved without enabling user data when it was disabled or restricted.
     * Reduced database queries when reading large Sharing Cart item trees while preserving their order and scope.
     * Section titles used by restore placement hints are cached during backup processing. Opening the restore dialog
       no longer decompresses the backup to read a title, avoiding repeated media-size-dependent work.

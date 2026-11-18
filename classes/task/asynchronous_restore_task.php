@@ -217,12 +217,13 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             }
 
             $moduleselectionexplicit = !empty($backupsettings->module_selection_explicit);
+            $planner = $this->factory()->restore()->section_planner();
+            $activityuserinfo = $planner->activity_userinfo_settings($restorecontroller);
             $this->only_include_specified_course_modules($restorecontroller, $coursemodulestoinclude);
 
             $movetosectionid = (int)($backupsettings->move_to_section_id ?? 0);
             $insertasnewsection = !empty($backupsettings->insert_as_new_section);
             if ($movetosectionid > 0 || $insertasnewsection) {
-                $planner = $this->factory()->restore()->section_planner();
                 $this->sectionplan = $planner->plan(
                     $restorecontroller,
                     $item,
@@ -257,7 +258,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                     );
                 }
 
-                $planner->apply($restorecontroller, $this->sectionplan);
+                $planner->apply($restorecontroller, $this->sectionplan, $activityuserinfo);
 
                 if ($this->replacedsectionid > 0) {
                     $this->factory()->restore()->section_details_replacement()->blank(
