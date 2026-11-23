@@ -125,7 +125,7 @@ export default class ItemElement {
         e.stopPropagation();
         e.stopImmediatePropagation();
 
-        await this.#blockElement.setClipboard(this);
+        await this.#blockElement.setClipboard(this, e.currentTarget, e.detail === 0);
     }
 
     async runNow(e) {

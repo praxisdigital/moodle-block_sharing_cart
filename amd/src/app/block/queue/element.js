@@ -1,6 +1,7 @@
 import {getCurrentCourseEditor} from "core_courseformat/courseeditor";
 import Ajax from "core/ajax";
 import * as Toast from 'core/toast';
+import LocalStorage from 'core/localstorage';
 import {get_string as getString} from "core/str";
 
 export default class QueueElement {
@@ -19,6 +20,12 @@ export default class QueueElement {
      */
     #element;
 
+    /** @type {HTMLElement} */
+    #failures;
+
+    /** @type {Set<string>} */
+    #dismissedFailures = new Set();
+
     /**
      * @type {CourseEditor}
      */
@@ -33,6 +40,9 @@ export default class QueueElement {
      * @type {Object|null}
      */
     #loadQueueToken = null;
+
+    /** @type {number} */
+    #queueRevision = 0;
 
     /**
      * @type {boolean}
@@ -55,6 +65,7 @@ export default class QueueElement {
         this.#baseFactory = baseFactory;
         this.#blockElement = blockElement;
         this.#element = element;
+        this.#failures = element.parentElement.querySelector('[data-region="restore-failures"]');
         this.#reactive = getCurrentCourseEditor();
         this.#showCopiesQueuedSegmentWhenEmpty = showCopiesQueuedSegmentWhenEmpty;
 
@@ -76,7 +87,7 @@ export default class QueueElement {
      * @param {boolean} ignoreQueueItemsCount
      */
     tryReloadQueue(ignoreQueueItemsCount = false) {
-        if (ignoreQueueItemsCount === false && this.getQueueItems().length === 0) {
+        if (this.#preventReload || (!ignoreQueueItemsCount && this.getQueueItems().length === 0)) {
             return;
         }
 
@@ -108,130 +119,126 @@ export default class QueueElement {
      * @return {Promise<void>}
      */
     async loadQueue(showSpinner = false, token = {}) {
-        // eslint-disable-next-line no-async-promise-executor
-        return new Promise(async(resolve, reject) => {
-            token.abort = () => {
-                reject();
-            };
-
-            // Snapshot before the spinner replaces them, so a restore that finishes meanwhile is still detected.
-            const oldQueueItems = Array.from(this.getQueueItems());
-
-            if (showSpinner) {
-                this.#element.innerHTML = '<i class="fa fa-spinner"></i>';
+        const revision = ++this.#queueRevision;
+        token.abort = () => {
+            if (this.#queueRevision === revision) {
+                this.#queueRevision++;
             }
+        };
 
-            const elements = await this.#baseFactory.moodle().template().createElementsFromFragment(
-                'block_sharing_cart',
-                'item_queue',
-                M.cfg.contextid,
-                {}
-            );
+        if (showSpinner && this.getQueueItems().length === 0) {
+            this.#element.innerHTML = '<i class="fa fa-spinner"></i>';
+        }
+        const elements = await this.#baseFactory.moodle().template().createElementsFromFragment(
+            'block_sharing_cart', 'item_queue', M.cfg.contextid, {}
+        );
+        if (this.#queueRevision !== revision) {
+            return;
+        }
 
-            const queueItems = elements.filter((element) => {
-                if (!(element instanceof Element)) {
-                    return false;
-                }
+        const fragments = elements.filter(element => element instanceof Element);
+        const successes = fragments.find(element => element.matches('[data-region="restore-successes"]'));
+        const successIds = new Set(successes?.dataset.taskIds.split(' ') ?? []);
+        const queueItems = fragments.filter(element => element.classList.contains('queue-item'));
+        const activeIds = new Set(queueItems.map(element => element.dataset.id));
+        const completed = Array.from(this.getQueueItems()).filter(element =>
+            !activeIds.has(element.dataset.id) && successIds.has(element.dataset.id));
+        this.refreshSuccessfulRestores(completed);
 
-                return element.classList.contains('queue-item');
-            });
-
-            // Compare task ids rather than counts: a restore can finish while another one is queued.
-            const removedElements = oldQueueItems.filter((element) => {
-                const correspondingElement = queueItems.find((el) => el.dataset.id === element.dataset.id);
-
-                return correspondingElement === undefined;
-            });
-
-            if (removedElements.length > 0) {
-                const sectionIds = [];
-                // A restore into a new section changes the section list, which only a full course state refresh picks up.
-                const refreshCourse = removedElements.some((element) => element.dataset.refreshCourse === '1');
-                removedElements.forEach((element) => {
-                    const sectionId = element.dataset.toSectionId;
-
-                    if (!sectionId) {
-                        return;
-                    }
-
-                    if (sectionIds.indexOf(sectionId) !== -1) {
-                        return;
-                    }
-
-                    sectionIds.push(sectionId);
-                });
-
-                if (refreshCourse || sectionIds.length > 0) {
-                    const refresh = refreshCourse ?
-                        this.#reactive.dispatch('courseState') :
-                        this.#reactive.dispatch('sectionState', sectionIds);
-                    refresh.then(() => {
-                        Toast.add(getString('you_may_need_to_reload_the_course_warning', 'block_sharing_cart'), {
-                            closeButton: true,
-                            autohide: true,
-                            type: 'warning'
-                        });
-                        return null;
-                    }).catch(() => {
-                        // Ignore section state refresh failures.
-                    });
-                }
-            }
-
-            this.#element.innerHTML = '';
-
-            queueItems.forEach((element) => {
-                const runNowButton = element.querySelector('button.btn');
-
-                if (!runNowButton) {
-                    return;
-                }
-
-                runNowButton.addEventListener('click', () => {
-                    const taskId = element.dataset.id;
-
-                    runNowButton.disabled = true;
-
-                    this.#preventReload = true;
-                    if (this.#loadQueueToken !== null) {
-                        this.#loadQueueToken.abort();
-                    }
-
-                    Ajax.call([{
-                        methodname: 'block_sharing_cart_run_task_now',
-                        args: {
-                            taskid: taskId
-                        }
-                    }]);
-
-                    setTimeout(() => {
-                        this.#preventReload = false;
-                        this.tryReloadQueue(true);
-                    }, 2000);
-                }, {once: true});
-            });
-
-            elements.forEach((element) => {
-                this.#element.appendChild(element);
-            });
-
-            if (!this.#showCopiesQueuedSegmentWhenEmpty) {
-                if (queueItems.length > 0) {
-                    this.showSegment();
-                } else {
-                    this.hideSegment();
-                }
-            }
-
-            resolve();
-        });
+        queueItems.forEach(element => this.bindRunNow(element));
+        const empty = fragments.find(element => element.matches('[data-region="no-restores"]'));
+        this.#element.replaceChildren(...queueItems, ...(empty ? [empty] : []));
+        this.renderFailures(fragments.filter(element => element.matches('[data-region="restore-failure"]')));
     }
 
-    hideSegment() {
-        this.#element.parentElement.classList.add('d-none');
+    /**
+     * @param {Element[]} completed Confirmed restores that just finished.
+     */
+    refreshSuccessfulRestores(completed) {
+        const refreshCourse = completed.some(element => element.dataset.refreshCourse === '1');
+        const sectionIds = [...new Set(completed.map(element => element.dataset.toSectionId).filter(Boolean))];
+        if (refreshCourse || sectionIds.length > 0) {
+            const refresh = refreshCourse ?
+                this.#reactive.dispatch('courseState') : this.#reactive.dispatch('sectionState', sectionIds);
+            refresh.then(() => Toast.add(getString('you_may_need_to_reload_the_course_warning', 'block_sharing_cart'), {
+                closeButton: true,
+                autohide: true,
+                type: 'warning'
+            })).catch(() => {
+                // Ignore course state refresh failures.
+            });
+        }
     }
 
-    showSegment() {
-        this.#element.parentElement.classList.remove('d-none');
+    /**
+     * @param {Element} element Active queue row.
+     */
+    bindRunNow(element) {
+        const button = element.querySelector('[data-action="run-restore-now"]');
+        button?.addEventListener('click', () => {
+            button.disabled = true;
+            this.#preventReload = true;
+            this.#loadQueueToken?.abort();
+            Ajax.call([{
+                methodname: 'block_sharing_cart_run_task_now',
+                args: {taskid: element.dataset.id}
+            }]);
+            setTimeout(() => {
+                this.#preventReload = false;
+                this.tryReloadQueue(true);
+            }, 2000);
+        }, {once: true});
+    }
+
+    /**
+     * Keep notices in place during polling so dismiss buttons retain keyboard focus.
+     * @param {Element[]} failures Notices returned by the server.
+     */
+    renderFailures(failures) {
+        const storageKey = 'block_sharing_cart/dismissed_restores';
+        const dismissed = new Set((LocalStorage.get(storageKey) || '').split(' '));
+        const visible = failures.filter(element => !dismissed.has(element.dataset.id) &&
+            !this.#dismissedFailures.has(element.dataset.id));
+        const ids = new Set(visible.map(element => element.dataset.id));
+        for (const element of Array.from(this.#failures.children)) {
+            if (!ids.has(element.dataset.id)) {
+                element.remove();
+            }
+        }
+        const displayed = new Set(Array.from(this.#failures.children, element => element.dataset.id));
+        for (const element of visible) {
+            if (displayed.has(element.dataset.id)) {
+                continue;
+            }
+            const button = element.querySelector('[data-action="dismiss-restore-error"]');
+            button.addEventListener('click', () => {
+                const id = element.dataset.id;
+                this.#dismissedFailures.add(id);
+                const previous = (LocalStorage.get(storageKey) || '').split(' ').filter(value => value && value !== id);
+                LocalStorage.set(storageKey, [id, ...previous].slice(0, 100).join(' '));
+                const restoreFocus = document.activeElement === button;
+                element.remove();
+                this.updateSegment();
+                if (restoreFocus) {
+                    const next = this.#failures.querySelector('button') ?? this.#element.closest('.block_sharing_cart')
+                        ?.querySelector('.card-title');
+                    if (next && !next.matches('button')) {
+                        next.setAttribute('tabindex', '-1');
+                    }
+                    next?.focus();
+                }
+            });
+            this.#failures.append(element);
+        }
+        this.updateSegment();
+    }
+
+    /** Update visibility when pending restores or failure notices change. */
+    updateSegment() {
+        const hasFailures = this.#failures.childElementCount > 0;
+        const hasQueueItems = this.getQueueItems().length > 0;
+        this.#element.hidden = hasFailures && !hasQueueItems;
+        this.#element.parentElement.classList.toggle('d-none',
+            !this.#showCopiesQueuedSegmentWhenEmpty && !hasQueueItems && !hasFailures);
     }
 }

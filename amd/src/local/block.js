@@ -264,20 +264,17 @@ export default class Block extends BaseComponent {
                     backupButton.addEventListener(
                         'click',
                         (e) => {
-                            if (e.currentTarget.classList.contains('disabled')) {
-                                return;
-                            }
-                            this.block.addSectionBackupToSharingCart(element.id);
+                            this.block.addSectionBackupToSharingCart(element.id, e.currentTarget);
                         }
                     );
                 }
                 backupButton = sectionTitle.parentElement.querySelector('.add_to_sharing_cart');
 
                 const disabled = element.cmlist.length === 0;
-                backupButton.classList.toggle('disabled', disabled);
+                backupButton.disabled = disabled;
                 backupButton.title = disabled ?
                     await getString('no_course_modules_in_section_description', 'block_sharing_cart') :
-                    '';
+                    backupButton.getAttribute('aria-label');
             }
         }
     }
@@ -305,7 +302,7 @@ export default class Block extends BaseComponent {
 
                 backupButton.addEventListener(
                     'click',
-                    this.block.addCourseModuleBackupToSharingCart.bind(this.block, element.id)
+                    (e) => this.block.addCourseModuleBackupToSharingCart(element.id, e.currentTarget)
                 );
             }
         }

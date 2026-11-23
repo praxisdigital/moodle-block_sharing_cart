@@ -30,10 +30,10 @@ Feature: Restore a selected activity from an unchecked custom section
     And I click on "//a[@data-key='addblock']" "xpath_element"
     And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists
     And I click on "//a[@data-blockname='sharing_cart']" "xpath_element"
-    And I wait until "(//div[@class='sharing_cart_item' and @data-type='section']//i[@data-action='copy_to_course'])[1]" "xpath_element" exists
-    And I click on "(//div[@class='sharing_cart_item' and @data-type='section']//i[@data-action='copy_to_course'])[1]" "xpath_element"
-    And I wait until "//li[@id='section-2']//*[@class='clipboard_target']" "xpath_element" exists
-    And I click on "//li[@id='section-2']//*[@class='clipboard_target']" "xpath_element"
+    And I wait until "#block_sharing_cart [data-type=section] [data-action=copy_to_course]" "css_element" exists
+    And I click on "#block_sharing_cart [data-type=section] [data-action=copy_to_course]" "css_element"
+    And I wait until "#section-2 .clipboard_target" "css_element" exists
+    And I click on "#section-2 .clipboard_target" "css_element"
     And I wait until "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element" exists
     And I set the field with xpath "//input[@data-container='true' and @data-title='Custom child']" to "0"
     And the field with xpath "//input[@data-container='true' and @data-title='Custom child']/ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' form-check ')][1]//div[contains(concat(' ', normalize-space(@class), ' '), ' item-children ')]//input[@data-type='coursemodule']" matches value "0"
@@ -62,10 +62,10 @@ Feature: Restore a selected activity from an unchecked custom section
     And I click on "//a[@data-key='addblock']" "xpath_element"
     And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists
     And I click on "//a[@data-blockname='sharing_cart']" "xpath_element"
-    And I wait until "(//div[@class='sharing_cart_item' and @data-type='section']//i[@data-action='copy_to_course'])[1]" "xpath_element" exists
-    And I click on "(//div[@class='sharing_cart_item' and @data-type='section']//i[@data-action='copy_to_course'])[1]" "xpath_element"
-    And I wait until "//li[@id='section-2']//*[@class='clipboard_target']" "xpath_element" exists
-    And I click on "//li[@id='section-2']//*[@class='clipboard_target']" "xpath_element"
+    And I wait until "#block_sharing_cart [data-type=section] [data-action=copy_to_course]" "css_element" exists
+    And I click on "#block_sharing_cart [data-type=section] [data-action=copy_to_course]" "css_element"
+    And I wait until "#section-2 .clipboard_target" "css_element" exists
+    And I click on "#section-2 .clipboard_target" "css_element"
     And I wait until "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element" exists
     And I set the field with xpath "//div[contains(@class, 'import_form')]//label[contains(., 'Root activity')]/input" to "0"
     And I set the field with xpath "//input[@data-container='true' and @data-title='Root subsection']" to "0"
@@ -102,10 +102,10 @@ Feature: Restore a selected activity from an unchecked custom section
     And I click on "//a[@data-key='addblock']" "xpath_element"
     And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists
     And I click on "//a[@data-blockname='sharing_cart']" "xpath_element"
-    And I wait until "(//div[@class='sharing_cart_item' and @data-type='section']//i[@data-action='copy_to_course'])[1]" "xpath_element" exists
-    And I click on "(//div[@class='sharing_cart_item' and @data-type='section']//i[@data-action='copy_to_course'])[1]" "xpath_element"
-    And I wait until "//li[@id='section-2']//*[@class='clipboard_target']" "xpath_element" exists
-    And I click on "//li[@id='section-2']//*[@class='clipboard_target']" "xpath_element"
+    And I wait until "#block_sharing_cart [data-type=section] [data-action=copy_to_course]" "css_element" exists
+    And I click on "#block_sharing_cart [data-type=section] [data-action=copy_to_course]" "css_element"
+    And I wait until "#section-2 .clipboard_target" "css_element" exists
+    And I click on "#section-2 .clipboard_target" "css_element"
     And I wait until "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element" exists
     Then the restore container "<container>" is "1" with "2" of "2" descendants selected
     When I set the field with xpath "//div[contains(@class, 'import_form')]//label[contains(., '<firstchild>')]/input" to "0"
@@ -145,10 +145,10 @@ Feature: Restore a selected activity from an unchecked custom section
     And I click on "//a[@data-key='addblock']" "xpath_element"
     And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists
     And I click on "//a[@data-blockname='sharing_cart']" "xpath_element"
-    And I wait until "(//div[@class='sharing_cart_item' and @data-type='section']//i[@data-action='copy_to_course'])[1]" "xpath_element" exists
-    And I click on "(//div[@class='sharing_cart_item' and @data-type='section']//i[@data-action='copy_to_course'])[1]" "xpath_element"
-    And I wait until "//li[@id='section-0']//*[@class='clipboard_target']" "xpath_element" exists
-    And I click on "//li[@id='section-0']//*[@class='clipboard_target']" "xpath_element"
+    And I wait until "#block_sharing_cart [data-type=section] [data-action=copy_to_course]" "css_element" exists
+    And I click on "#block_sharing_cart [data-type=section] [data-action=copy_to_course]" "css_element"
+    And I wait until "#section-0 .clipboard_target" "css_element" exists
+    And I click on "#section-0 .clipboard_target" "css_element"
     And I wait until "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element" exists
     And I set the field with xpath "//input[@data-container='true' and @data-title='Custom child']" to "0"
     And I set the field with xpath "//div[contains(@class, 'import_form')]//label[contains(., 'Custom child activity')]/input" to "1"
@@ -182,10 +182,10 @@ Feature: Restore a selected activity from an unchecked custom section
     And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists
     And I click on "//a[@data-blockname='sharing_cart']" "xpath_element"
     And I add a top-level Sharing Cart restore target for course "TARGET"
-    And I wait until "(//div[@class='sharing_cart_item' and @data-type='section']//i[@data-action='copy_to_course'])[1]" "xpath_element" exists
-    And I click on "(//div[@class='sharing_cart_item' and @data-type='section']//i[@data-action='copy_to_course'])[1]" "xpath_element"
-    And I wait until "//div[@data-region='sharing-cart-course-target']//div[@class='clipboard_target']" "xpath_element" exists
-    And I click on "//div[@data-region='sharing-cart-course-target']//div[@class='clipboard_target']" "xpath_element"
+    And I wait until "#block_sharing_cart [data-type=section] [data-action=copy_to_course]" "css_element" exists
+    And I click on "#block_sharing_cart [data-type=section] [data-action=copy_to_course]" "css_element"
+    And I wait until "[data-region=sharing-cart-course-target] .clipboard_target" "css_element" exists
+    And I click on "[data-region=sharing-cart-course-target] .clipboard_target" "css_element"
     And I wait until "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element" exists
     And I set the field with xpath "//input[@data-container='true' and @data-title='Root subsection']" to "0"
     And I set the field with xpath "//div[contains(@class, 'import_form')]//label[contains(., 'Subsection activity')]/input" to "1"

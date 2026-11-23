@@ -22,18 +22,18 @@ Feature: Drag a copied section to a new course position
     And I click on "//a[@data-key='addblock']" "xpath_element"
     And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists
     And I click on "//a[@data-blockname='sharing_cart']" "xpath_element"
-    And I wait until "//li[@id='section-1']//*[@class='fa fa-shopping-basket add_to_sharing_cart']" "xpath_element" exists
-    And I click on "//li[@id='section-1']//*[@class='fa fa-shopping-basket add_to_sharing_cart']" "xpath_element"
+    And I wait until "#section-1 .add_to_sharing_cart" "css_element" exists
+    And I click on "#section-1 .add_to_sharing_cart" "css_element"
     And I wait until "//div[contains(@class, 'modal-footer')]//button[@data-action='save']" "xpath_element" exists
     And I click on "//div[contains(@class, 'modal-footer')]//button[@data-action='save']" "xpath_element"
     And I run all adhoc tasks
-    And I wait until "//div[@id='block_sharing_cart']//div[@data-type='section']//i[@data-action='copy_to_course']" "xpath_element" exists
+    And I wait until "#block_sharing_cart [data-type=section] [data-action=copy_to_course]" "css_element" exists
     And I am on the "Target course" "Course" page
     And I switch editing mode on
     And I click on "//a[@data-key='addblock']" "xpath_element"
     And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists
     And I click on "//a[@data-blockname='sharing_cart']" "xpath_element"
-    And I wait until "//div[@id='block_sharing_cart']//div[@data-type='section']//i[@data-action='copy_to_course']" "xpath_element" exists
+    And I wait until "#block_sharing_cart [data-type=section] [data-action=copy_to_course]" "css_element" exists
     When I drag Sharing Cart section "Section 1" after course section "1"
     And I wait until "//div[contains(@class, 'modal-footer')]//button[@data-action='save']" "xpath_element" exists
     And I click on "//div[contains(@class, 'modal-footer')]//button[@data-action='save']" "xpath_element"

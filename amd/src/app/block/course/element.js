@@ -1,4 +1,5 @@
 import {getCurrentCourseEditor} from "core_courseformat/courseeditor";
+import {getString} from 'core/str';
 
 /**
  * @typedef {import("core_courseformat/factory").BaseFactory} BaseFactory
@@ -80,6 +81,12 @@ export default class CourseElement {
      */
     #clipboard = null;
 
+    /** @type {HTMLElement|null} */
+    #clipboardSource = null;
+
+    /** @type {Promise<void>|null} */
+    #clipboardRendering = null;
+
     /**
      * @type {AbortController}
      */
@@ -139,19 +146,21 @@ export default class CourseElement {
         e.preventDefault();
         e.stopPropagation();
 
-        this.clearClipboard();
+        this.clearClipboard(true);
     }
 
-    clearClipboard() {
+    /**
+     * @param {boolean} restoreFocus Whether cancellation should return focus to the copy button.
+     */
+    clearClipboard(restoreFocus = false) {
+        this.#clipboardTargetListenerAbortController.abort();
         this.#clipboard?.classList.add('d-none');
         this.clearClipboardTargets();
-
+        if (restoreFocus) {
+            this.#clipboardSource?.focus();
+        }
+        this.#clipboardSource = null;
         this.#blockElement.clearClipboard();
-    }
-
-    async reRenderClipboard() {
-        this.clearClipboard();
-        await this.renderClipboard();
     }
 
     /**
@@ -168,73 +177,48 @@ export default class CourseElement {
 
     /**
      * @param {ItemElement} item
+     * @param {AbortSignal} signal The clipboard session's signal.
      */
-    async updateClipboardTargets(item) {
+    async updateClipboardTargets(item, signal) {
         const element = await this.#baseFactory.moodle().template().createElementFromTemplate(
             'block_sharing_cart/block/course/clipboard_target',
             {}
         );
 
-        this.#clipboardTargetListenerAbortController.abort();
-        this.#clipboardTargetListenerAbortController = new AbortController();
+        if (signal.aborted) {
+            return;
+        }
 
-        this.#element.querySelectorAll('[data-for="cmlist"],[data-for="course_sectionlist"]').forEach((section) => {
-
-            let clipboardTarget = null;
-            let sectionId = null;
-
-            if (section.matches('[data-for="course_sectionlist"]')) {
-
-                const courseSectionsElementList = section.querySelectorAll('.section-item ul[data-for="cmlist"]');
-
-                if (!courseSectionsElementList) {
-                    return;
-                }
-
-                courseSectionsElementList.forEach((courseSectionElement) => {
-
-                    if (!this.isSectionClipboardTargetEligible(courseSectionElement, item)) {
-                        return;
-                    }
-
-                    clipboardTarget = courseSectionElement.querySelector('.clipboard_target') ?? element.cloneNode(true);
-                    courseSectionElement.prepend(clipboardTarget);
-                    sectionId = courseSectionElement.closest('[data-for="section"]').dataset.id;
-
-                    clipboardTarget.classList.remove('hidden');
-                    clipboardTarget.parentElement.classList.remove('hidden');
-                    clipboardTarget.addEventListener(
-                        'click',
-                        this.#blockElement.confirmImportBackupFromSharingCart.bind(this.#blockElement, item, sectionId, {}),
-                        {
-                            signal: this.#clipboardTargetListenerAbortController.signal
-                        }
-                    );
-                });
-
+        const labels = [];
+        this.#element.querySelectorAll('[data-for="cmlist"]').forEach((list) => {
+            const sectionId = list.closest('[data-for="section"]')?.dataset.id;
+            if (!sectionId || !this.isSectionClipboardTargetEligible(list, item)) {
                 return;
             }
 
-            if (!this.isSectionClipboardTargetEligible(section, item)) {
-                return;
+            const clipboardTarget = element.cloneNode(true);
+            if (list.matches('ul, ol')) {
+                const wrapper = document.createElement('li');
+                wrapper.classList.add('list-unstyled');
+                wrapper.dataset.region = 'sharing-cart-target-wrapper';
+                wrapper.append(clipboardTarget);
+                list.prepend(wrapper);
+            } else {
+                list.prepend(clipboardTarget);
             }
-
-            clipboardTarget = section.querySelector('.clipboard_target') ?? element.cloneNode(true);
-            section.prepend(clipboardTarget);
-            sectionId = section.closest('[data-for="section"]').dataset.id;
-
-            clipboardTarget.classList.remove('hidden');
-            clipboardTarget.parentElement.classList.remove('hidden');
+            list.classList.remove('hidden');
+            labels.push(this.setClipboardTargetLabel(clipboardTarget, sectionId, false));
             clipboardTarget.addEventListener(
                 'click',
                 this.#blockElement.confirmImportBackupFromSharingCart.bind(this.#blockElement, item, sectionId, {}),
-                {
-                    signal: this.#clipboardTargetListenerAbortController.signal
-                }
+                {signal}
             );
         });
 
-        this.updateCourseLevelClipboardTargets(item, element);
+        if (item.isSection()) {
+            labels.push(...this.updateCourseLevelClipboardTargets(item, element, signal));
+        }
+        await Promise.all(labels);
     }
 
     /**
@@ -243,13 +227,11 @@ export default class CourseElement {
      *
      * @param {ItemElement} item
      * @param {Element} element clipboard target template
+     * @param {AbortSignal} signal The clipboard session's signal.
+     * @returns {Promise<void>[]}
      */
-    updateCourseLevelClipboardTargets(item, element) {
-        if (!item.isSection()) {
-            return;
-        }
-
-        this.#element.querySelectorAll('[data-region="sharing-cart-course-target"]').forEach((placeholder) => {
+    updateCourseLevelClipboardTargets(item, element, signal) {
+        return Array.from(this.#element.querySelectorAll('[data-region="sharing-cart-course-target"]'), (placeholder) => {
             const clipboardTarget = placeholder.querySelector('.clipboard_target') ?? element.cloneNode(true);
             placeholder.appendChild(clipboardTarget);
             clipboardTarget.classList.remove('hidden');
@@ -265,11 +247,25 @@ export default class CourseElement {
                     parentSectionId,
                     {asNewSection: true, courseId: courseId}
                 ),
-                {
-                    signal: this.#clipboardTargetListenerAbortController.signal
-                }
+                {signal}
             );
+            return this.setClipboardTargetLabel(clipboardTarget, parentSectionId, true);
         });
+    }
+
+    /**
+     * @param {HTMLElement} button The destination button.
+     * @param {number|string} sectionId The destination section ID, or 0 for the course itself.
+     * @param {boolean} asNewSection Whether this destination creates a section.
+     */
+    async setClipboardTargetLabel(button, sectionId, asNewSection) {
+        const title = sectionId ? this.reactive.state.section.get(sectionId)?.title :
+            await getString('the_course', 'block_sharing_cart');
+        const name = new DOMParser().parseFromString(title ?? '', 'text/html').body.textContent.trim();
+        if (name) {
+            const key = asNewSection ? 'copy_new_section' : 'copy_into_destination';
+            button.setAttribute('aria-label', await getString(key, 'block_sharing_cart', name));
+        }
     }
 
     /**
@@ -730,21 +726,44 @@ export default class CourseElement {
 
     clearClipboardTargets() {
         this.getClipboardTargets().forEach((target) => {
-            target.remove();
+            (target.closest('[data-region="sharing-cart-target-wrapper"]') ?? target).remove();
         });
     }
 
     /**
      * @param {ItemElement} item
+     * @param {HTMLElement} source The copy button.
+     * @param {boolean} focusTarget Whether to move focus to the first destination.
      */
-    async setClipboard(item) {
-        if (!this.#clipboard) {
-            await this.renderClipboard();
-        } else {
-            await this.reRenderClipboard();
+    async setClipboard(item, source, focusTarget) {
+        this.#clipboardTargetListenerAbortController.abort();
+        this.clearClipboardTargets();
+        this.#clipboardTargetListenerAbortController = new AbortController();
+        const {signal} = this.#clipboardTargetListenerAbortController;
+        this.#clipboardSource = source;
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !event.defaultPrevented && !event.target.closest('.modal')) {
+                event.preventDefault();
+                this.clearClipboard(true);
+            }
+        }, {signal});
+
+        this.#clipboardRendering ??= this.renderClipboard();
+        await this.#clipboardRendering;
+        if (signal.aborted) {
+            return;
         }
 
         this.updateClipboard(item);
-        await this.updateClipboardTargets(item);
+        await this.updateClipboardTargets(item, signal);
+        if (!signal.aborted && focusTarget && document.activeElement === source) {
+            for (const target of this.getClipboardTargets()) {
+                target.focus();
+                if (document.activeElement === target) {
+                    break;
+                }
+            }
+        }
     }
 }

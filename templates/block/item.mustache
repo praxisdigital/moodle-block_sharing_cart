@@ -49,8 +49,13 @@
                     {{#has_file_id}}
                         {{^module_is_disabled_on_site}}
                             {{#can_copy_to_course}}
-                                <i class="fa fa-clone{{#copy_to_course_touch_only}} copy-to-course-touch-only{{/copy_to_course_touch_only}}"
-                                   data-action="copy_to_course" title="{{#str}}copy_item, block_sharing_cart{{/str}}"></i>
+                                <button type="button"
+                                        class="btn btn-link p-0{{#copy_to_course_touch_only}} copy-to-course-touch-only{{/copy_to_course_touch_only}}"
+                                        data-action="copy_to_course"
+                                        aria-label="{{#str}}copy_to_course, block_sharing_cart{{/str}}"
+                                        title="{{#str}}copy_to_course, block_sharing_cart{{/str}}">
+                                    <i class="fa fa-clone" aria-hidden="true"></i>
+                                </button>
                             {{/can_copy_to_course}}
                         {{/module_is_disabled_on_site}}
                     {{/has_file_id}}

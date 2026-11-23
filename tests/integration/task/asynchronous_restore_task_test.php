@@ -135,6 +135,33 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         return (int)$result->id;
     }
 
+    /** A restore with a missing archive leaves a failure result even after cron drops its queue row. */
+    public function test_missing_archive_leaves_a_failure_outcome(): void {
+        global $USER;
+
+        $source = $this->create_course(1, [1 => 'Failure test source']);
+        $this->add_page($source, 1, 'Source page');
+        $itemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $target = $this->create_course(1);
+        self::assertTrue(item_into_section::execute($itemid, (int)$target->sections[1]->id, []));
+        $tasks = \core\task\manager::get_adhoc_tasks(asynchronous_restore_task::class);
+        self::assertCount(1, $tasks);
+        $taskid = (int)reset($tasks)->get_id();
+
+        $items = $this->factory->item()->repository();
+        $file = $items->get_stored_file_by_item($items->get_by_id($itemid));
+        self::assertNotNull($file);
+        $file->delete();
+        $this->runAdhocTasks(asynchronous_restore_task::class);
+
+        self::assertEmpty(\core\task\manager::get_adhoc_tasks(asynchronous_restore_task::class));
+        $outcomes = $this->factory->restore()->outcomes();
+        $outcome = $outcomes->get_recent((int)$USER->id, (int)$target->id)[$taskid];
+        self::assertFalse($outcome['succeeded']);
+        self::assertSame('Failure test source', $outcome['name']);
+        self::assertArrayNotHasKey($taskid, $outcomes->get_recent((int)$USER->id, (int)$source->id));
+    }
+
     /**
      * Copies a three-level section tree whose only activity is in the last section.
      *

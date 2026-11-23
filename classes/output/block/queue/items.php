@@ -104,8 +104,27 @@ class items implements \core\output\named_templatable, \renderable {
             ];
         }
 
+        $successes = [];
+        $failures = [];
+        foreach ($this->basefactory->restore()->outcomes()->get_recent((int)$USER->id, (int)$COURSE->id) as $outcome) {
+            // The result can be published just before cron removes the running task row.
+            if (isset($records[$outcome['id']])) {
+                continue;
+            }
+            if ($outcome['succeeded']) {
+                $successes[] = $outcome['id'];
+            } else {
+                $failures[] = [
+                    'id' => $outcome['id'],
+                    'message' => get_string('restore_failure_notice', 'block_sharing_cart', $outcome['name']),
+                ];
+            }
+        }
+
         return [
             'queue_items' => array_values($queueitems),
+            'successful_task_ids' => implode(' ', $successes),
+            'restore_failures' => $failures,
         ];
     }
 

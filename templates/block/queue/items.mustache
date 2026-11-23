@@ -44,7 +44,7 @@
             <span class="ms-2 me-1">{{{name}}}</span>
 
             {{#show_run_now}}
-                <button class="btn btn-secondary text-nowrap ms-auto" type="button">{{#str}}
+                <button class="btn btn-secondary text-nowrap ms-auto" type="button" data-action="run-restore-now">{{#str}}
                     run_now, block_sharing_cart{{/str}}</button>
             {{/show_run_now}}
         </div>
@@ -55,6 +55,13 @@
         </div>
     </div>
 {{/queue_items}}
+<span hidden data-region="restore-successes" data-task-ids="{{successful_task_ids}}"></span>
+{{#restore_failures}}
+    <div class="alert alert-danger alert-dismissible mb-2" data-region="restore-failure" data-id="{{id}}">
+        <span>{{message}}</span>
+        <button type="button" class="btn-close" data-action="dismiss-restore-error" aria-label="{{#str}}close, core{{/str}}"></button>
+    </div>
+{{/restore_failures}}
 {{^queue_items.0}}
-    {{#str}}no_restores, block_sharing_cart{{/str}}
+    <div data-region="no-restores">{{#str}}no_restores, block_sharing_cart{{/str}}</div>
 {{/queue_items.0}}

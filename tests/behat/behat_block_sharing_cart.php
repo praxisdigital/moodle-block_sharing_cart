@@ -26,6 +26,16 @@ require_once(__DIR__ . '/../../../../lib/behat/behat_base.php');
 class behat_block_sharing_cart extends behat_base
 {
     /**
+     * Place focus on a starting control without clicking or activating it.
+     *
+     * @Given /^I start keyboard navigation from the Sharing Cart test control "([^"]+)"$/
+     * @param string $selector CSS selector for the starting control
+     */
+    public function focus_keyboard_starting_control(string $selector): void {
+        $this->get_selected_node('css_element', $selector)->focus();
+    }
+
+    /**
      * Queue a real section backup, allowing the installed course format to declare its own hierarchy.
      *
      * @Given /^I queue section "(\d+)" from course "([^"]+)" in the Sharing Cart$/
@@ -51,6 +61,20 @@ class behat_block_sharing_cart extends behat_base
     public function assert_no_restore_queued(): void {
         if (\core\task\manager::get_adhoc_tasks(\block_sharing_cart\task\asynchronous_restore_task::class)) {
             throw new \Behat\Mink\Exception\ExpectationException('An invalid restore was queued.', $this->getSession());
+        }
+    }
+
+    /**
+     * Simulate a backup becoming unavailable between queueing and running the restore.
+     *
+     * @Given /^the backup file for the queued Sharing Cart restore is missing$/
+     */
+    public function remove_queued_restore_backup(): void {
+        $tasks = \core\task\manager::get_adhoc_tasks(\block_sharing_cart\task\asynchronous_restore_task::class);
+        $task = count($tasks) === 1 ? reset($tasks) : null;
+        $file = $task ? get_file_storage()->get_file_by_id((int)$task->get_custom_data()->item->file_id) : null;
+        if (!$file || !$file->delete()) {
+            throw new \Behat\Mink\Exception\ExpectationException('Could not remove the queued backup file.', $this->getSession());
         }
     }
 
@@ -145,7 +169,7 @@ class behat_block_sharing_cart extends behat_base
             $this->get_selected_node(
                 'xpath_element',
                 "//div[@data-type='mod_subsection'][.//span[@class='name' and normalize-space(.)=$literal]]" .
-                "//i[@data-action='copy_to_course']"
+                "//*[@data-action='copy_to_course']"
             )->click();
             $this->get_selected_node('css_element', ".single-section [data-number='$number'] .clipboard_target")->click();
             return;

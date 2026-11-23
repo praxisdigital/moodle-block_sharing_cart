@@ -31,4 +31,9 @@ $definitions = [
         'simplekeys' => true,
         'simpledata' => true,
     ],
+    'restore_outcomes' => [
+        'mode' => cache_store::MODE_APPLICATION,
+        'simplekeys' => true,
+        'ttl' => DAYSECS,
+    ],
 ];

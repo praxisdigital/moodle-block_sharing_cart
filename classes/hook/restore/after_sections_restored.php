@@ -37,6 +37,7 @@ final class after_sections_restored {
      * @param object[] $restoredsections depth-first list of
      *                                   {old_section_id, new_section_id, new_parent_section_id, sort_order};
      *                                   new_parent_section_id is the target section for first level children.
+     * @param int $insertaftersectionid sibling after which the newly created target belongs, or 0 for no anchor
      */
     public function __construct(
         /** @var int target course */
@@ -45,6 +46,8 @@ final class after_sections_restored {
         public readonly int $targetsectionid,
         /** @var object[] the sections the restore created */
         public readonly array $restoredsections,
+        /** @var int the requested previous sibling for a newly created target */
+        public readonly int $insertaftersectionid = 0,
     ) {
     }
 }

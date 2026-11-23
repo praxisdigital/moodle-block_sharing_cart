@@ -79,31 +79,28 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             return;
         }
 
-        $item = $factory->item()->entity((object)$customdata->item);
-        $backupfile = $factory->item()->repository()->get_stored_file_by_item($item);
-        if (!$backupfile) {
-            mtrace(
-                'Sharing cart backup file not found for item (id: ' . $item->get_id()
-                . '); ending restore execution.'
-            );
-            return;
-        }
-
-        mtrace(implode(' | ', [
-            'hostname=' . (gethostname() ?: 'unknown-host'),
-            'itemid=' . $item->get_id(),
-            'fileid=' . $backupfile->get_id(),
-            'courseid=' . $courseid,
-            'userid=' . $userid,
-        ]));
-
-        // Restore controller for this backup file.
-        $rc = $factory->restore()->restore_controller($backupfile, $courseid, $userid);
-        $restoreid = $rc->get_restoreid();
-
-        mtrace('Processing asynchronous restore for id: ' . $restoreid);
-
+        $rc = null;
+        $succeeded = false;
         try {
+            $item = $factory->item()->entity((object)$customdata->item);
+            $backupfile = $factory->item()->repository()->get_stored_file_by_item($item);
+            if (!$backupfile) {
+                mtrace('Sharing cart backup file not found for item (id: ' . $item->get_id() . ').');
+                return;
+            }
+
+            mtrace(implode(' | ', [
+                'hostname=' . (gethostname() ?: 'unknown-host'),
+                'itemid=' . $item->get_id(),
+                'fileid=' . $backupfile->get_id(),
+                'courseid=' . $courseid,
+                'userid=' . $userid,
+            ]));
+
+            $rc = $factory->restore()->restore_controller($backupfile, $courseid, $userid);
+            $restoreid = $rc->get_restoreid();
+            mtrace('Processing asynchronous restore for id: ' . $restoreid);
+
             $restorerecord = $db->get_record(
                 'backup_controllers',
                 ['backupid' => $restoreid],
@@ -158,13 +155,14 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 $started,
                 $finished
             );
+            $succeeded = $rc->get_status() === \backup::STATUS_FINISHED_OK;
         } catch (\Exception $e) {
             // Before set_status(), which can fail on its own after execute_plan() has run.
             $this->delete_created_section_if_empty($courseid);
-            $this->rollback_replaced_section_details($rc);
-
-            // If an exception is thrown, mark the restore as failed.
-            $rc->set_status(\backup::STATUS_FINISHED_ERR);
+            if ($rc !== null) {
+                $this->rollback_replaced_section_details($rc);
+                $rc->set_status(\backup::STATUS_FINISHED_ERR);
+            }
 
             // Retrying isn't going to fix this, so add a no-retry flag to customdata.
             // We can cancel the task in the task manager.
@@ -174,9 +172,34 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             mtrace('Exception thrown during restore execution, marking job as failed.');
             mtrace($e->getMessage());
         } finally {
-            // Cleanup.
-            // Always destroy the controller.
-            $rc->destroy();
+            try {
+                $rc?->destroy();
+            } finally {
+                $this->record_outcome($userid, $courseid, $succeeded, (string)($customdata->item->name ?? ''));
+            }
+        }
+    }
+
+    /**
+     * Publish the result without retrying a completed restore if notification storage is unavailable.
+     *
+     * @param int $userid Task owner
+     * @param int $courseid Destination course
+     * @param bool $succeeded Whether the restore completed
+     * @param string $name Cart item name
+     */
+    private function record_outcome(int $userid, int $courseid, bool $succeeded, string $name): void {
+        $taskid = (int)$this->get_id();
+        if ($taskid <= 0) {
+            return;
+        }
+        try {
+            $name = \core_text::substr(clean_param($name, PARAM_TEXT), 0, 100);
+            if (!$this->factory()->restore()->outcomes()->save($userid, $courseid, $taskid, $succeeded, $name)) {
+                mtrace('Could not record Sharing Cart restore outcome for task ' . $taskid);
+            }
+        } catch (\Exception $e) {
+            mtrace('Could not record Sharing Cart restore outcome for task ' . $taskid . ': ' . $e->getMessage());
         }
     }
 
@@ -399,6 +422,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
     private function after_restore_finished_hook(\restore_controller $restorecontroller): void {
         try {
             mtrace('Executing after_restore_finished_hook...');
+            $backupsettings = $this->get_custom_data()->backup_settings ?? (object)[];
 
             if ($this->sectionplan !== null) {
                 $planner = $this->factory()->restore()->section_planner();
@@ -414,6 +438,8 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                     courseid: $courseid,
                     targetsectionid: $targetsectionid,
                     restoredsections: $restoredsections,
+                    insertaftersectionid: $this->createdsectionid === $targetsectionid && !$this->sectionplan->rootomitted
+                        ? (int)($backupsettings->insert_after_section_id ?? 0) : 0,
                 ));
 
                 if ($this->createdsectionid && $this->sectionplan->rootomitted) {
@@ -424,7 +450,6 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 rebuild_course_cache($courseid, true);
             }
 
-            $backupsettings = $this->get_custom_data()->backup_settings ?? (object)[];
             $beforecmid = (int)($backupsettings->before_cm_id ?? 0);
             $movetosectionid = (int)($backupsettings->move_to_section_id ?? 0);
             if ($beforecmid && $movetosectionid) {

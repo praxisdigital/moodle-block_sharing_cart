@@ -383,11 +383,13 @@ export default class BlockElement {
 
     /**
      * @param {ItemElement} item
+     * @param {HTMLElement} source The copy button.
+     * @param {boolean} focusTarget Whether to move focus to the first destination.
      */
-    async setClipboard(item) {
+    async setClipboard(item, source, focusTarget) {
         this.#clipboardItem = item;
 
-        await this.#course.setClipboard(item);
+        await this.#course.setClipboard(item, source, focusTarget);
     }
 
     clearClipboard() {
@@ -618,8 +620,9 @@ export default class BlockElement {
 
     /**
      * @param {Number} sectionId
+     * @param {HTMLElement|null} returnElement Button that opened the modal (if any).
      */
-    async addSectionBackupToSharingCart(sectionId) {
+    async addSectionBackupToSharingCart(sectionId, returnElement = null) {
         const sectionName = this.#course.getSectionName(sectionId);
 
         // Whether there is anything to copy is decided server side: a section without activities may still
@@ -645,13 +648,15 @@ export default class BlockElement {
             sectionName,
             saver
         );
+        modal.setReturnElement(returnElement);
         await modal.show();
     }
 
     /**
      * @param {Number} courseModuleId
+     * @param {HTMLElement|null} returnElement Button that opened the modal (if any).
      */
-    async addCourseModuleBackupToSharingCart(courseModuleId) {
+    async addCourseModuleBackupToSharingCart(courseModuleId, returnElement = null) {
         const courseModuleName = this.#course.getCourseModuleName(courseModuleId);
         const saver = (settings) => {
             Ajax.call([{
@@ -673,6 +678,7 @@ export default class BlockElement {
             courseModuleName,
             saver
         );
+        modal.setReturnElement(returnElement);
         await modal.show();
     }
 
@@ -807,6 +813,7 @@ export default class BlockElement {
         e.preventDefault();
         e.stopPropagation();
 
+        const returnElement = dropTarget ? null : e.currentTarget;
         options = options ?? {};
 
         const strings = await getStrings([
@@ -854,6 +861,10 @@ export default class BlockElement {
             }
         );
 
+        if (returnElement && !returnElement.isConnected) {
+            return;
+        }
+
         const modal = await ModalSaveCancel.create({
             title: strings[0] + ': ' +
                 '"' + item.getItemName().slice(0, 50).trim() + '"' +
@@ -865,6 +876,7 @@ export default class BlockElement {
                 cancel: strings[3],
             },
             removeOnClose: true,
+            returnElement,
         });
         modal.getRoot().on(ModalEvents.shown, () => this.#baseFactory.moodle().template().runTemplateJS(js));
         RestoreSelection.bind(modal.getRoot()[0]);

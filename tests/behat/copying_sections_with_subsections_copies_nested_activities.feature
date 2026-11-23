@@ -28,8 +28,8 @@ Feature: As an editing teacher, copying a section with a subsection, should auto
     And I wait until "//a[@data-blockname='sharing_cart']" "xpath_element" exists
     And I click on "//a[@data-blockname='sharing_cart']" "xpath_element"
     # All the steps to copy the section that has a subsection with an activity inside it.
-    And I wait until "//li[@id='section-1']//*[@class='fa fa-shopping-basket add_to_sharing_cart']" "xpath_element" exists
-    And I click on "//li[@id='section-1']//*[@class='fa fa-shopping-basket add_to_sharing_cart']" "xpath_element"
+    And I wait until "#section-1 .add_to_sharing_cart" "css_element" exists
+    And I click on "#section-1 .add_to_sharing_cart" "css_element"
     And I wait "2" seconds
     And I wait until "//div[@class='modal-footer']/button[@data-action='save']" "xpath_element" exists
     And I click on "//div[@class='modal-footer']/button[@data-action='save']" "xpath_element"
@@ -37,9 +37,9 @@ Feature: As an editing teacher, copying a section with a subsection, should auto
     And I wait "15" seconds
     And I run all adhoc tasks
     And I wait "2" seconds
-    And I wait until "(//div[@class='sharing_cart_item' and @data-type='section']//i[@class='fa fa-clone'])[1]" "xpath_element" exists
-    And I click on "(//div[@class='sharing_cart_item' and @data-type='section']//i[@class='fa fa-clone'])[1]" "xpath_element"
-    And I click on "//li[@id='section-2']//*[@class='clipboard_target']" "xpath_element"
+    And I wait until "#block_sharing_cart [data-type=section] [data-action=copy_to_course]" "css_element" exists
+    And I click on "#block_sharing_cart [data-type=section] [data-action=copy_to_course]" "css_element"
+    And I click on "#section-2 .clipboard_target" "css_element"
     And I wait until "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element" exists
     And I click on "//div[@class='modal-footer']//button[@data-action='save']" "xpath_element"
     #Wait for the adhoc task to be queued.
