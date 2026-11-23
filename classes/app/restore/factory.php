@@ -148,7 +148,11 @@ class factory
         return new handler($this->basefactory);
     }
 
-    /** @return outcome_repository recent restore results for the queue */
+    /**
+     * Create the repository for recent restore outcomes.
+     *
+     * @return outcome_repository Recent restore results for the queue
+     */
     public function outcomes(): outcome_repository {
         return new outcome_repository();
     }

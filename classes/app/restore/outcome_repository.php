@@ -17,6 +17,7 @@
 namespace block_sharing_cart\app\restore;
 
 // @codeCoverageIgnoreStart
+// phpcs:ignore moodle.Files.MoodleInternal.MoodleInternalNotNeeded -- Required by the project's PHP file conventions.
 defined('MOODLE_INTERNAL') || die();
 // @codeCoverageIgnoreEnd
 
@@ -66,6 +67,8 @@ final class outcome_repository {
     }
 
     /**
+     * Get unexpired restore outcomes for the user and destination course.
+     *
      * @param int $userid Task owner
      * @param int $courseid Destination course
      * @return array<int, array{id: int, succeeded: bool, name: string, time: int}>
@@ -77,6 +80,8 @@ final class outcome_repository {
     }
 
     /**
+     * Build the cache and lock key for the user and destination course.
+     *
      * @param int $userid Task owner
      * @param int $courseid Destination course
      * @return string Cache and lock key

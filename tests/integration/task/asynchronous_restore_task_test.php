@@ -135,7 +135,9 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         return (int)$result->id;
     }
 
-    /** A restore with a missing archive leaves a failure result even after cron drops its queue row. */
+    /**
+     * Verify that a missing archive leaves a failure result after cron drops the queue row.
+     */
     public function test_missing_archive_leaves_a_failure_outcome(): void {
         global $USER;
 
