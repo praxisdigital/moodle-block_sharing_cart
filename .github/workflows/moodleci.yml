@@ -62,7 +62,12 @@ jobs:
           echo "NVM_DIR=$HOME/.nvm" >> $GITHUB_ENV
 
       - name: Install moodle-plugin-ci
-        run: moodle-plugin-ci install --plugin ./plugin --db-host=127.0.0.1
+        shell: bash
+        run: |
+          # The Grunt check backs up and restores the installed plugin, including any .git files.
+          mkdir plugin-source
+          git -C plugin archive HEAD | tar -x -C plugin-source
+          moodle-plugin-ci install --plugin ./plugin-source --db-host=127.0.0.1
         env:
           DB: ${{ matrix.database }}
           MOODLE_BRANCH: ${{ matrix.moodle-branch }}
