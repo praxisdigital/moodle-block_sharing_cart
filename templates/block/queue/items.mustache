@@ -55,7 +55,10 @@
         </div>
     </div>
 {{/queue_items}}
-<span hidden data-region="restore-successes" data-task-ids="{{successful_task_ids}}"></span>
+{{#restore_successes}}
+    <span hidden data-region="restore-success" data-id="{{id}}" data-time="{{time}}"
+          data-to-section-id="{{to_section_id}}"{{#refresh_course}} data-refresh-course="1"{{/refresh_course}}></span>
+{{/restore_successes}}
 {{#restore_failures}}
     <div class="alert alert-danger alert-dismissible mb-2" data-region="restore-failure" data-id="{{id}}">
         <span>{{message}}</span>

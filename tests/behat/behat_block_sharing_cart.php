@@ -36,6 +36,76 @@ class behat_block_sharing_cart extends behat_base
     }
 
     /**
+     * Delay queue fragments independently of the real restore request and worker.
+     *
+     * @Given I control Sharing Cart queue polling for a restore :timing
+     * @param string $timing Whether the browser may see a queued row
+     */
+    public function control_restore_queue_polling(string $timing): void {
+        $allowfirst = json_encode($timing === 'without a cached outcome');
+        $this->getSession()->executeScript(<<<JS
+            require(['core/fragment', 'jquery'], (fragment, $) => {
+                const original = fragment.loadFragment;
+                const requests = [];
+                let allowFirst = $allowfirst;
+                fragment.loadFragment = (...args) => {
+                    if (args[0] !== 'block_sharing_cart' || args[1] !== 'item_queue') {
+                        return original.apply(fragment, args);
+                    }
+                    if (allowFirst) {
+                        allowFirst = false;
+                        return original.apply(fragment, args);
+                    }
+                    const deferred = $.Deferred();
+                    requests.push(() => original.apply(fragment, args).done(deferred.resolve).fail(deferred.reject));
+                    return deferred.promise();
+                };
+                window.sharingCartQueueTest = {
+                    requests,
+                    resume() {
+                        fragment.loadFragment = original;
+                        requests.forEach(request => request());
+                    }
+                };
+            });
+            JS);
+        $this->spin(fn() => $this->evaluate_script('return Boolean(window.sharingCartQueueTest);'));
+    }
+
+    /**
+     * Ensure that the actual task is queued and that its row has the expected visibility before cron runs.
+     *
+     * @When the Sharing Cart restore is ready to finish :timing
+     * @param string $timing Whether the browser may see a queued row
+     */
+    public function wait_for_controlled_restore(string $timing): void {
+        if ($timing === 'without a cached outcome') {
+            $this->get_selected_node('css_element', '.sharing_cart_queue .queue-item');
+            return;
+        }
+        $this->spin(fn() => $this->evaluate_script('return window.sharingCartQueueTest.requests.length > 0;'));
+        if ($this->evaluate_script('return Boolean(document.querySelector(".sharing_cart_queue .queue-item"));')) {
+            throw new \Behat\Mink\Exception\ExpectationException(
+                'The restore was already rendered in the queue.',
+                $this->getSession()
+            );
+        }
+    }
+
+    /**
+     * Resume queue requests after the worker finishes, optionally discarding its cached outcome.
+     *
+     * @When I resume Sharing Cart queue polling for a restore :timing
+     * @param string $timing Whether the result should still be in the cache
+     */
+    public function resume_restore_queue_polling(string $timing): void {
+        if ($timing === 'without a cached outcome') {
+            \cache::make('block_sharing_cart', 'restore_outcomes')->purge();
+        }
+        $this->getSession()->executeScript('window.sharingCartQueueTest.resume();');
+    }
+
+    /**
      * Queue a real section backup, allowing the installed course format to declare its own hierarchy.
      *
      * @Given /^I queue section "(\d+)" from course "([^"]+)" in the Sharing Cart$/

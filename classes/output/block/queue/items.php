@@ -91,17 +91,10 @@ class items implements \core\output\named_templatable, \renderable {
                     'icon',
                     $item->type
                 ) : null,
-                'to_section_id' => $backupsettings->move_to_section_id ?? null,
-                'refresh_course' => !empty($backupsettings->insert_after_section_id)
-                    || !empty($backupsettings->insert_as_new_section)
-                    || in_array($item->type, [
-                        \block_sharing_cart\app\item\entity::TYPE_SECTION,
-                        \block_sharing_cart\app\item\entity::TYPE_MOD_SUBSECTION,
-                    ], true),
                 'is_running' => $isrunning,
                 'is_failed' => $isfailed,
                 'show_run_now' => $this->allow_to_run_now() && !$isrunning && !$isfailed && $haswaited5seconds,
-            ];
+            ] + \block_sharing_cart\app\restore\factory::refresh_destination($backupsettings, $item->type);
         }
 
         $successes = [];
@@ -112,7 +105,7 @@ class items implements \core\output\named_templatable, \renderable {
                 continue;
             }
             if ($outcome['succeeded']) {
-                $successes[] = $outcome['id'];
+                $successes[] = $outcome;
             } else {
                 $failures[] = [
                     'id' => $outcome['id'],
@@ -123,7 +116,7 @@ class items implements \core\output\named_templatable, \renderable {
 
         return [
             'queue_items' => array_values($queueitems),
-            'successful_task_ids' => implode(' ', $successes),
+            'restore_successes' => $successes,
             'restore_failures' => $failures,
         ];
     }

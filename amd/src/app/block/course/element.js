@@ -149,6 +149,11 @@ export default class CourseElement {
         this.clearClipboard(true);
     }
 
+    /** @returns {HTMLElement|null} The copy button that started the current clipboard selection. */
+    getClipboardSource() {
+        return this.#clipboardSource;
+    }
+
     /**
      * @param {boolean} restoreFocus Whether cancellation should return focus to the copy button.
      */

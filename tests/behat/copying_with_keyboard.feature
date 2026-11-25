@@ -1,7 +1,7 @@
 @block @block_sharing_cart @javascript
 Feature: Copy course content with the keyboard
 
-  Scenario: An editing user copies a section into the cart and back into the course using the keyboard
+  Scenario Outline: An editing user copies a section into the cart and back into the course using the keyboard
     Given the following config values are set as admin:
       | enable_drop_zones          | 1 | block_sharing_cart |
       | show_sharing_cart_basket   | 1 | block_sharing_cart |
@@ -46,9 +46,17 @@ Feature: Copy course content with the keyboard
     Then the focused element is "#section-0 .clipboard_target" "css_element"
     When I press the enter key
     And I wait until ".modal.show [data-action=save]" "css_element" exists
+    And I control Sharing Cart queue polling for a restore "<timing>"
     And I start keyboard navigation from the Sharing Cart test control ".modal.show [data-action=cancel]"
     And I press the tab key
     And I press the enter key
-    And I wait until ".queue-item" "css_element" exists
+    Then the focused element is "#block_sharing_cart [data-action=copy_to_course]" "css_element"
+    When the Sharing Cart restore is ready to finish "<timing>"
     And I run all adhoc tasks
+    And I resume Sharing Cart queue polling for a restore "<timing>"
     Then "#section-0 [data-activityname='Keyboard page']" "css_element" should be visible
+
+    Examples:
+      | timing                       |
+      | before the first queue fetch |
+      | without a cached outcome     |

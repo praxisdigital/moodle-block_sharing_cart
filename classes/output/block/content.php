@@ -115,6 +115,7 @@ class content implements \core\output\named_templatable, \renderable {
             'showCopySectionInBlock' => (bool)get_config('block_sharing_cart', 'show_copy_section_in_block'),
             'dropZonesEnabled' => get_config('block_sharing_cart', 'enable_drop_zones') !== '0',
             'courseContextId' => $coursecontext->id,
+            'queuePageTime' => time(),
         ];
     }
 }

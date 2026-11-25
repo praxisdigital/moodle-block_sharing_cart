@@ -158,6 +158,22 @@ class factory
     }
 
     /**
+     * Describe which course state a queued restore can change.
+     *
+     * @param object|null $settings Restore task settings
+     * @param string $type Cart item type
+     * @return array{to_section_id: int, refresh_course: bool}
+     */
+    public static function refresh_destination(?object $settings, string $type): array {
+        return [
+            'to_section_id' => (int)($settings->move_to_section_id ?? 0),
+            'refresh_course' => !empty($settings->insert_after_section_id) || !empty($settings->insert_as_new_section)
+                || in_array($type, [\block_sharing_cart\app\item\entity::TYPE_SECTION,
+                    \block_sharing_cart\app\item\entity::TYPE_MOD_SUBSECTION], true),
+        ];
+    }
+
+    /**
      * section_planner
      *
      * @return section_planner

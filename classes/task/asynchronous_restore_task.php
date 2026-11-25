@@ -175,7 +175,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             try {
                 $rc?->destroy();
             } finally {
-                $this->record_outcome($userid, $courseid, $succeeded, (string)($customdata->item->name ?? ''));
+                $this->record_outcome($userid, $courseid, $succeeded);
             }
         }
     }
@@ -186,16 +186,19 @@ class asynchronous_restore_task extends \core\task\adhoc_task
      * @param int $userid Task owner
      * @param int $courseid Destination course
      * @param bool $succeeded Whether the restore completed
-     * @param string $name Cart item name
      */
-    private function record_outcome(int $userid, int $courseid, bool $succeeded, string $name): void {
+    private function record_outcome(int $userid, int $courseid, bool $succeeded): void {
         $taskid = (int)$this->get_id();
         if ($taskid <= 0) {
             return;
         }
         try {
+            $data = $this->get_custom_data();
+            $name = (string)($data->item->name ?? '');
             $name = \core_text::substr(clean_param($name, PARAM_TEXT), 0, 100);
-            if (!$this->factory()->restore()->outcomes()->save($userid, $courseid, $taskid, $succeeded, $name)) {
+            $restore = $this->factory()->restore();
+            $destination = $restore::refresh_destination($data->backup_settings ?? null, $data->item->type ?? '');
+            if (!$restore->outcomes()->save($userid, $courseid, $taskid, $succeeded, $name, $destination)) {
                 mtrace('Could not record Sharing Cart restore outcome for task ' . $taskid);
             }
         } catch (\Exception $e) {

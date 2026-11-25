@@ -26,6 +26,9 @@ export default class QueueElement {
     /** @type {Set<string>} */
     #dismissedFailures = new Set();
 
+    /** @type {Set<string>} Terminal results already processed on this page. */
+    #processedRestores = new Set();
+
     /**
      * @type {CourseEditor}
      */
@@ -137,34 +140,65 @@ export default class QueueElement {
         }
 
         const fragments = elements.filter(element => element instanceof Element);
-        const successes = fragments.find(element => element.matches('[data-region="restore-successes"]'));
-        const successIds = new Set(successes?.dataset.taskIds.split(' ') ?? []);
         const queueItems = fragments.filter(element => element.classList.contains('queue-item'));
-        const activeIds = new Set(queueItems.map(element => element.dataset.id));
-        const completed = Array.from(this.getQueueItems()).filter(element =>
-            !activeIds.has(element.dataset.id) && successIds.has(element.dataset.id));
-        this.refreshSuccessfulRestores(completed);
+        const failures = fragments.filter(element => element.matches('[data-region="restore-failure"]'));
+        const successes = fragments.filter(element => element.matches('[data-region="restore-success"]'));
+        this.processRestoreResults(queueItems, successes, failures);
 
         queueItems.forEach(element => this.bindRunNow(element));
         const empty = fragments.find(element => element.matches('[data-region="no-restores"]'));
         this.#element.replaceChildren(...queueItems, ...(empty ? [empty] : []));
-        this.renderFailures(fragments.filter(element => element.matches('[data-region="restore-failure"]')));
+        this.renderFailures(failures);
     }
 
     /**
-     * @param {Element[]} completed Confirmed restores that just finished.
+     * Refresh affected destinations once, even when a task completed before its first poll.
+     * @param {Element[]} queueItems Current task rows.
+     * @param {Element[]} successes Confirmed successes with destination metadata.
+     * @param {Element[]} failures Confirmed failures.
      */
-    refreshSuccessfulRestores(completed) {
+    processRestoreResults(queueItems, successes, failures) {
+        const observed = new Map(Array.from(this.getQueueItems(), element => [element.dataset.id, element]));
+        const activeIds = new Set(queueItems.map(element => element.dataset.id));
+        const failedIds = new Set(failures.map(element => element.dataset.id));
+        const pageTime = Number(this.#element.dataset.pageTime);
+        const completed = [];
+        let notify = false;
+
+        for (const result of successes) {
+            const {id, time, toSectionId, refreshCourse} = result.dataset;
+            if (this.#processedRestores.has(id) || activeIds.has(id) ||
+                    (!observed.has(id) && Number(time) < pageTime)) {
+                continue;
+            }
+            this.#processedRestores.add(id);
+            completed.push(toSectionId || refreshCourse ? result : observed.get(id) ?? result);
+            notify = true;
+        }
+
+        for (const [id, row] of observed) {
+            if (!activeIds.has(id) && !failedIds.has(id) && !this.#processedRestores.has(id)) {
+                // A missing outcome is not evidence of success (the cache may have been cleared).
+                this.#processedRestores.add(id);
+                completed.push(row);
+            }
+        }
+
         const refreshCourse = completed.some(element => element.dataset.refreshCourse === '1');
-        const sectionIds = [...new Set(completed.map(element => element.dataset.toSectionId).filter(Boolean))];
+        const sectionIds = [...new Set(completed.map(element => element.dataset.toSectionId).filter(id => Number(id) > 0))];
         if (refreshCourse || sectionIds.length > 0) {
             const refresh = refreshCourse ?
                 this.#reactive.dispatch('courseState') : this.#reactive.dispatch('sectionState', sectionIds);
-            refresh.then(() => Toast.add(getString('you_may_need_to_reload_the_course_warning', 'block_sharing_cart'), {
-                closeButton: true,
-                autohide: true,
-                type: 'warning'
-            })).catch(() => {
+            refresh.then(() => {
+                if (notify) {
+                    return Toast.add(getString('you_may_need_to_reload_the_course_warning', 'block_sharing_cart'), {
+                        closeButton: true,
+                        autohide: true,
+                        type: 'warning'
+                    });
+                }
+                return null;
+            }).catch(() => {
                 // Ignore course state refresh failures.
             });
         }

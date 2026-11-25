@@ -814,6 +814,7 @@ export default class BlockElement {
         e.stopPropagation();
 
         const returnElement = dropTarget ? null : e.currentTarget;
+        const clipboardSource = returnElement ? this.#course.getClipboardSource() : null;
         options = options ?? {};
 
         const strings = await getStrings([
@@ -885,6 +886,16 @@ export default class BlockElement {
             (event) => {
                 if (!this.importItem(item, sectionId, modal.getRoot()[0], options, dropTarget)) {
                     event.preventDefault();
+                    return;
+                }
+                if (returnElement) {
+                    const fallback = this.#element.closest('.block_sharing_cart')?.querySelector('.card-title') ?? this.#element;
+                    if (clipboardSource?.isConnected && clipboardSource.getClientRects().length > 0) {
+                        modal.setReturnElement(clipboardSource);
+                    } else {
+                        fallback.setAttribute('tabindex', '-1');
+                        modal.setReturnElement(fallback);
+                    }
                 }
             }
         );

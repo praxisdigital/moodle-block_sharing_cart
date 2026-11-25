@@ -40,9 +40,10 @@ final class outcome_repository {
      * @param int $taskid Moodle adhoc task ID
      * @param bool $succeeded Whether the restore completed
      * @param string $name Plain-text name of the item
+     * @param array{to_section_id: int, refresh_course: bool} $destination Where the course editor should refresh
      * @return bool Whether the outcome was stored
      */
-    public function save(int $userid, int $courseid, int $taskid, bool $succeeded, string $name): bool {
+    public function save(int $userid, int $courseid, int $taskid, bool $succeeded, string $name, array $destination): bool {
         $key = $this->key($userid, $courseid);
         $lock = \core\lock\lock_config::get_lock_factory('block_sharing_cart_restore_outcomes')->get_lock($key, 5);
         if (!$lock) {
@@ -56,7 +57,7 @@ final class outcome_repository {
                 'succeeded' => $succeeded,
                 'name' => $succeeded ? '' : $name,
                 'time' => time(),
-            ]] + $outcomes;
+            ] + $destination] + $outcomes;
             return \cache::make('block_sharing_cart', 'restore_outcomes')->set(
                 $key,
                 array_slice($outcomes, 0, self::MAX_OUTCOMES, true),
@@ -71,7 +72,7 @@ final class outcome_repository {
      *
      * @param int $userid Task owner
      * @param int $courseid Destination course
-     * @return array<int, array{id: int, succeeded: bool, name: string, time: int}>
+     * @return array<int, array{id: int, succeeded: bool, name: string, time: int, to_section_id?: int, refresh_course?: bool}>
      */
     public function get_recent(int $userid, int $courseid): array {
         $outcomes = \cache::make('block_sharing_cart', 'restore_outcomes')->get($this->key($userid, $courseid));
