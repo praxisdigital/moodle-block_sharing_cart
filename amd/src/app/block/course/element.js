@@ -754,8 +754,18 @@ export default class CourseElement {
             }
         }, {signal});
 
-        this.#clipboardRendering ??= this.renderClipboard();
-        await this.#clipboardRendering;
+        this.#clipboardRendering ??= this.renderClipboard().catch(error => {
+            this.#clipboardRendering = null;
+            throw error;
+        });
+        try {
+            await this.#clipboardRendering;
+        } catch (error) {
+            if (!signal.aborted) {
+                this.clearClipboard(true);
+                throw error;
+            }
+        }
         if (signal.aborted) {
             return;
         }

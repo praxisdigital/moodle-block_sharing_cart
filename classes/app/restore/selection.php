@@ -45,13 +45,27 @@ final class selection {
     }
 
     /**
+     * Normalize ID lists without expanding the legacy include-all sentinel.
+     *
+     * @param array $settings Restore settings
+     * @return array Normalized restore settings
+     */
+    public function normalize(array $settings): array {
+        foreach (['course_modules_to_include', 'sections_to_include'] as $key) {
+            $settings[$key] = array_values(array_unique(array_map('intval', (array)($settings[$key] ?? []))));
+        }
+        return $settings;
+    }
+
+    /**
      * Resolve legacy defaults and validate explicit IDs using the stored cart tree, never the live source course.
      *
      * @param entity $item chosen cart item
      * @param array $settings restore settings
+     * @param object|null $backupinfo Already-loaded backup metadata, when running in the worker
      * @return int[] original course-module IDs to include
      */
-    public function module_ids(entity $item, array $settings): array {
+    public function module_ids(entity $item, array $settings, ?object $backupinfo = null): array {
         $allowedmodules = [];
         $allowedsections = [];
         foreach ($this->basefactory->item()->repository()->get_recursively_by_parent_id($item->get_id()) as $child) {
@@ -65,8 +79,17 @@ final class selection {
             }
         }
 
-        $moduleids = array_values(array_unique(array_map('intval', (array)($settings['course_modules_to_include'] ?? []))));
-        $sectionids = array_values(array_unique(array_map('intval', (array)($settings['sections_to_include'] ?? []))));
+        $settings = $this->normalize($settings);
+        $moduleids = $settings['course_modules_to_include'];
+        $sectionids = $settings['sections_to_include'];
+        if (!$item->is_section() && !$item->is_subsection() && !$item->get_old_instance_id() && $item->get_version() === 1) {
+            $legacyid = $this->legacy_activity_id($item, $backupinfo);
+            $allowedmodules = [$legacyid];
+            // Older clients submit the migrated row's zero ID even with explicit selection enabled.
+            if ($moduleids === [0]) {
+                $moduleids = [$legacyid];
+            }
+        }
         if (array_diff($moduleids, $allowedmodules, [0]) || array_diff($sectionids, $allowedsections, [0])) {
             throw new \invalid_parameter_exception('The restore selection contains items outside the chosen cart item.');
         }
@@ -78,7 +101,7 @@ final class selection {
         }
 
         if (empty($settings['module_selection_explicit']) && ($moduleids === [] || $moduleids === [0])) {
-            $moduleids = $allowedmodules;
+            $moduleids = array_values(array_diff($allowedmodules, [0]));
         }
         if ($moduleids === [0]) {
             $moduleids = [];
@@ -86,10 +109,35 @@ final class selection {
         if ($sectionids === []) {
             $sectionids = $allowedsections;
         }
-        if ($moduleids === [] && array_diff($sectionids, [0]) === []) {
+        $emptysubsection = $item->is_subsection() && $allowedmodules === [] && $allowedsections === [];
+        if ($moduleids === [] && array_diff($sectionids, [0]) === [] && !$emptysubsection) {
             throw new \moodle_exception('atleast_one_course_module_must_be_included', 'block_sharing_cart');
         }
 
         return $moduleids;
+    }
+
+    /**
+     * Resolve a migrated activity from its own single-activity archive, never a shared archive.
+     *
+     * @param entity $item Migrated cart activity
+     * @param object|null $backupinfo Already-loaded backup metadata
+     * @return int Original course-module ID
+     */
+    private function legacy_activity_id(entity $item, ?object $backupinfo): int {
+        $file = $this->basefactory->item()->repository()->get_stored_file_by_item($item);
+        if (!$file || (int)$file->get_itemid() !== $item->get_id()) {
+            throw new \invalid_parameter_exception('A migrated activity must have its own backup archive.');
+        }
+        $backupinfo ??= $this->basefactory->backup()->handler()->get_backup_info($file);
+        $activities = array_values((array)($backupinfo->activities ?? []));
+        $activity = $activities[0] ?? null;
+        if (
+            ($backupinfo->type ?? '') !== \backup::TYPE_1ACTIVITY || count($activities) !== 1 ||
+            (int)($activity->moduleid ?? 0) <= 0 || $item->get_type() !== 'mod_' . ($activity->modulename ?? '')
+        ) {
+            throw new \invalid_parameter_exception('Cannot identify the activity in the migrated backup archive.');
+        }
+        return (int)$activity->moduleid;
     }
 }

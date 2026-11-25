@@ -763,8 +763,9 @@ export default class BlockElement {
     importItem(item, sectionId, modal, options = {}, dropTarget = null) {
         const {courseModuleIds, sectionIds, replaceSectionDetails} = RestoreSelection.read(modal);
         const hasNestedSections = modal.querySelector('input[type="checkbox"][data-type="section"]') !== null;
+        const emptySubsection = item.isSubsection() && item.getItemChildrenRecursively().length === 0;
 
-        if ((item.isSection() || item.isSubsection()) && courseModuleIds.length === 0 &&
+        if ((item.isSection() || (item.isSubsection() && !emptySubsection)) && courseModuleIds.length === 0 &&
                 (!hasNestedSections || sectionIds[0] === 0)) {
             RestoreSelection.reportEmpty(modal).catch(Notification.exception);
             return false;
@@ -792,7 +793,7 @@ export default class BlockElement {
             },
             done: async(success) => {
                 if (success) {
-                    await this.#queue.loadQueue(true);
+                    await this.#queue.restoreAccepted();
                 }
             },
             fail: (data) => {

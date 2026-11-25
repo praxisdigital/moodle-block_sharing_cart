@@ -125,7 +125,7 @@ export default class ItemElement {
         e.stopPropagation();
         e.stopImmediatePropagation();
 
-        await this.#blockElement.setClipboard(this, e.currentTarget, e.detail === 0);
+        await this.#blockElement.setClipboard(this, e.currentTarget, e.detail === 0).catch(Notification.exception);
     }
 
     async runNow(e) {
@@ -258,9 +258,13 @@ export default class ItemElement {
             item.dataset.collapsed = item.dataset.collapsed === 'true' ? 'false' : 'true';
         }
 
-        const iconElement = item.querySelector('.info > i');
+        const info = item.querySelector(':scope > .item-body .info');
+        if (info?.hasAttribute('aria-expanded')) {
+            info.setAttribute('aria-expanded', item.dataset.collapsed === 'true' ? 'false' : 'true');
+        }
+        const iconElement = info?.querySelector('i');
         if (
-            !iconElement.classList.contains('fa-exclamation-triangle') &&
+            iconElement && !iconElement.classList.contains('fa-exclamation-triangle') &&
             !iconElement.classList.contains('fa-exclamation-circle')
         ) {
 

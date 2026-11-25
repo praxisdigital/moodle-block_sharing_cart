@@ -46,6 +46,9 @@ class asynchronous_restore_task extends \core\task\adhoc_task
     /** @var int Section with a prepared replacement snapshot; 0 when none. */
     private int $replacedsectionid = 0;
 
+    /** @var bool Whether the destination details may have been cleared. */
+    private bool $sectionblankingstarted = false;
+
     /**
      * Factory used by the task; overridable in tests.
      *
@@ -163,10 +166,15 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             );
             $succeeded = $rc->get_status() === \backup::STATUS_FINISHED_OK;
         } catch (\Throwable $e) {
-            // Before set_status(), which can fail on its own after execute_plan() has run.
-            $this->delete_created_section_if_empty($courseid);
+            if ($copystate !== outcome_repository::COPY_COMPLETED) {
+                $this->delete_created_section_if_empty($courseid);
+            }
             if ($rc !== null) {
-                $this->rollback_replaced_section_details($rc);
+                if ($copystate !== outcome_repository::COPY_COMPLETED && $this->sectionblankingstarted) {
+                    $this->rollback_replaced_section_details($rc);
+                } else {
+                    $this->discard_replaced_section_details($rc);
+                }
                 if ($copystate !== outcome_repository::COPY_COMPLETED) {
                     $rc->set_status(\backup::STATUS_FINISHED_ERR);
                 }
@@ -241,7 +249,9 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 throw new \moodle_exception('invalidrecord', 'error');
             }
             // Repeat queue-time validation before creating sections or changing the destination.
-            $coursemodulestoinclude = $this->factory()->restore()->selection()->module_ids($item, (array)$backupsettings);
+            $selection = $this->factory()->restore()->selection();
+            $normalized = $selection->normalize((array)$backupsettings);
+            $coursemodulestoinclude = $selection->module_ids($item, $normalized, $restorecontroller->get_info());
             $insertaftersectionid = (int)($backupsettings->insert_after_section_id ?? 0);
             if ($insertaftersectionid) {
                 $movetosectionid = $this->create_section_after($restorecontroller->get_courseid(), $insertaftersectionid);
@@ -264,10 +274,10 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                     $item,
                     $movetosectionid,
                     $insertasnewsection,
-                    array_map('intval', (array)($backupsettings->sections_to_include ?? [])),
+                    $normalized['sections_to_include'],
                     // Keep legacy section-list intent: default descendants must not become explicit flatten requests.
                     $item->is_section()
-                        ? array_map('intval', (array)($backupsettings->course_modules_to_include ?? []))
+                        ? $normalized['course_modules_to_include']
                         : $coursemodulestoinclude,
                     $moduleselectionexplicit
                 );
@@ -296,6 +306,8 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 $planner->apply($restorecontroller, $this->sectionplan, $activityuserinfo);
 
                 if ($this->replacedsectionid > 0) {
+                    // Set this before the first write, since blanking can itself fail partway through.
+                    $this->sectionblankingstarted = true;
                     $this->factory()->restore()->section_details_replacement()->blank(
                         (int)$restorecontroller->get_courseid(),
                         $this->replacedsectionid
@@ -445,6 +457,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
 
                 mtrace('Placing ' . count($restoredsections) . ' restored nested section(s) after the target section...');
                 $planner->place_after_target($courseid, $targetsectionid, $restoredsections);
+                $planner->place_flattened_activities($restorecontroller, $this->sectionplan);
 
                 \core\di::get(\core\hook\manager::class)->dispatch(new after_sections_restored(
                     courseid: $courseid,
@@ -511,6 +524,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             $this->replacedsectionid
         );
         $this->replacedsectionid = 0;
+        $this->sectionblankingstarted = false;
     }
 
     /**
@@ -534,6 +548,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             mtrace('Could not put back the section details: ' . $e->getMessage());
         }
         $this->replacedsectionid = 0;
+        $this->sectionblankingstarted = false;
     }
 
     /**
@@ -557,7 +572,10 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 mtrace(
                     '...' . ($includeactivity ? "Including activity: (id: $cmid)" : "Excluding activity: (id: $cmid)")
                 );
-                $task->get_setting('included')->set_value($includeactivity);
+                $setting = $task->get_setting('included');
+                if ((bool)$setting->get_value() !== $includeactivity) {
+                    $setting->set_value($includeactivity);
+                }
             }
         }
     }

@@ -121,6 +121,7 @@ class item implements \core\output\named_templatable, \renderable {
         $children = $allitemcontexts->filter(static function (object $childitem) use ($itemcontext) {
             return $childitem->parent_item_id === $itemcontext->id;
         });
+        $itemcontext->has_children = count($children) > 0;
         $children->map(function (object $child) use ($allitemcontexts) {
             $child->children = self::get_item_children($child, $allitemcontexts);
         });

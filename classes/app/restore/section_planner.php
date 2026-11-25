@@ -434,7 +434,7 @@ final class section_planner {
                 $oldmoduleid = (int)$task->get_old_moduleid();
                 $oldsectionid = $modulesections[$oldmoduleid] ?? 0;
                 $selectedexplicitly = $moduleexplicitlyselected($oldmoduleid);
-                if ($selectedexplicitly) {
+                if ($selectedexplicitly && !$task->get_setting('included')->get_value()) {
                     // A checked item can have been disabled by a dependency on an excluded section or delegated section.
                     $task->get_setting('included')->set_value(true);
                 }
@@ -465,6 +465,7 @@ final class section_planner {
 
                         // The user explicitly selected an activity under an excluded section; flatten it into the
                         // nearest included section rather than dropping it or restoring its excluded ancestors.
+                        $plan->flatteneddestinations[$oldmoduleid] = $nearestincludedsectionid;
                         $this->rewrite_xml_number(
                             "{$task->get_taskbasepath()}/module.xml",
                             'sectionnumber',
@@ -494,7 +495,10 @@ final class section_planner {
                 // Retain only the chosen delegated section. Core creates it and maps its selected children to it.
                 // Its owner module is placed in the target; unrelated regular section details must not be merged.
                 $included = $oldsectionid === $plan->rootoldsectionid;
-                $task->get_setting('included')->set_value($included);
+                $setting = $task->get_setting('included');
+                if ((bool)$setting->get_value() !== $included) {
+                    $setting->set_value($included);
+                }
                 continue;
             }
 
@@ -535,7 +539,11 @@ final class section_planner {
             if ($task instanceof \restore_activity_task) {
                 $oldmoduleid = (int)$task->get_old_moduleid();
                 if (!$plan->selective) {
-                    $task->get_setting('included')->set_value($moduleexplicitlyselected($oldmoduleid));
+                    $included = $moduleexplicitlyselected($oldmoduleid);
+                    $setting = $task->get_setting('included');
+                    if ((bool)$setting->get_value() !== $included) {
+                        $setting->set_value($included);
+                    }
                 }
                 $userinfo = $task->get_setting('userinfo');
                 if (
@@ -551,6 +559,51 @@ final class section_planner {
                     // Removing an unrelated section must not discard the selected activity's attempts or grades.
                     $userinfo->set_value($activityuserinfo[$oldmoduleid]);
                 }
+            }
+        }
+    }
+
+    /**
+     * Verify flattened placements after all destination sections have been created by Moodle.
+     *
+     * @param \restore_controller $restorecontroller The completed restore
+     * @param section_plan $plan Its Sharing Cart placement plan
+     */
+    public function place_flattened_activities(\restore_controller $restorecontroller, section_plan $plan): void {
+        if ($plan->flatteneddestinations === []) {
+            return;
+        }
+
+        $sectionids = [];
+        $tasks = $restorecontroller->get_plan()->get_tasks();
+        foreach ($tasks as $task) {
+            if ($task instanceof \restore_section_task && $task->get_setting('included')->get_value()) {
+                $sectionids[$this->old_section_id_of_task($task)] = (int)$task->get_sectionid();
+            }
+        }
+        if ($plan->merges_into_target()) {
+            $sectionids[$plan->rootoldsectionid] = $plan->targetsectionid;
+        }
+
+        $courseid = (int)$restorecontroller->get_courseid();
+        $modinfo = get_fast_modinfo($courseid);
+        $actions = \core_courseformat\formatactions::cm($courseid);
+        foreach ($tasks as $task) {
+            if (!$task instanceof \restore_activity_task || !$task->get_setting('included')->get_value()) {
+                continue;
+            }
+            $oldtarget = $plan->flatteneddestinations[(int)$task->get_old_moduleid()] ?? null;
+            if ($oldtarget === null) {
+                continue;
+            }
+            $cmid = (int)$task->get_moduleid();
+            $target = $sectionids[$oldtarget] ?? 0;
+            if (!$target || !$modinfo->get_section_info_by_id($target) || !$cmid || !isset($modinfo->get_cms()[$cmid])) {
+                throw new \coding_exception('Could not locate the restored activity or its planned destination.');
+            }
+            // An earlier activity task may have used Moodle's fallback when this section did not yet exist.
+            if ((int)$modinfo->get_cm($cmid)->section !== $target && !$actions->move_end_section($cmid, $target)) {
+                throw new \coding_exception('Could not place the restored activity in its planned destination.');
             }
         }
     }

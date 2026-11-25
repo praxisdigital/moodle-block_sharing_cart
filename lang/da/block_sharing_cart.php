@@ -98,6 +98,7 @@ $string['rename_item'] = 'Omdøb backup';
 $string['restore_failed'] = 'Gendannelsen mislykkedes (task id: {$a}). Denne besked vil forsvinde efter et stykke tid.';
 $string['restore_failure_notice'] = 'Kunne ikke kopiere ”{$a}” til dette kursus. Prøv igen, eller kontakt din administrator, hvis problemet fortsætter.';
 $string['restore_post_copy_warning'] = '”{$a}” blev kopieret, men nogle afsluttende trin mislykkedes. Kontrollér destinationen, før du kopierer igen. Kontakt din administrator, hvis noget mangler eller ligger forkert.';
+$string['restore_refresh_failed'] = 'Kursusvisningen kunne ikke opdateres. Genindlæs siden for at kontrollere destinationen, før du kopierer igen.';
 $string['restore_selected_item_in_section'] = 'Dette element bliver gendannet i {$a}, fordi dets overordnede sektion ikke er valgt.';
 $string['restore_uncertain_warning'] = 'Kopieringen af ”{$a}” blev ikke fuldført. Noget indhold kan allerede være i kurset. Kontrollér destinationen, før du kopierer igen.';
 $string['restores'] = 'Kopieringer i kø';

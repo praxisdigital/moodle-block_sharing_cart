@@ -102,6 +102,7 @@ $string['replace_section_details_help_text'] = 'If left unticked, the existing t
 $string['restore_failed'] = 'The restore failed (task id: {$a}). This message will disappear after a while.';
 $string['restore_failure_notice'] = 'Couldn’t copy “{$a}” to this course. Try again, or contact your site administrator if the problem continues.';
 $string['restore_post_copy_warning'] = '“{$a}” was copied, but some finishing steps failed. Check the destination before copying it again. Contact your site administrator if anything is missing or out of place.';
+$string['restore_refresh_failed'] = 'The course view could not be updated. Reload the page to check the destination before copying again.';
 $string['restore_selected_item_in_section'] = 'This item will be restored in {$a} because its parent section is unchecked.';
 $string['restore_uncertain_warning'] = 'The copy of “{$a}” didn’t finish. Some content may already be in the course. Check the destination before copying it again.';
 $string['restores'] = 'Copies queued';

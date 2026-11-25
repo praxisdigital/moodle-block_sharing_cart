@@ -52,6 +52,9 @@ export default class QueueElement {
      */
     #preventReload = false;
 
+    /** @type {boolean} A restore was accepted but no queue fetch has succeeded yet. */
+    #awaitingQueue = false;
+
     /**
      * @type {boolean}
      */
@@ -86,11 +89,21 @@ export default class QueueElement {
         return this.#element.querySelectorAll('.queue-item');
     }
 
+    /** Retry via normal polling if the first fetch after accepting a restore fails. */
+    async restoreAccepted() {
+        this.#awaitingQueue = true;
+        try {
+            await this.loadQueue(true);
+        } catch {
+            // The interval will retry even if there is no queue row yet.
+        }
+    }
+
     /**
      * @param {boolean} ignoreQueueItemsCount
      */
     tryReloadQueue(ignoreQueueItemsCount = false) {
-        if (this.#preventReload || (!ignoreQueueItemsCount && this.getQueueItems().length === 0)) {
+        if (this.#preventReload || (!ignoreQueueItemsCount && !this.#awaitingQueue && this.getQueueItems().length === 0)) {
             return;
         }
 
@@ -138,6 +151,7 @@ export default class QueueElement {
         if (this.#queueRevision !== revision) {
             return;
         }
+        this.#awaitingQueue = false;
 
         const fragments = elements.filter(element => element instanceof Element);
         const queueItems = fragments.filter(element => element.classList.contains('queue-item'));
@@ -199,9 +213,11 @@ export default class QueueElement {
                     });
                 }
                 return null;
-            }).catch(() => {
-                // Ignore course state refresh failures.
-            });
+            }).catch(() => Toast.add(getString('restore_refresh_failed', 'block_sharing_cart'), {
+                closeButton: true,
+                autohide: false,
+                type: 'warning'
+            }));
         }
     }
 

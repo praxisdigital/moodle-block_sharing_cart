@@ -64,6 +64,9 @@ final class section_plan {
     /** @var int[]|null Selected course-module ids; [] means none, null means use the legacy include-all setting. */
     public ?array $coursemodulestoinclude = null;
 
+    /** @var array<int, int> Flattened activity IDs mapped to the original destination section IDs. */
+    public array $flatteneddestinations = [];
+
     /**
      * Plan for one target section.
      *

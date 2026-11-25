@@ -85,6 +85,7 @@ final class selection_test extends \advanced_testcase {
         return [
             'default' => [[], [10, 20]],
             'legacy zero' => [['course_modules_to_include' => [0]], [10, 20]],
+            'duplicate legacy zero' => [['course_modules_to_include' => [0, 0]], [10, 20]],
             'selected descendant' => [['course_modules_to_include' => [20]], [20]],
             'duplicate IDs' => [['course_modules_to_include' => [20, 20]], [20]],
             'section only' => [[

@@ -57,7 +57,7 @@ class handler
      * @param \stored_file $file
      * @return object
      */
-    private function get_backup_info(\stored_file $file): object {
+    public function get_backup_info(\stored_file $file): object {
         // File storage instance.
         $fs = get_file_storage();
         $filepath = $fs->get_file_system()->get_local_path_from_storedfile($file, true);

@@ -35,10 +35,12 @@
             {{#is_root}}
                 <input class="d-none me-1" type="checkbox" data-action="bulk_select" value="{{id}}"/>
             {{/is_root}}
-            <div class="info">
+            {{#has_children}}<button type="button" class="info btn btn-link text-body p-0 text-start" aria-expanded="false">{{/has_children}}
+            {{^has_children}}<div class="info">{{/has_children}}
                 {{> block_sharing_cart/block/item/icon }}
                 <span class="name">{{{name}}}</span>
-            </div>
+            {{#has_children}}</button>{{/has_children}}
+            {{^has_children}}</div>{{/has_children}}
             <span class="sharing_cart_item_actions">
             {{^status_awaiting}}
                 {{#is_root}}

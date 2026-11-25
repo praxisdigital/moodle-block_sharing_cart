@@ -19,6 +19,7 @@ namespace block_sharing_cart\integration\task;
 use block_sharing_cart\app\factory;
 use block_sharing_cart\app\item\entity;
 use block_sharing_cart\app\restore\section_details_replacement;
+use block_sharing_cart\external\backup\course_module_into_sharing_cart;
 use block_sharing_cart\external\backup\section_into_sharing_cart;
 use block_sharing_cart\external\restore\item_into_section;
 use block_sharing_cart\hook\backup\resolve_section_tree;
@@ -196,6 +197,48 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         self::assertSame('completed', $outcome['copy_state']);
         self::assertSame($sectionid, $outcome['to_section_id']);
         self::assertTrue($outcome['refresh_course']);
+    }
+
+    /**
+     * An empty drag/drop destination is not disposable when the copy restored its details and a nested section.
+     */
+    public function test_post_restore_hook_error_preserves_new_root_with_only_nested_activities(): void {
+        global $DB;
+
+        $source = $this->create_course(2, [1 => 'Copied root', 2 => 'Selected child']);
+        $this->add_page($source, 1, 'Unselected root page');
+        $childpage = $this->add_page($source, 2, 'Selected page');
+        $DB->set_field('course_sections', 'summary', '<p>Copied root details</p>', ['id' => $source->sections[1]->id]);
+        $this->declare_section_tree([[$source->sections[2]->id, $source->sections[1]->id, 1]]);
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $target = $this->create_course(1, [1 => 'Drop anchor']);
+
+        $createdrootid = 0;
+        \core\di::get(\core\hook\manager::class)->phpunit_redirect_hook(
+            after_sections_restored::class,
+            static function (after_sections_restored $hook) use (&$createdrootid): void {
+                $createdrootid = $hook->targetsectionid;
+                throw new \RuntimeException('Test failure after copying nested content');
+            }
+        );
+
+        self::assertTrue(item_into_section::execute(
+            $rootitemid,
+            (int)$target->sections[1]->id,
+            [(int)$childpage->cmid],
+            [(int)$source->sections[2]->id],
+            asnewsection: true,
+            moduleselectionexplicit: true
+        ));
+        $this->runAdhocTasks(asynchronous_restore_task::class);
+
+        self::assertStringContainsString('Test failure after copying nested content', $this->getActualOutputForAssertion());
+        $sections = $this->sections_by_name((int)$target->id);
+        self::assertEqualsCanonicalizing(['', 'Drop anchor', 'Copied root', 'Selected child'], array_keys($sections));
+        self::assertSame($createdrootid, (int)$sections['Copied root']->id);
+        self::assertStringContainsString('Copied root details', $sections['Copied root']->summary);
+        self::assertSame([], $this->module_names($createdrootid));
+        self::assertSame(['Selected page'], $this->module_names((int)$sections['Selected child']->id));
     }
 
     /**
@@ -590,6 +633,36 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         self::assertCount(2, $payload->restoredsections);
         self::assertSame($newgrandchildid, $payload->restoredsections[1]->new_section_id);
         self::assertSame($newrootid, $payload->restoredsections[1]->new_parent_section_id);
+    }
+
+    /**
+     * Verify a flattened activity reaches a destination restored later in the plan.
+     */
+    public function test_flattened_activity_moves_to_later_restored_ancestor(): void {
+        global $DB;
+
+        $source = $this->create_course(3, [1 => 'Root', 2 => 'Early excluded child', 3 => 'Later included parent']);
+        $early = $this->add_page($source, 2, 'Early page');
+        $later = $this->add_page($source, 3, 'Later page');
+        $this->declare_section_tree([
+            [$source->sections[3]->id, $source->sections[1]->id, 1],
+            [$source->sections[2]->id, $source->sections[3]->id, 1],
+        ]);
+        $itemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $target = $this->create_course(1, [1 => 'Merge target']);
+
+        $this->restore(
+            $itemid,
+            (int)$target->sections[1]->id,
+            moduleids: [(int)$early->cmid, (int)$later->cmid],
+            sectionids: [(int)$source->sections[3]->id]
+        );
+
+        $destinationid = (int)$DB->get_field('course_sections', 'id', [
+            'course' => $target->id, 'name' => 'Later included parent',
+        ], MUST_EXIST);
+        self::assertSame(['Early page', 'Later page'], $this->module_names($destinationid));
+        self::assertFalse($DB->record_exists('course_sections', ['course' => $target->id, 'name' => 'Early excluded child']));
     }
 
     public function test_selected_activities_under_excluded_sections_flatten_to_the_nearest_included_section(): void {
@@ -1387,7 +1460,7 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         self::assertSame(['Page copied'], $this->module_names($targetsectionid));
     }
 
-    public function test_replace_section_details_is_rolled_back_when_the_restore_fails(): void {
+    public function test_rejected_replacement_preserves_target_edit_made_after_snapshot(): void {
         global $DB;
 
         $source = $this->create_course(1, [1 => 'Copied']);
@@ -1399,22 +1472,31 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $DB->set_field('course_sections', 'summary', '<p>Target summary</p>', ['id' => $targetsectionid]);
         $this->add_section_file($target->id, $targetsectionid, 'keep.txt');
 
-        // Fail after preparing the replacement snapshot and before the target is blanked.
+        // Simulate an edit after the snapshot is taken but before the task blanks the target.
+        $snapshotseen = false;
         \core\di::get(\core\hook\manager::class)->phpunit_redirect_hook(
             before_sections_restored::class,
-            static function (before_sections_restored $hook): void {
-                throw new \Exception('Simulated restore failure');
+            static function (before_sections_restored $hook) use ($DB, &$snapshotseen): void {
+                $snapshotseen = factory::make()->restore()->section_details_replacement()
+                    ->has_snapshot($hook->courseid, $hook->targetsectionid);
+                $DB->update_record('course_sections', (object)[
+                    'id' => $hook->targetsectionid,
+                    'name' => 'Edited target',
+                    'summary' => '<p>Edited target summary</p>',
+                ]);
+                throw new \RuntimeException('Test rejection before copying');
             }
         );
 
         $this->restore($rootitemid, $targetsectionid, replacesectiondetails: true, expectfailure: true);
 
+        self::assertTrue($snapshotseen);
         $section = $DB->get_record('course_sections', ['id' => $targetsectionid], '*', MUST_EXIST);
-        self::assertSame('Target', $section->name);
-        self::assertSame('<p>Target summary</p>', $section->summary);
+        self::assertSame('Edited target', $section->name);
+        self::assertSame('<p>Edited target summary</p>', $section->summary);
         self::assertTrue($this->section_file_exists($target->id, $targetsectionid, 'keep.txt'));
         self::assertFalse($this->factory->restore()->section_details_replacement()->has_snapshot($target->id, $targetsectionid));
-        self::assertSame([], $this->module_names($targetsectionid));
+        self::assertFalse($DB->record_exists('course_modules', ['course' => $target->id]));
     }
 
     public function test_insert_as_new_top_level_section(): void {
@@ -1702,5 +1784,61 @@ final class asynchronous_restore_task_test extends \advanced_testcase
 
         $cmsafter = $DB->count_records('course_modules', ['course' => $target->id]);
         self::assertGreaterThan($cmsbefore, $cmsafter);
+    }
+
+    /**
+     * A standalone activity can be restored using the default selection without permission to configure it.
+     */
+    public function test_standalone_activity_restore_succeeds_without_configure_capability(): void {
+        global $DB;
+
+        $generator = self::getDataGenerator();
+        $teacher = $generator->create_user();
+        $source = $this->create_course(1);
+        $page = $this->add_page($source, 1, 'Standalone page');
+        $target = $this->create_course(1, [1 => 'Target']);
+        $targetsectionid = (int)$target->sections[1]->id;
+        $roleid = (int)$DB->get_field('role', 'id', ['shortname' => 'editingteacher'], MUST_EXIST);
+        $generator->enrol_user($teacher->id, $source->id, $roleid);
+        $generator->enrol_user($teacher->id, $target->id, $roleid);
+        $targetcontext = \core\context\course::instance($target->id);
+        assign_capability('moodle/restore:configure', CAP_PREVENT, $roleid, $targetcontext->id);
+        self::setUser($teacher);
+        self::assertTrue(has_capability('moodle/restore:restoreactivity', $targetcontext));
+        self::assertFalse(has_capability('moodle/restore:configure', $targetcontext));
+
+        $result = course_module_into_sharing_cart::execute((int)$page->cmid, ['users' => false, 'anonymize' => false]);
+        $this->runAdhocTasks(asynchronous_backup_task::class);
+        $item = $this->factory->item()->repository()->get_by_id((int)$result->id);
+        self::assertSame(entity::STATUS_BACKEDUP, $item->get_status());
+
+        $this->restore($item->get_id(), $targetsectionid);
+
+        self::assertSame(['Standalone page'], $this->module_names($targetsectionid));
+    }
+
+    /**
+     * Verify that a migrated Page under a cart folder uses its own archive's module ID.
+     */
+    public function test_migrated_page_in_legacy_folder_restores_explicit_zero(): void {
+        global $DB, $USER;
+
+        $source = $this->create_course(1);
+        $page = $this->add_page($source, 1, 'Migrated page');
+        $target = $this->create_course(1);
+        $sectionid = (int)$target->sections[1]->id;
+        $result = course_module_into_sharing_cart::execute((int)$page->cmid, ['users' => false, 'anonymize' => false]);
+        $this->runAdhocTasks(asynchronous_backup_task::class);
+        $folder = $this->factory->item()->repository()->insert_child_section(0, 'Legacy folder', (int)$USER->id, 0, 0);
+        $DB->update_record('block_sharing_cart_items', (object)[
+            'id' => $result->id,
+            'parent_item_id' => $folder->get_id(),
+            'version' => 1,
+            'old_instance_id' => 0,
+        ]);
+
+        self::assertTrue(item_into_section::execute((int)$result->id, $sectionid, [0], moduleselectionexplicit: true));
+        $this->runAdhocTasks(asynchronous_restore_task::class);
+        self::assertSame(['Migrated page'], $this->module_names($sectionid));
     }
 }
