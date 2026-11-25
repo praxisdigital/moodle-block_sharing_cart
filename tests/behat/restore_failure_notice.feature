@@ -1,7 +1,7 @@
 @block @block_sharing_cart @javascript
 Feature: Sharing Cart reports a failed background restore
 
-  Scenario: A failed restore shows a dismissible notice instead of the success warning
+  Background:
     Given the following "courses" exist:
       | fullname      | shortname | format | numsections | initsections |
       | Source course | SRC       | topics | 1           | 1            |
@@ -16,7 +16,9 @@ Feature: Sharing Cart reports a failed background restore
     And I queue section "1" from course "SRC" in the Sharing Cart
     And I run all adhoc tasks
     And I am on "Target course" course homepage with editing mode on
-    And I wait until "[data-action=copy_to_course]" "css_element" exists
+
+  Scenario: A failed restore shows a dismissible notice instead of the success warning
+    Given I wait until "[data-action=copy_to_course]" "css_element" exists
     And I click on "[data-action=copy_to_course]" "css_element"
     And I click on "#section-1 .clipboard_target" "css_element"
     And I click on ".modal.show [data-action=save]" "css_element"
@@ -33,3 +35,19 @@ Feature: Sharing Cart reports a failed background restore
     And I reload the page
     And I wait until "[data-region=no-restores]" "css_element" exists
     Then "[data-region=restore-failure]" "css_element" should not exist
+
+  Scenario: A finishing-step error refreshes the destination and warns against a duplicate copy
+    Given I wait until "[data-action=copy_to_course]" "css_element" exists
+    And I click on "[data-action=copy_to_course]" "css_element"
+    And I click on "#section-1 .clipboard_target" "css_element"
+    And I wait until ".modal.show [data-action=save]" "css_element" exists
+    And I control Sharing Cart queue polling for a restore "before the first queue fetch"
+    When I click on ".modal.show [data-action=save]" "css_element"
+    And the Sharing Cart restore is ready to finish "before the first queue fetch"
+    And I run all adhoc tasks
+    And I report a finishing-step error for the copy into course "TARGET"
+    And I resume Sharing Cart queue polling for a restore "before the first queue fetch"
+    Then I should see "was copied, but some finishing steps failed" in the "[data-region=restore-failure].alert-warning" "css_element"
+    And I should not see "Try again" in the "[data-region=restore-failure]" "css_element"
+    And I should not see "You may need to reload"
+    And "#section-1 [data-activityname='Source page']" "css_element" should be visible

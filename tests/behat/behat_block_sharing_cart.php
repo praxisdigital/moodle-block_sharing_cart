@@ -26,6 +26,36 @@ require_once(__DIR__ . '/../../../../lib/behat/behat_base.php');
 class behat_block_sharing_cart extends behat_base
 {
     /**
+     * Provide the browser with a post-copy warning after a real restore has copied its content.
+     *
+     * @Given I report a finishing-step error for the copy into course :shortname
+     * @param string $shortname Destination course
+     */
+    public function report_post_copy_warning(string $shortname): void {
+        global $DB, $USER;
+
+        $courseid = (int)$DB->get_field('course', 'id', ['shortname' => $shortname], MUST_EXIST);
+        $outcomes = \block_sharing_cart\app\factory::make()->restore()->outcomes();
+        $recent = $outcomes->get_recent((int)$USER->id, $courseid);
+        $result = reset($recent);
+        if (!$result || !$result['succeeded']) {
+            throw new \Behat\Mink\Exception\ExpectationException('The restore did not complete successfully.', $this->getSession());
+        }
+        $saved = $outcomes->save(
+            (int)$USER->id,
+            $courseid,
+            $result['id'],
+            false,
+            'Source section',
+            ['to_section_id' => $result['to_section_id'], 'refresh_course' => $result['refresh_course']],
+            \block_sharing_cart\app\restore\outcome_repository::COPY_COMPLETED
+        );
+        if (!$saved) {
+            throw new \Behat\Mink\Exception\ExpectationException('Could not simulate a finishing-step error.', $this->getSession());
+        }
+    }
+
+    /**
      * Place focus on a starting control without clicking or activating it.
      *
      * @Given /^I start keyboard navigation from the Sharing Cart test control "([^"]+)"$/

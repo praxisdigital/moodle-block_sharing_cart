@@ -29,6 +29,13 @@ defined('MOODLE_INTERNAL') || die();
  * @license https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class outcome_repository {
+    /** @var string The restore did not reach Moodle's copy plan. */
+    public const COPY_NOT_STARTED = 'not_started';
+    /** @var string Moodle started copying but did not confirm completion. */
+    public const COPY_UNCERTAIN = 'uncertain';
+    /** @var string Moodle finished copying before the format's finishing steps. */
+    public const COPY_COMPLETED = 'completed';
+
     /** @var int Maximum recent outcomes per user and course. */
     private const MAX_OUTCOMES = 50;
 
@@ -41,9 +48,18 @@ final class outcome_repository {
      * @param bool $succeeded Whether the restore completed
      * @param string $name Plain-text name of the item
      * @param array $destination Refresh metadata: integer to_section_id and boolean refresh_course
+     * @param string $copystate How far Moodle got in copying the content
      * @return bool Whether the outcome was stored
      */
-    public function save(int $userid, int $courseid, int $taskid, bool $succeeded, string $name, array $destination): bool {
+    public function save(
+        int $userid,
+        int $courseid,
+        int $taskid,
+        bool $succeeded,
+        string $name,
+        array $destination,
+        string $copystate
+    ): bool {
         $key = $this->key($userid, $courseid);
         $lock = \core\lock\lock_config::get_lock_factory('block_sharing_cart_restore_outcomes')->get_lock($key, 5);
         if (!$lock) {
@@ -55,6 +71,7 @@ final class outcome_repository {
             $outcomes = [$taskid => [
                 'id' => $taskid,
                 'succeeded' => $succeeded,
+                'copy_state' => $copystate,
                 'name' => $succeeded ? '' : $name,
                 'time' => time(),
             ] + $destination] + $outcomes;
@@ -72,7 +89,7 @@ final class outcome_repository {
      *
      * @param int $userid Task owner
      * @param int $courseid Destination course
-     * @return array<int, array{id: int, succeeded: bool, name: string, time: int, to_section_id?: int, refresh_course?: bool}>
+     * @return array<int, array> Restore results keyed by task ID
      */
     public function get_recent(int $userid, int $courseid): array {
         $outcomes = \cache::make('block_sharing_cart', 'restore_outcomes')->get($this->key($userid, $courseid));

@@ -165,7 +165,8 @@ export default class QueueElement {
         const completed = [];
         let notify = false;
 
-        for (const result of successes) {
+        const warnings = failures.filter(element => element.dataset.refreshDestination === '1');
+        for (const result of [...successes, ...warnings]) {
             const {id, time, toSectionId, refreshCourse} = result.dataset;
             if (this.#processedRestores.has(id) || activeIds.has(id) ||
                     (!observed.has(id) && Number(time) < pageTime)) {
@@ -173,7 +174,7 @@ export default class QueueElement {
             }
             this.#processedRestores.add(id);
             completed.push(toSectionId || refreshCourse ? result : observed.get(id) ?? result);
-            notify = true;
+            notify ||= !failedIds.has(id);
         }
 
         for (const [id, row] of observed) {

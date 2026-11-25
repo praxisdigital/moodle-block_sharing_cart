@@ -60,7 +60,10 @@
           data-to-section-id="{{to_section_id}}"{{#refresh_course}} data-refresh-course="1"{{/refresh_course}}></span>
 {{/restore_successes}}
 {{#restore_failures}}
-    <div class="alert alert-danger alert-dismissible mb-2" data-region="restore-failure" data-id="{{id}}">
+    <div class="alert {{#has_possible_copy}}alert-warning{{/has_possible_copy}}{{^has_possible_copy}}alert-danger{{/has_possible_copy}} alert-dismissible mb-2"
+         data-region="restore-failure" data-id="{{id}}" data-time="{{time}}"
+         {{#has_possible_copy}}data-refresh-destination="1" data-to-section-id="{{to_section_id}}"
+         {{#refresh_course}}data-refresh-course="1"{{/refresh_course}}{{/has_possible_copy}}>
         <span>{{message}}</span>
         <button type="button" class="btn-close" data-action="dismiss-restore-error" aria-label="{{#str}}close, core{{/str}}"></button>
     </div>

@@ -18,6 +18,7 @@ namespace block_sharing_cart\task;
 
 use async_helper;
 use block_sharing_cart\app\factory as basefactory;
+use block_sharing_cart\app\restore\outcome_repository;
 use block_sharing_cart\app\restore\section_plan;
 use block_sharing_cart\hook\restore\after_sections_restored;
 use block_sharing_cart\hook\restore\before_sections_restored;
@@ -81,6 +82,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
 
         $rc = null;
         $succeeded = false;
+        $copystate = outcome_repository::COPY_NOT_STARTED;
         try {
             $item = $factory->item()->entity((object)$customdata->item);
             $backupfile = $factory->item()->repository()->get_stored_file_by_item($item);
@@ -126,8 +128,12 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             if ($status == \backup::STATUS_AWAITING && $execution == \backup::EXECUTION_DELAYED) {
                 $this->before_restore_finished_hook($rc);
 
-                // Execute the restore.
+                // Core can persist content even if the plan or a later format hook throws.
+                $copystate = outcome_repository::COPY_UNCERTAIN;
                 $rc->execute_plan();
+                if ($rc->get_status() === \backup::STATUS_FINISHED_OK) {
+                    $copystate = outcome_repository::COPY_COMPLETED;
+                }
 
                 $this->after_restore_finished_hook($rc);
 
@@ -156,12 +162,14 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 $finished
             );
             $succeeded = $rc->get_status() === \backup::STATUS_FINISHED_OK;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // Before set_status(), which can fail on its own after execute_plan() has run.
             $this->delete_created_section_if_empty($courseid);
             if ($rc !== null) {
                 $this->rollback_replaced_section_details($rc);
-                $rc->set_status(\backup::STATUS_FINISHED_ERR);
+                if ($copystate !== outcome_repository::COPY_COMPLETED) {
+                    $rc->set_status(\backup::STATUS_FINISHED_ERR);
+                }
             }
 
             // Retrying isn't going to fix this, so add a no-retry flag to customdata.
@@ -175,7 +183,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             try {
                 $rc?->destroy();
             } finally {
-                $this->record_outcome($userid, $courseid, $succeeded);
+                $this->record_outcome($userid, $courseid, $succeeded, $copystate);
             }
         }
     }
@@ -186,8 +194,9 @@ class asynchronous_restore_task extends \core\task\adhoc_task
      * @param int $userid Task owner
      * @param int $courseid Destination course
      * @param bool $succeeded Whether the restore completed
+     * @param string $copystate How far Moodle got in copying the content
      */
-    private function record_outcome(int $userid, int $courseid, bool $succeeded): void {
+    private function record_outcome(int $userid, int $courseid, bool $succeeded, string $copystate): void {
         $taskid = (int)$this->get_id();
         if ($taskid <= 0) {
             return;
@@ -198,7 +207,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             $name = \core_text::substr(clean_param($name, PARAM_TEXT), 0, 100);
             $restore = $this->factory()->restore();
             $destination = $restore::refresh_destination($data->backup_settings ?? null, $data->item->type ?? '');
-            if (!$restore->outcomes()->save($userid, $courseid, $taskid, $succeeded, $name, $destination)) {
+            if (!$restore->outcomes()->save($userid, $courseid, $taskid, $succeeded, $name, $destination, $copystate)) {
                 mtrace('Could not record Sharing Cart restore outcome for task ' . $taskid);
             }
         } catch (\Exception $e) {

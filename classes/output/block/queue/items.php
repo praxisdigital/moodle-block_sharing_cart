@@ -107,10 +107,16 @@ class items implements \core\output\named_templatable, \renderable {
             if ($outcome['succeeded']) {
                 $successes[] = $outcome;
             } else {
+                $copystate = $outcome['copy_state'] ?? \block_sharing_cart\app\restore\outcome_repository::COPY_UNCERTAIN;
+                $messagekey = match ($copystate) {
+                    \block_sharing_cart\app\restore\outcome_repository::COPY_NOT_STARTED => 'restore_failure_notice',
+                    \block_sharing_cart\app\restore\outcome_repository::COPY_COMPLETED => 'restore_post_copy_warning',
+                    default => 'restore_uncertain_warning',
+                };
                 $failures[] = [
-                    'id' => $outcome['id'],
-                    'message' => get_string('restore_failure_notice', 'block_sharing_cart', $outcome['name']),
-                ];
+                    'message' => get_string($messagekey, 'block_sharing_cart', $outcome['name']),
+                    'has_possible_copy' => $messagekey !== 'restore_failure_notice',
+                ] + $outcome;
             }
         }
 
