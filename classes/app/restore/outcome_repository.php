@@ -40,7 +40,7 @@ final class outcome_repository {
      * @param int $taskid Moodle adhoc task ID
      * @param bool $succeeded Whether the restore completed
      * @param string $name Plain-text name of the item
-     * @param array{to_section_id: int, refresh_course: bool} $destination Where the course editor should refresh
+     * @param array $destination Refresh metadata: integer to_section_id and boolean refresh_course
      * @return bool Whether the outcome was stored
      */
     public function save(int $userid, int $courseid, int $taskid, bool $succeeded, string $name, array $destination): bool {
