@@ -83,6 +83,7 @@ $string['old_version_module_info'] = 'This item was backed up using a previous v
 $string['old_version_section_info'] = 'This section was backed up using a previous version.';
 $string['original_course'] = 'Original course:';
 $string['pluginname'] = 'Sharing Cart';
+$string['privacy:metadata:core_files'] = 'Sharing Cart stores backup files in the cart owner’s user context.';
 $string['privacy:metadata:sharing_cart_items:file_id'] = 'The file ID of the backup';
 $string['privacy:metadata:sharing_cart_items:name'] = 'The name of the item';
 $string['privacy:metadata:sharing_cart_items:old_instance_id'] = 'The old instance ID of the item';

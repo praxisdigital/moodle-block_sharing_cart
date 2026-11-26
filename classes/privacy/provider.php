@@ -55,6 +55,7 @@ class provider implements
             'timecreated' => 'privacy:metadata:sharing_cart_items:timecreated',
             'timemodified' => 'privacy:metadata:sharing_cart_items:timemodified',
         ], 'privacy:metadata:sharing_cart_items:tabledesc');
+        $collection->add_subsystem_link('core_files', [], 'privacy:metadata:core_files');
 
         return $collection;
     }
@@ -67,8 +68,15 @@ class provider implements
      */
     public static function get_contexts_for_userid(int $userid): contextlist {
         $contextlist = new \core_privacy\local\request\contextlist();
-        $sql = "SELECT id FROM {context} WHERE contextlevel = :context_level_user AND instanceid = :userid";
-        $contextlist->add_from_sql($sql, ['userid' => $userid, 'context_level_user' => CONTEXT_USER]);
+        $sql = "SELECT c.id FROM {context} c
+                 WHERE c.contextlevel = :contextlevel AND c.instanceid = :userid
+                   AND (EXISTS (SELECT 1 FROM {block_sharing_cart_items} i WHERE i.user_id = c.instanceid)
+                        OR EXISTS (SELECT 1 FROM {files} f WHERE f.contextid = c.id
+                            AND f.component = :component AND f.filearea = :filearea AND f.filename <> :directory))";
+        $contextlist->add_from_sql($sql, [
+            'userid' => $userid, 'contextlevel' => CONTEXT_USER, 'component' => 'block_sharing_cart',
+            'filearea' => 'backup', 'directory' => '.',
+        ]);
         return $contextlist;
     }
 
@@ -81,18 +89,23 @@ class provider implements
     public static function export_user_data(approved_contextlist $contextlist): void {
         global $DB;
 
-        $USER = $contextlist->get_user();
+        $userid = (int)$contextlist->get_user()->id;
+        $context = \core\context\user::instance($userid);
+        if (!in_array($context->id, array_map('intval', $contextlist->get_contextids()), true)) {
+            return;
+        }
         $sql = 'SELECT *
                   FROM {block_sharing_cart_items} i
                  WHERE i.user_id = :userid';
 
-        $context = \core\context\user::instance($USER->id);
         $contextpath = [get_string('pluginname', 'block_sharing_cart')];
+        $writer = writer::with_context($context);
+        $exportedids = [];
 
-        $recordset = $DB->get_recordset_sql($sql, ['userid' => $USER->id]);
+        $recordset = $DB->get_recordset_sql($sql, ['userid' => $userid]);
         foreach ($recordset as $record) {
             $data = (object) [
-                'user_id' => $record->userid,
+                'user_id' => $record->user_id,
                 'file_id' => $record->file_id,
                 'parent_item_id' => $record->parent_item_id,
                 'old_instance_id' => $record->old_instance_id,
@@ -100,17 +113,32 @@ class provider implements
                 'name' => format_string($record->name),
                 'status' => $record->status,
                 'sortorder' => $record->sortorder,
-                'original_course_fullname' => format_string($record->original_course_fullname),
+                'original_course_fullname' => format_string($record->original_course_fullname ?? ''),
                 'timecreated' => transform::datetime($record->timecreated),
                 'timemodified' => transform::datetime($record->timemodified),
             ];
 
-            writer::with_context($context)->export_data(array_merge($contextpath, [
-                clean_param($record->idopensesame, PARAM_FILE),
-            ]), $data);
+            $itemid = (int)$record->id;
+            $itempath = [...$contextpath, (string)$itemid];
+            $writer->export_data($itempath, $data)->export_area_files($itempath, 'block_sharing_cart', 'backup', $itemid);
+            $exportedids[$itemid] = true;
         }
 
         $recordset->close();
+        // Include any archives left behind by a missing cart row.
+        $files = $DB->get_fieldset_select(
+            'files',
+            'DISTINCT itemid',
+            'contextid = :contextid AND component = :component AND filearea = :filearea AND filename <> :directory',
+            [
+                'contextid' => $context->id, 'component' => 'block_sharing_cart', 'filearea' => 'backup', 'directory' => '.',
+            ]
+        );
+        foreach ($files as $itemid) {
+            if (!isset($exportedids[$itemid])) {
+                $writer->export_area_files([...$contextpath, (string)$itemid], 'block_sharing_cart', 'backup', (int)$itemid);
+            }
+        }
     }
 
     /**
@@ -127,6 +155,7 @@ class provider implements
             return;
         }
 
+        get_file_storage()->delete_area_files($context->id, 'block_sharing_cart', 'backup');
         $DB->delete_records('block_sharing_cart_items', ['user_id' => $context->instanceid]);
     }
 
@@ -137,18 +166,17 @@ class provider implements
      * @return void
      */
     public static function delete_data_for_user(approved_contextlist $contextlist): void {
-        global $DB;
-
+        $userid = (int)$contextlist->get_user()->id;
         foreach ($contextlist as $context) {
             if ($context->contextlevel !== CONTEXT_USER) {
                 continue;
             }
 
-            if ($context->instanceid !== $contextlist->get_user()->id) {
+            if ((int)$context->instanceid !== $userid) {
                 continue;
             }
 
-            $DB->delete_records('block_sharing_cart_items', ['user_id' => $context->instanceid]);
+            self::delete_data_for_all_users_in_context($context);
         }
     }
 
@@ -166,7 +194,10 @@ class provider implements
             return;
         }
 
-        if (!$DB->record_exists('block_sharing_cart_items', ['user_id' => $context->instanceid])) {
+        if (
+            !$DB->record_exists('block_sharing_cart_items', ['user_id' => $context->instanceid]) &&
+            get_file_storage()->is_area_empty($context->id, 'block_sharing_cart', 'backup')
+        ) {
             return;
         }
 
@@ -180,17 +211,15 @@ class provider implements
      * @return void
      */
     public static function delete_data_for_users(approved_userlist $userlist): void {
-        global $DB;
-
         $context = $userlist->get_context();
         if ($context->contextlevel !== CONTEXT_USER) {
             return;
         }
 
-        if (!in_array($context->instanceid, $userlist->get_userids())) {
+        if (!in_array((int)$context->instanceid, array_map('intval', $userlist->get_userids()), true)) {
             return;
         }
 
-        $DB->delete_records('block_sharing_cart_items', ['user_id' => $context->instanceid]);
+        self::delete_data_for_all_users_in_context($context);
     }
 }

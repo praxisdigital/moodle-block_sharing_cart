@@ -82,6 +82,7 @@ $string['old_version_module_info'] = 'Dette element blev backup\'et med en tidli
 $string['old_version_section_info'] = 'Denne sektion blev backup\'et med en tidligere version.';
 $string['original_course'] = 'Originalt kursus:';
 $string['pluginname'] = 'Delingskurv';
+$string['privacy:metadata:core_files'] = 'Delingskurven gemmer sikkerhedskopier i kurvejerens brugerkontekst.';
 $string['privacy:metadata:sharing_cart_items:file_id'] = 'Fil-ID\'et for backuppen';
 $string['privacy:metadata:sharing_cart_items:name'] = 'Navnet på elementet';
 $string['privacy:metadata:sharing_cart_items:old_instance_id'] = 'Det gamle instans-ID for elementet';
