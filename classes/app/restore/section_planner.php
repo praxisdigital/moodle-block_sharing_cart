@@ -169,7 +169,10 @@ final class section_planner {
 
         $childrenbyparent = $this->section_children_by_parent_item($item);
 
-        $walk = function (entity $parent, int $effectiveparentid) use (
+        $walk = function (
+            entity $parent,
+            int $effectiveparentid
+        ) use (
             &$walk,
             $plan,
             &$counter,
