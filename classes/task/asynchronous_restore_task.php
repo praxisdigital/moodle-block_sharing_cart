@@ -93,6 +93,10 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 mtrace('Sharing cart backup file not found for item (id: ' . $item->get_id() . ').');
                 return;
             }
+            $selection = $factory->restore()->selection();
+            if ($selection->needs_archive_module_id($item)) {
+                $selection->require_own_archive($item, $backupfile);
+            }
 
             mtrace(implode(' | ', [
                 'hostname=' . (gethostname() ?: 'unknown-host'),
@@ -129,7 +133,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             // Check that the restore is in the correct status and.
             // That is set for asynchronous execution.
             if ($status == \backup::STATUS_AWAITING && $execution == \backup::EXECUTION_DELAYED) {
-                $this->before_restore_finished_hook($rc);
+                $this->before_restore_finished_hook($rc, $backupfile);
 
                 // Core can persist content even if the plan or a later format hook throws.
                 $copystate = outcome_repository::COPY_UNCERTAIN;
@@ -176,7 +180,17 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                     $this->discard_replaced_section_details($rc);
                 }
                 if ($copystate !== outcome_repository::COPY_COMPLETED) {
-                    $rc->set_status(\backup::STATUS_FINISHED_ERR);
+                    if ($copystate === outcome_repository::COPY_UNCERTAIN) {
+                        // Do not serialise a partially executed plan, which can retain live XML parser state.
+                        $savedcontroller = \restore_controller::load_controller($rc->get_restoreid());
+                        try {
+                            $savedcontroller->set_status(\backup::STATUS_FINISHED_ERR);
+                        } finally {
+                            $savedcontroller->destroy();
+                        }
+                    } else {
+                        $rc->set_status(\backup::STATUS_FINISHED_ERR);
+                    }
                 }
             }
 
@@ -236,9 +250,10 @@ class asynchronous_restore_task extends \core\task\adhoc_task
      * Runs before execute_plan(): decides which sections are restored and where, and lets the course format prepare.
      *
      * @param \restore_controller $restorecontroller
+     * @param \stored_file $backupfile Archive opened by the worker
      * @return void
      */
-    private function before_restore_finished_hook(\restore_controller $restorecontroller): void {
+    private function before_restore_finished_hook(\restore_controller $restorecontroller, \stored_file $backupfile): void {
         try {
             mtrace('Executing before_restore_finished_hook...');
 
@@ -250,6 +265,9 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             }
             // Repeat queue-time validation before creating sections or changing the destination.
             $selection = $this->factory()->restore()->selection();
+            if ($selection->needs_archive_module_id($item)) {
+                $selection->require_own_archive($item, $backupfile);
+            }
             $normalized = $selection->normalize((array)$backupsettings);
             $coursemodulestoinclude = $selection->module_ids($item, $normalized, $restorecontroller->get_info());
             $insertaftersectionid = (int)($backupsettings->insert_after_section_id ?? 0);
@@ -282,16 +300,15 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                     $moduleselectionexplicit
                 );
 
-                // Formats inspect the snapshot to distinguish an explicit replacement from a content-only merge.
-                if (!empty($backupsettings->replace_section_details) && $this->sectionplan->merges_into_target()) {
-                    $this->prepare_section_details_replacement($restorecontroller);
-                }
+                $replacesectiondetails = !empty($backupsettings->replace_section_details)
+                    && $this->sectionplan->merges_into_target();
 
                 $beforessectionsrestored = new before_sections_restored(
                     restoreid: $restorecontroller->get_restoreid(),
                     courseid: (int)$restorecontroller->get_courseid(),
                     targetsectionid: $this->sectionplan->targetsectionid,
                     plannedsections: array_values($this->sectionplan->sections),
+                    replacesectiondetails: $replacesectiondetails,
                 );
                 \core\di::get(\core\hook\manager::class)->dispatch($beforessectionsrestored);
 
@@ -305,13 +322,8 @@ class asynchronous_restore_task extends \core\task\adhoc_task
 
                 $planner->apply($restorecontroller, $this->sectionplan, $activityuserinfo);
 
-                if ($this->replacedsectionid > 0) {
-                    // Set this before the first write, since blanking can itself fail partway through.
-                    $this->sectionblankingstarted = true;
-                    $this->factory()->restore()->section_details_replacement()->blank(
-                        (int)$restorecontroller->get_courseid(),
-                        $this->replacedsectionid
-                    );
+                if ($replacesectiondetails) {
+                    $this->snapshot_and_blank_section_details($restorecontroller);
                 }
             }
 
@@ -492,20 +504,22 @@ class asynchronous_restore_task extends \core\task\adhoc_task
     }
 
     /**
-     * Prepare a rollback snapshot and replacement intent without changing the target before format validation.
+     * Capture the latest target details immediately before clearing them for replacement.
      *
      * @param \restore_controller $restorecontroller
      * @return void
      */
-    private function prepare_section_details_replacement(\restore_controller $restorecontroller): void {
+    private function snapshot_and_blank_section_details(\restore_controller $restorecontroller): void {
         $sectionid = $this->sectionplan->targetsectionid;
+        $courseid = (int)$restorecontroller->get_courseid();
         mtrace("...Preparing replacement of the title and description of section (id: $sectionid)");
 
-        $this->factory()->restore()->section_details_replacement()->snapshot(
-            (int)$restorecontroller->get_courseid(),
-            $sectionid
-        );
+        $replacement = $this->factory()->restore()->section_details_replacement();
+        $replacement->snapshot($courseid, $sectionid);
         $this->replacedsectionid = $sectionid;
+        // Set this before the first write, since blanking can itself fail partway through.
+        $this->sectionblankingstarted = true;
+        $replacement->blank($courseid, $sectionid);
     }
 
     /**

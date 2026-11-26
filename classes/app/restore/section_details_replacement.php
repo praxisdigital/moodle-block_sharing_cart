@@ -66,7 +66,7 @@ final class section_details_replacement {
     }
 
     /**
-     * Prepare the replacement snapshot without hiding the original details from course-format preflight checks.
+     * Capture the target details for rollback immediately before blanking them.
      *
      * @param int $courseid
      * @param int $sectionid

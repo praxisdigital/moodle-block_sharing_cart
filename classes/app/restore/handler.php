@@ -73,9 +73,6 @@ class handler
             return null;
         }
 
-        // Validate before queueing, including explicit empty selections and IDs from shared-archive siblings.
-        $this->basefactory->restore()->selection()->module_ids($item, $settings);
-
         // The new section is created by the restore task, so its position is worked out when the restore runs.
         if ($asnewsection) {
             $settings['insert_after_section_id'] = $sectionid;
@@ -92,7 +89,12 @@ class handler
             throw new \Exception('Backup file not found for item (id: ' . $item->get_id() . ')');
         }
 
-        $this->basefactory->restore()->assert_backup_file_looks_valid($backupfile);
+        $selection = $this->basefactory->restore()->selection();
+        $selection->validate_for_queue($item, $settings, $backupfile);
+        if (!$selection->needs_archive_module_id($item)) {
+            $this->basefactory->restore()->assert_backup_file_looks_valid($backupfile);
+        }
+        // Migrated activities are checked when the worker opens the archive. Listing an unindexed TGZ can stream it all.
 
         if (
             !$this->restore_is_valid(

@@ -58,6 +58,52 @@ final class selection {
     }
 
     /**
+     * Whether the cart row predates stored source IDs and needs to be resolved from its archive.
+     *
+     * @param entity $item Chosen cart item
+     * @return bool
+     */
+    public function needs_archive_module_id(entity $item): bool {
+        return !$item->is_section() && !$item->is_subsection() && !$item->get_old_instance_id() && $item->get_version() === 1;
+    }
+
+    /**
+     * Validate before queuing without inspecting a migrated activity's archive contents.
+     *
+     * @param entity $item Chosen cart item
+     * @param array $settings Restore settings
+     * @param \stored_file $file Archive selected for the item
+     */
+    public function validate_for_queue(entity $item, array $settings, \stored_file $file): void {
+        if (!$this->needs_archive_module_id($item)) {
+            $this->module_ids($item, $settings);
+            return;
+        }
+
+        $this->require_own_archive($item, $file);
+        $settings = $this->normalize($settings);
+        $moduleids = $settings['course_modules_to_include'];
+        if (count($moduleids) > 1 || ($moduleids[0] ?? 0) < 0 || array_diff($settings['sections_to_include'], [0])) {
+            throw new \invalid_parameter_exception('A migrated activity selection must contain only its own module.');
+        }
+        if ($moduleids === [] && !empty($settings['module_selection_explicit'])) {
+            throw new \moodle_exception('atleast_one_course_module_must_be_included', 'block_sharing_cart');
+        }
+    }
+
+    /**
+     * Reject a shared archive when the module ID must come from the archive itself.
+     *
+     * @param entity $item Chosen cart item
+     * @param \stored_file $file Archive selected for the item
+     */
+    public function require_own_archive(entity $item, \stored_file $file): void {
+        if ((int)$file->get_itemid() !== $item->get_id()) {
+            throw new \invalid_parameter_exception('A migrated activity must have its own backup archive.');
+        }
+    }
+
+    /**
      * Resolve legacy defaults and validate explicit IDs using the stored cart tree, never the live source course.
      *
      * @param entity $item chosen cart item
@@ -82,7 +128,10 @@ final class selection {
         $settings = $this->normalize($settings);
         $moduleids = $settings['course_modules_to_include'];
         $sectionids = $settings['sections_to_include'];
-        if (!$item->is_section() && !$item->is_subsection() && !$item->get_old_instance_id() && $item->get_version() === 1) {
+        if ($this->needs_archive_module_id($item)) {
+            if ($backupinfo === null) {
+                throw new \coding_exception('Resolving a migrated activity requires its backup metadata.');
+            }
             $legacyid = $this->legacy_activity_id($item, $backupinfo);
             $allowedmodules = [$legacyid];
             // Older clients submit the migrated row's zero ID even with explicit selection enabled.
@@ -121,15 +170,10 @@ final class selection {
      * Resolve a migrated activity from its own single-activity archive, never a shared archive.
      *
      * @param entity $item Migrated cart activity
-     * @param object|null $backupinfo Already-loaded backup metadata
+     * @param object $backupinfo Already-loaded backup metadata from the item's own archive
      * @return int Original course-module ID
      */
-    private function legacy_activity_id(entity $item, ?object $backupinfo): int {
-        $file = $this->basefactory->item()->repository()->get_stored_file_by_item($item);
-        if (!$file || (int)$file->get_itemid() !== $item->get_id()) {
-            throw new \invalid_parameter_exception('A migrated activity must have its own backup archive.');
-        }
-        $backupinfo ??= $this->basefactory->backup()->handler()->get_backup_info($file);
+    private function legacy_activity_id(entity $item, object $backupinfo): int {
         $activities = array_values((array)($backupinfo->activities ?? []));
         $activity = $activities[0] ?? null;
         if (

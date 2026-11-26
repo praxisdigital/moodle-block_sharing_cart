@@ -18,7 +18,6 @@ namespace block_sharing_cart\integration\task;
 
 use block_sharing_cart\app\factory;
 use block_sharing_cart\app\item\entity;
-use block_sharing_cart\app\restore\section_details_replacement;
 use block_sharing_cart\external\backup\course_module_into_sharing_cart;
 use block_sharing_cart\external\backup\section_into_sharing_cart;
 use block_sharing_cart\external\restore\item_into_section;
@@ -1360,12 +1359,14 @@ final class asynchronous_restore_task_test extends \advanced_testcase
      * @param string|null $sourcename
      * @param string $targetformat
      * @param bool $toplevel
+     * @param bool $withsubsection Whether the weeks course also has a delegated section.
      */
     #[\PHPUnit\Framework\Attributes\DataProvider('new_section_destination_name_provider')]
     public function test_new_section_destination_name_is_available(
         ?string $sourcename,
         string $targetformat,
-        bool $toplevel
+        bool $toplevel,
+        bool $withsubsection = false
     ): void {
         global $DB, $PAGE;
 
@@ -1377,6 +1378,10 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $this->factory->item()->repository()->update($item);
 
         $target = self::getDataGenerator()->create_course(['format' => $targetformat, 'numsections' => 2]);
+        if ($withsubsection) {
+            self::getDataGenerator()->create_module('subsection', ['course' => $target->id, 'section' => 1]);
+            self::assertTrue($DB->record_exists('course_sections', ['course' => $target->id, 'component' => 'mod_subsection']));
+        }
         $targetsectionid = $toplevel ? 0 : (int)$DB->get_field('course_sections', 'id', [
             'course' => $target->id,
             'section' => 2,
@@ -1394,6 +1399,9 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $pageid = $DB->get_field('page', 'id', ['course' => $target->id, 'name' => 'Copied page'], MUST_EXIST);
         $module = get_coursemodule_from_instance('page', (int)$pageid, (int)$target->id, false, MUST_EXIST);
         $restoredsection = $DB->get_record('course_sections', ['id' => $module->section], '*', MUST_EXIST);
+        if ($withsubsection) {
+            self::assertSame(3, (int)$restoredsection->section, 'The delegated subsection must not count as a week.');
+        }
         $actualname = course_get_format($target->id)->get_section_name($restoredsection);
         if ($targetformat === 'weeks' && !$toplevel && ($sourcename ?? '') === '') {
             // Week numbers can change when a section is moved; a generic label is safer than a guessed date range.
@@ -1409,7 +1417,7 @@ final class asynchronous_restore_task_test extends \advanced_testcase
     /**
      * Provides unnamed and custom titles across top-level, nested and date-based new-section restores.
      *
-     * @return array<string, array{?string, string, bool}>
+     * @return array<string, array{0: ?string, 1: string, 2: bool, 3?: bool}>
      */
     public static function new_section_destination_name_provider(): array {
         return [
@@ -1419,6 +1427,7 @@ final class asynchronous_restore_task_test extends \advanced_testcase
             'named topics root at top level' => ['Copied title', 'topics', true],
             'named topics root under a target' => ['Copied & <em>title</em>', 'topics', false],
             'unnamed weeks root at top level' => [null, 'weeks', true],
+            'unnamed weeks root at top level with a delegated subsection' => [null, 'weeks', true, true],
             'unnamed weeks root under a target' => [null, 'weeks', false],
         ];
     }
@@ -1436,12 +1445,14 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $DB->set_field('course_sections', 'summary', '<p>Target summary</p>', ['id' => $targetsectionid]);
         $this->add_section_file($target->id, $targetsectionid, 'old.txt');
 
-        $hookhadreplacement = false;
+        $hookreplacement = null;
+        $snapshotseen = null;
         $hooktargetname = null;
         \core\di::get(\core\hook\manager::class)->phpunit_redirect_hook(
             before_sections_restored::class,
-            static function (before_sections_restored $hook) use (&$hookhadreplacement, &$hooktargetname): void {
-                $hookhadreplacement = factory::make()->restore()->section_details_replacement()
+            static function (before_sections_restored $hook) use (&$hookreplacement, &$snapshotseen, &$hooktargetname): void {
+                $hookreplacement = $hook->replacesectiondetails;
+                $snapshotseen = factory::make()->restore()->section_details_replacement()
                     ->has_snapshot($hook->courseid, $hook->targetsectionid);
                 $hooktargetname = factory::make()->moodle()->db()->get_field('course_sections', 'name', [
                     'id' => $hook->targetsectionid,
@@ -1450,7 +1461,8 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         );
         $this->restore($rootitemid, $targetsectionid, replacesectiondetails: true);
 
-        self::assertTrue($hookhadreplacement, 'Course formats must see the pending replacement before preparing the restore.');
+        self::assertTrue($hookreplacement, 'Course formats must see the pending replacement before preparing the restore.');
+        self::assertFalse($snapshotseen, 'Format validation must run before the rollback snapshot is taken.');
         self::assertSame('Target', $hooktargetname, 'Format validation must still see the original target details.');
         $section = $DB->get_record('course_sections', ['id' => $targetsectionid], '*', MUST_EXIST);
         self::assertSame('Copied', $section->name);
@@ -1460,7 +1472,7 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         self::assertSame(['Page copied'], $this->module_names($targetsectionid));
     }
 
-    public function test_rejected_replacement_preserves_target_edit_made_after_snapshot(): void {
+    public function test_rejected_replacement_preserves_target_edit_made_during_preflight(): void {
         global $DB;
 
         $source = $this->create_course(1, [1 => 'Copied']);
@@ -1472,11 +1484,12 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $DB->set_field('course_sections', 'summary', '<p>Target summary</p>', ['id' => $targetsectionid]);
         $this->add_section_file($target->id, $targetsectionid, 'keep.txt');
 
-        // Simulate an edit after the snapshot is taken but before the task blanks the target.
-        $snapshotseen = false;
+        $hookreplacement = null;
+        $snapshotseen = null;
         \core\di::get(\core\hook\manager::class)->phpunit_redirect_hook(
             before_sections_restored::class,
-            static function (before_sections_restored $hook) use ($DB, &$snapshotseen): void {
+            static function (before_sections_restored $hook) use ($DB, &$hookreplacement, &$snapshotseen): void {
+                $hookreplacement = $hook->replacesectiondetails;
                 $snapshotseen = factory::make()->restore()->section_details_replacement()
                     ->has_snapshot($hook->courseid, $hook->targetsectionid);
                 $DB->update_record('course_sections', (object)[
@@ -1490,13 +1503,96 @@ final class asynchronous_restore_task_test extends \advanced_testcase
 
         $this->restore($rootitemid, $targetsectionid, replacesectiondetails: true, expectfailure: true);
 
-        self::assertTrue($snapshotseen);
+        self::assertStringContainsString('Test rejection before copying', $this->getActualOutputForAssertion());
+        self::assertTrue($hookreplacement);
+        self::assertFalse($snapshotseen);
         $section = $DB->get_record('course_sections', ['id' => $targetsectionid], '*', MUST_EXIST);
         self::assertSame('Edited target', $section->name);
         self::assertSame('<p>Edited target summary</p>', $section->summary);
         self::assertTrue($this->section_file_exists($target->id, $targetsectionid, 'keep.txt'));
         self::assertFalse($this->factory->restore()->section_details_replacement()->has_snapshot($target->id, $targetsectionid));
         self::assertFalse($DB->record_exists('course_modules', ['course' => $target->id]));
+    }
+
+    /**
+     * If the restore plan fails after blanking, rollback must restore the details left by successful preflight.
+     */
+    public function test_failed_replacement_rolls_back_to_details_edited_during_preflight(): void {
+        global $DB, $USER;
+
+        $source = $this->create_course(1, [1 => 'Copied']);
+        $this->add_page($source, 1, 'Page copied');
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+
+        $target = $this->create_course(1, [1 => 'Target']);
+        $targetsectionid = (int)$target->sections[1]->id;
+        $DB->set_field('course_sections', 'summary', '<p>Target summary</p>', ['id' => $targetsectionid]);
+        $this->add_section_file($target->id, $targetsectionid, 'old.txt');
+
+        $groupsxml = null;
+        \core\di::get(\core\hook\manager::class)->phpunit_redirect_hook(
+            before_sections_restored::class,
+            static function (before_sections_restored $hook) use ($DB, &$groupsxml): void {
+                $DB->update_record('course_sections', (object)[
+                    'id' => $hook->targetsectionid,
+                    'name' => 'Edited target',
+                    'summary' => 'Edited target summary: @@PLUGINFILE@@/edited.txt',
+                    'summaryformat' => FORMAT_PLAIN,
+                ]);
+                $contextid = \core\context\course::instance($hook->courseid)->id;
+                get_file_storage()->delete_area_files($contextid, 'course', 'section', $hook->targetsectionid);
+                get_file_storage()->create_file_from_string([
+                    'contextid' => $contextid,
+                    'component' => 'course',
+                    'filearea' => 'section',
+                    'itemid' => $hook->targetsectionid,
+                    'filepath' => '/',
+                    'filename' => 'edited.txt',
+                ], 'Edited file');
+
+                // Core restores groups early in the plan, after Sharing Cart has blanked the destination.
+                $controller = \restore_controller::load_controller($hook->restoreid);
+                $path = $controller->get_plan()->get_basepath() . '/groups.xml';
+                $controller->destroy();
+                if (is_file($path) && unlink($path)) {
+                    $groupsxml = $path;
+                }
+            }
+        );
+
+        self::assertTrue(item_into_section::execute($rootitemid, $targetsectionid, [], replacesectiondetails: true));
+        $tasks = \core\task\manager::get_adhoc_tasks(asynchronous_restore_task::class);
+        self::assertCount(1, $tasks);
+        $taskid = (int)reset($tasks)->get_id();
+        try {
+            $this->runAdhocTasks(asynchronous_restore_task::class);
+        } finally {
+            // The failed plan never reaches Moodle's step that drops the restore temp tables.
+            $manager = $DB->get_manager();
+            foreach (['backup_files_temp', 'backup_ids_temp'] as $name) {
+                if ($manager->table_exists($name)) {
+                    $manager->drop_table(new \xmldb_table($name));
+                }
+            }
+            \restore_dbops::reset_backup_ids_cached();
+        }
+
+        self::assertNotNull($groupsxml, 'Preflight must successfully remove the extracted groups XML.');
+        self::assertStringContainsString(
+            get_string('missing_moodle_backup_xml_file', 'error', $groupsxml),
+            $this->getActualOutputForAssertion()
+        );
+        $outcome = $this->factory->restore()->outcomes()->get_recent((int)$USER->id, (int)$target->id)[$taskid];
+        self::assertFalse($outcome['succeeded']);
+        self::assertSame('uncertain', $outcome['copy_state'], 'The failure must occur inside the restore plan.');
+
+        $section = $DB->get_record('course_sections', ['id' => $targetsectionid], '*', MUST_EXIST);
+        self::assertSame('Edited target', $section->name);
+        self::assertSame('Edited target summary: @@PLUGINFILE@@/edited.txt', $section->summary);
+        self::assertSame((int)FORMAT_PLAIN, (int)$section->summaryformat);
+        self::assertTrue($this->section_file_exists($target->id, $targetsectionid, 'edited.txt'));
+        self::assertFalse($this->section_file_exists($target->id, $targetsectionid, 'old.txt'));
+        self::assertFalse($this->factory->restore()->section_details_replacement()->has_snapshot($target->id, $targetsectionid));
     }
 
     public function test_insert_as_new_top_level_section(): void {
@@ -1790,22 +1886,11 @@ final class asynchronous_restore_task_test extends \advanced_testcase
      * A standalone activity can be restored using the default selection without permission to configure it.
      */
     public function test_standalone_activity_restore_succeeds_without_configure_capability(): void {
-        global $DB;
-
-        $generator = self::getDataGenerator();
-        $teacher = $generator->create_user();
         $source = $this->create_course(1);
         $page = $this->add_page($source, 1, 'Standalone page');
         $target = $this->create_course(1, [1 => 'Target']);
         $targetsectionid = (int)$target->sections[1]->id;
-        $roleid = (int)$DB->get_field('role', 'id', ['shortname' => 'editingteacher'], MUST_EXIST);
-        $generator->enrol_user($teacher->id, $source->id, $roleid);
-        $generator->enrol_user($teacher->id, $target->id, $roleid);
-        $targetcontext = \core\context\course::instance($target->id);
-        assign_capability('moodle/restore:configure', CAP_PREVENT, $roleid, $targetcontext->id);
-        self::setUser($teacher);
-        self::assertTrue(has_capability('moodle/restore:restoreactivity', $targetcontext));
-        self::assertFalse(has_capability('moodle/restore:configure', $targetcontext));
+        $this->set_teacher_without_restore_configure((int)$source->id, (int)$target->id);
 
         $result = course_module_into_sharing_cart::execute((int)$page->cmid, ['users' => false, 'anonymize' => false]);
         $this->runAdhocTasks(asynchronous_backup_task::class);
@@ -1818,15 +1903,145 @@ final class asynchronous_restore_task_test extends \advanced_testcase
     }
 
     /**
+     * A default section restore must keep delegated content nested even when the teacher cannot configure the selection.
+     */
+    public function test_default_section_restore_preserves_subsection_without_configure_capability(): void {
+        global $DB;
+
+        $source = $this->create_course(1, [1 => 'Source']);
+        $this->add_page($source, 1, 'Root page');
+        $subsection = self::getDataGenerator()->create_module('subsection', [
+            'course' => $source->id, 'section' => 1, 'name' => 'Copied subsection',
+        ]);
+        $delegated = $DB->get_record('course_sections', [
+            'course' => $source->id, 'component' => 'mod_subsection', 'itemid' => $subsection->id,
+        ], '*', MUST_EXIST);
+        $this->add_page($source, (int)$delegated->section, 'Nested page');
+        $target = $this->create_course(1, [1 => 'Target']);
+        $targetsectionid = (int)$target->sections[1]->id;
+        $this->set_teacher_without_restore_configure((int)$source->id, (int)$target->id);
+        $rootitemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+
+        $this->restore($rootitemid, $targetsectionid);
+
+        self::assertSame(['Copied subsection', 'Root page'], $this->module_names($targetsectionid));
+        $restoredsubsection = $DB->get_record('subsection', [
+            'course' => $target->id, 'name' => 'Copied subsection',
+        ], '*', MUST_EXIST);
+        $restoreddelegated = $DB->get_record('course_sections', [
+            'course' => $target->id, 'component' => 'mod_subsection', 'itemid' => $restoredsubsection->id,
+        ], '*', MUST_EXIST);
+        self::assertSame(['Nested page'], $this->module_names((int)$restoreddelegated->id));
+        self::assertSame(3, $DB->count_records('course_modules', ['course' => $target->id]));
+    }
+
+    /**
+     * Set the current user to an editing teacher who can restore into the target but cannot configure the restore.
+     *
+     * @param int $sourcecourseid Source course ID.
+     * @param int $targetcourseid Target course ID.
+     */
+    private function set_teacher_without_restore_configure(int $sourcecourseid, int $targetcourseid): void {
+        global $DB;
+
+        $generator = self::getDataGenerator();
+        $teacher = $generator->create_user();
+        $roleid = (int)$DB->get_field('role', 'id', ['shortname' => 'editingteacher'], MUST_EXIST);
+        $generator->enrol_user($teacher->id, $sourcecourseid, $roleid);
+        $generator->enrol_user($teacher->id, $targetcourseid, $roleid);
+        $targetcontext = \core\context\course::instance($targetcourseid);
+        assign_capability('moodle/restore:configure', CAP_PREVENT, $roleid, $targetcontext->id);
+        self::setUser($teacher);
+        self::assertTrue(has_capability('moodle/restore:restoreactivity', $targetcontext));
+        self::assertFalse(has_capability('moodle/restore:configure', $targetcontext));
+    }
+
+    /**
      * Verify that a migrated Page under a cart folder uses its own archive's module ID.
      */
     public function test_migrated_page_in_legacy_folder_restores_explicit_zero(): void {
+        $item = $this->copy_migrated_page_into_legacy_folder();
+        $target = $this->create_course(1);
+        $sectionid = (int)$target->sections[1]->id;
+
+        self::assertTrue(item_into_section::execute($item->get_id(), $sectionid, [0], moduleselectionexplicit: true));
+        $this->runAdhocTasks(asynchronous_restore_task::class);
+        self::assertSame(['Migrated page'], $this->module_names($sectionid));
+    }
+
+    /**
+     * Queue validation checks archive ownership and request shape without opening a migrated backup.
+     */
+    public function test_migrated_page_queue_validates_without_opening_the_archive(): void {
+        global $USER;
+
+        $item = $this->copy_migrated_page_into_legacy_folder();
+        $itemid = $item->get_id();
+        $target = $this->create_course(1);
+        $sectionid = (int)$target->sections[1]->id;
+        $repository = $this->factory->item()->repository();
+        $file = $repository->get_stored_file_by_item($item);
+        self::assertNotNull($file);
+        $record = [
+            'contextid' => $file->get_contextid(),
+            'component' => 'block_sharing_cart',
+            'filearea' => 'backup',
+            'itemid' => $item->get_parent_item_id(),
+            'filepath' => '/',
+            'filename' => $file->get_filename(),
+        ];
+        $fs = get_file_storage();
+        $handler = $this->factory->restore()->handler();
+        $sharedfile = $fs->create_file_from_string($record, 'Not a backup archive');
+        $file->replace_file_with($sharedfile);
+        try {
+            $handler->restore_item_into_section($item, $sectionid, $itemid, [
+                'course_modules_to_include' => [0, 123],
+                'module_selection_explicit' => true,
+            ]);
+            self::fail('A migrated activity was queued with more than one module ID.');
+        } catch (\invalid_parameter_exception $exception) {
+            self::assertStringContainsString('must contain only its own module', $exception->debuginfo);
+        }
+        self::assertEmpty(\core\task\manager::get_adhoc_tasks(asynchronous_restore_task::class));
+
+        self::assertInstanceOf(asynchronous_restore_task::class, $handler->restore_item_into_section($item, $sectionid, $itemid, [
+            'course_modules_to_include' => [0],
+            'module_selection_explicit' => true,
+        ]));
+        $tasks = \core\task\manager::get_adhoc_tasks(asynchronous_restore_task::class);
+        self::assertCount(1, $tasks);
+        $taskid = (int)reset($tasks)->get_id();
+        $this->assertDebuggingNotCalled();
+        $this->runAdhocTasks(asynchronous_restore_task::class);
+        // Core's ZIP reader reports the corrupt content when the worker finally opens the file.
+        $this->assertDebuggingCalled(debuglevel: DEBUG_DEVELOPER);
+
+        $outcome = $this->factory->restore()->outcomes()->get_recent((int)$USER->id, (int)$target->id)[$taskid];
+        self::assertFalse($outcome['succeeded']);
+        self::assertSame('not_started', $outcome['copy_state']);
+        self::assertSame([], $this->module_names($sectionid));
+
+        // Deleting the owned file also removes the cart row via the file observer. Check ownership on the saved entity.
+        $file->delete();
+        self::assertSame((int)$sharedfile->get_id(), (int)$repository->get_stored_file_by_item($item)->get_id());
+        $this->expectException(\invalid_parameter_exception::class);
+        $handler->restore_item_into_section($item, $sectionid, $itemid, [
+            'course_modules_to_include' => [0],
+            'module_selection_explicit' => true,
+        ]);
+    }
+
+    /**
+     * Creates a migrated cart activity in a legacy folder, with its own single-activity archive.
+     *
+     * @return entity Migrated activity.
+     */
+    private function copy_migrated_page_into_legacy_folder(): entity {
         global $DB, $USER;
 
         $source = $this->create_course(1);
         $page = $this->add_page($source, 1, 'Migrated page');
-        $target = $this->create_course(1);
-        $sectionid = (int)$target->sections[1]->id;
         $result = course_module_into_sharing_cart::execute((int)$page->cmid, ['users' => false, 'anonymize' => false]);
         $this->runAdhocTasks(asynchronous_backup_task::class);
         $folder = $this->factory->item()->repository()->insert_child_section(0, 'Legacy folder', (int)$USER->id, 0, 0);
@@ -1837,8 +2052,8 @@ final class asynchronous_restore_task_test extends \advanced_testcase
             'old_instance_id' => 0,
         ]);
 
-        self::assertTrue(item_into_section::execute((int)$result->id, $sectionid, [0], moduleselectionexplicit: true));
-        $this->runAdhocTasks(asynchronous_restore_task::class);
-        self::assertSame(['Migrated page'], $this->module_names($sectionid));
+        $item = $this->factory->item()->repository()->get_by_id((int)$result->id);
+        self::assertSame(entity::STATUS_BACKEDUP, $item->get_status());
+        return $item;
     }
 }

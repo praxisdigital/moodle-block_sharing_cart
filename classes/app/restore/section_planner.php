@@ -65,15 +65,25 @@ final class section_planner {
 
         if ($format->get_format() === 'weeks' && $targetsectionid === 0) {
             // Top-level sections stay at the end, using the same initial number as plan().
-            $nextnumber = 1 + (int)$this->basefactory->moodle()->db()->get_field_sql(
-                'SELECT MAX(section) FROM {course_sections} WHERE course = ?',
-                [$courseid]
-            );
+            $nextnumber = $this->max_regular_section_number($courseid) + 1;
             return $format->get_default_section_name((object)['section' => $nextnumber]);
         }
 
         // Moving a section or applying a format's hierarchy hooks can change its number and generated name.
         return $fallback;
+    }
+
+    /**
+     * Find the last regular section number, ignoring delegated subsections.
+     *
+     * @param int $courseid Destination course
+     * @return int
+     */
+    private function max_regular_section_number(int $courseid): int {
+        return (int)$this->basefactory->moodle()->db()->get_field_sql(
+            'SELECT MAX(section) FROM {course_sections} WHERE course = ? AND (component IS NULL OR component = ?)',
+            [$courseid, '']
+        );
     }
 
     /**
@@ -144,10 +154,7 @@ final class section_planner {
         }
         $plan->sectionparents[$plan->rootoldsectionid] = 0;
 
-        $maxnumber = (int)$db->get_field_sql(
-            'SELECT MAX(section) FROM {course_sections} WHERE course = ? AND (component IS NULL OR component = ?)',
-            [$courseid, '']
-        );
+        $maxnumber = $this->max_regular_section_number($courseid);
         $counter = 0;
 
         // As a new section the root is planned like a descendant, with the target (or the top level) as parent.
@@ -162,28 +169,35 @@ final class section_planner {
 
         $childrenbyparent = $this->section_children_by_parent_item($item);
 
-        $walk = function (entity $parent) use (&$walk, $plan, &$counter, $childrenbyparent, $sectionstoinclude, $maxnumber): void {
+        $walk = function (entity $parent, int $effectiveparentid) use (
+            &$walk,
+            $plan,
+            &$counter,
+            $childrenbyparent,
+            $sectionstoinclude,
+            $maxnumber
+        ): void {
             foreach ($childrenbyparent[$parent->get_id()] ?? [] as $child) {
                 $oldsectionid = (int)$child->get_old_instance_id();
                 $plan->sectionparents[$oldsectionid] = (int)$parent->get_old_instance_id();
 
                 // Excluding a section drops it, but explicitly selected descendants can be restored independently.
                 if (!empty($sectionstoinclude) && !in_array($oldsectionid, $sectionstoinclude, true)) {
-                    $walk($child);
+                    $walk($child, $effectiveparentid);
                     continue;
                 }
 
                 $plan->add_section(
                     $oldsectionid,
-                    (int)$parent->get_old_instance_id(),
+                    $effectiveparentid,
                     (int)($child->get_sortorder() ?? 0),
                     $maxnumber + (++$counter)
                 );
 
-                $walk($child);
+                $walk($child, $oldsectionid);
             }
         };
-        $walk($item);
+        $walk($item, $plan->rootoldsectionid);
 
         return $plan;
     }
@@ -305,11 +319,7 @@ final class section_planner {
         }
 
         if (!empty($plan->sections)) {
-            $db = $this->basefactory->moodle()->db();
-            $maxnumber = (int)$db->get_field_sql(
-                'SELECT MAX(section) FROM {course_sections} WHERE course = ? AND (component IS NULL OR component = ?)',
-                [(int)$restorecontroller->get_courseid(), '']
-            );
+            $maxnumber = $this->max_regular_section_number((int)$restorecontroller->get_courseid());
             $plan->renumber_sections($maxnumber + 1);
         }
     }
@@ -505,11 +515,13 @@ final class section_planner {
             if ($task->get_delegated_cm() !== null) {
                 // Core numbers delegated sections itself. Keep it when its own parent module is selected, even if an
                 // ancestor custom section is excluded; otherwise it is excluded with the unchecked subsection.
-                if ($isincluded($oldsectionid)) {
-                    $task->get_setting('included')->set_value(true);
-                } else {
-                    mtrace("...Excluding delegated section (id: $oldsectionid)");
-                    $task->get_setting('included')->set_value(false);
+                $included = $isincluded($oldsectionid);
+                $setting = $task->get_setting('included');
+                if ((bool)$setting->get_value() !== $included) {
+                    if (!$included) {
+                        mtrace("...Excluding delegated section (id: $oldsectionid)");
+                    }
+                    $setting->set_value($included);
                 }
                 continue;
             }
@@ -717,8 +729,8 @@ final class section_planner {
 
             $newids[$planned->old_section_id] = $newsectionid;
 
-            // Use the nearest included ancestor if the direct parent was excluded. The root is either created in this
-            // restore or merges into the selected target section (or 0 = top level).
+            // A flat format may omit an otherwise planned parent after preflight. Walk past any such sections.
+            // The root either has a new ID or falls back to the selected target section (0 = top level).
             $parentoldsectionid = (int)$planned->old_parent_section_id;
             $visited = [];
             while (

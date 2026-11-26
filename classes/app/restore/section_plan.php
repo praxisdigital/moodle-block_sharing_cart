@@ -82,7 +82,7 @@ final class section_plan {
      * Plans a section that the restore creates as a new section.
      *
      * @param int $oldsectionid section id in the backup
-     * @param int $oldparentsectionid parent section id in the backup
+     * @param int $oldparentsectionid original ID of the effective parent after selection, or 0 for the root
      * @param int $sortorder position among its siblings
      * @param int $newsectionnumber section number the section gets in the target course
      * @return void
