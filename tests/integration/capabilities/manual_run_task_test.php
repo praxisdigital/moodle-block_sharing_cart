@@ -50,6 +50,20 @@ final class manual_run_task_test extends \advanced_testcase
     }
 
     /**
+     * Ownership of an adhoc task does not grant permission to run it manually.
+     */
+    public function test_task_owner_without_capability_cannot_run_task(): void {
+        $user = self::getDataGenerator()->create_user();
+        $task = new \block_sharing_cart\task\asynchronous_restore_task();
+        $task->set_userid((int)$user->id);
+        $taskid = \core\task\manager::queue_adhoc_task($task);
+        self::setUser($user);
+
+        $this->expectException(\required_capability_exception::class);
+        \block_sharing_cart\external\task\run_now::execute($taskid);
+    }
+
+    /**
      * test_user_expected_not_allowed
      *
      * @return void
