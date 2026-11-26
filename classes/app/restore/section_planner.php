@@ -509,7 +509,19 @@ final class section_planner {
                 // Its owner module is placed in the target; unrelated regular section details must not be merged.
                 $included = $oldsectionid === $plan->rootoldsectionid;
                 $setting = $task->get_setting('included');
-                if ((bool)$setting->get_value() !== $included) {
+                if (
+                    !$included && $plan->rootoldsectionid > 0 && $task->get_delegated_cm() === null &&
+                    $setting->get_value() && $setting->get_status() === \base_setting::LOCKED_BY_PERMISSION
+                ) {
+                    // This is the archive's wrapper, not part of the subsection the user is restoring.
+                    // Moodle locks configuration, but excluding the wrapper enforces the cart item's scope.
+                    $setting->set_status(\base_setting::NOT_LOCKED);
+                    try {
+                        $setting->set_value(false);
+                    } finally {
+                        $setting->set_status(\base_setting::LOCKED_BY_PERMISSION);
+                    }
+                } else if ((bool)$setting->get_value() !== $included) {
                     $setting->set_value($included);
                 }
                 continue;

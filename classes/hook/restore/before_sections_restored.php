@@ -43,6 +43,7 @@ final class before_sections_restored {
      *                                  {old_section_id, old_parent_section_id, sort_order, new_section_number},
      *                                  with effective parents after selection
      * @param bool $replacesectiondetails whether the restore will replace the target section's details
+     * @param int $rootoldsectionid selected root section ID in the archive, or 0 when not applicable
      */
     public function __construct(
         /** @var string id of the restore controller */
@@ -55,6 +56,8 @@ final class before_sections_restored {
         public readonly array $plannedsections,
         /** @var bool Whether the restore will replace the target section's details. */
         public readonly bool $replacesectiondetails = false,
+        /** @var int Selected root section ID in the archive, or 0 when not applicable. */
+        public readonly int $rootoldsectionid = 0,
     ) {
     }
 }

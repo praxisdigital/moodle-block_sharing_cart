@@ -77,6 +77,10 @@ class provider implements
             'userid' => $userid, 'contextlevel' => CONTEXT_USER, 'component' => 'block_sharing_cart',
             'filearea' => 'backup', 'directory' => '.',
         ]);
+        $outcomes = \block_sharing_cart\app\factory::make()->restore()->outcomes();
+        if ($contextlist->count() === 0 && $outcomes->has_user_outcomes($userid)) {
+            $contextlist->add_user_context($userid);
+        }
         return $contextlist;
     }
 
@@ -157,6 +161,7 @@ class provider implements
 
         get_file_storage()->delete_area_files($context->id, 'block_sharing_cart', 'backup');
         $DB->delete_records('block_sharing_cart_items', ['user_id' => $context->instanceid]);
+        \block_sharing_cart\app\factory::make()->restore()->outcomes()->delete_for_user((int)$context->instanceid);
     }
 
     /**
@@ -196,7 +201,8 @@ class provider implements
 
         if (
             !$DB->record_exists('block_sharing_cart_items', ['user_id' => $context->instanceid]) &&
-            get_file_storage()->is_area_empty($context->id, 'block_sharing_cart', 'backup')
+            get_file_storage()->is_area_empty($context->id, 'block_sharing_cart', 'backup') &&
+            !\block_sharing_cart\app\factory::make()->restore()->outcomes()->has_user_outcomes((int)$context->instanceid)
         ) {
             return;
         }

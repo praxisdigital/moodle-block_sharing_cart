@@ -21,7 +21,9 @@ namespace block_sharing_cart\privacy;
 defined('MOODLE_INTERNAL') || die();
 // @codeCoverageIgnoreEnd
 
+use block_sharing_cart\app\factory;
 use block_sharing_cart\app\item\entity;
+use block_sharing_cart\app\restore\outcome_repository;
 use core\context\user as user_context;
 use core_privacy\local\metadata\collection;
 use core_privacy\local\metadata\types\database_table;
@@ -240,6 +242,60 @@ final class provider_test extends provider_testcase {
             'approved contexts for a user' => ['user'],
             'approved users in context' => ['userlist'],
         ];
+    }
+
+    /**
+     * A restore outcome alone is discoverable and erasable even after its destination course is deleted.
+     */
+    public function test_delete_data_for_user_removes_cache_only_outcomes_for_deleted_course(): void {
+        global $DB;
+
+        $this->setAdminUser();
+        $generator = self::getDataGenerator();
+        $owner = $generator->create_user();
+        $otheruser = $generator->create_user();
+        $context = user_context::instance($owner->id);
+        $course = $generator->create_course();
+        $courseid = (int)$course->id;
+        $destination = ['to_section_id' => 0, 'refresh_course' => true];
+        $outcomes = factory::make()->restore()->outcomes();
+        self::assertTrue($outcomes->save(
+            (int)$owner->id,
+            $courseid,
+            1,
+            false,
+            'Owned copy',
+            $destination,
+            outcome_repository::COPY_COMPLETED,
+        ));
+        self::assertTrue($outcomes->save(
+            (int)$otheruser->id,
+            $courseid,
+            2,
+            false,
+            'Other copy',
+            $destination,
+            outcome_repository::COPY_COMPLETED,
+        ));
+        self::assertTrue(delete_course($course, false));
+        self::assertFalse($DB->record_exists('course', ['id' => $courseid]));
+        self::assertFalse($DB->record_exists(self::TABLE, ['user_id' => $owner->id]));
+        self::assertEmpty(get_file_storage()->get_area_files($context->id, self::COMPONENT, self::FILEAREA));
+        self::assertArrayHasKey(1, $outcomes->get_recent((int)$owner->id, $courseid));
+        $otheroutcomes = $outcomes->get_recent((int)$otheruser->id, $courseid);
+        self::assertArrayHasKey(2, $otheroutcomes);
+
+        $contexts = provider::get_contexts_for_userid((int)$owner->id);
+        self::assertEquals([$context->id], $contexts->get_contextids());
+        $users = new userlist($context, self::COMPONENT);
+        provider::get_users_in_context($users);
+        self::assertEquals([$owner->id], $users->get_userids());
+
+        provider::delete_data_for_user(new approved_contextlist($owner, self::COMPONENT, $contexts->get_contextids()));
+
+        self::assertSame([], $outcomes->get_recent((int)$owner->id, $courseid));
+        self::assertSame($otheroutcomes, $outcomes->get_recent((int)$otheruser->id, $courseid));
+        self::assertEmpty(provider::get_contexts_for_userid((int)$owner->id)->get_contextids());
     }
 
     /**

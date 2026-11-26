@@ -60,13 +60,14 @@ final class outcome_repository {
         array $destination,
         string $copystate
     ): bool {
-        $key = $this->key($userid, $courseid);
+        $key = $this->key($userid);
         $lock = \core\lock\lock_config::get_lock_factory('block_sharing_cart_restore_outcomes')->get_lock($key, 5);
         if (!$lock) {
             return false;
         }
         try {
-            $outcomes = $this->get_recent($userid, $courseid);
+            $bycourse = $this->get_user_outcomes($userid);
+            $outcomes = $bycourse[$courseid] ?? [];
             unset($outcomes[$taskid]);
             $outcomes = [$taskid => [
                 'id' => $taskid,
@@ -75,10 +76,8 @@ final class outcome_repository {
                 'name' => $succeeded ? '' : $name,
                 'time' => time(),
             ] + $destination] + $outcomes;
-            return \cache::make('block_sharing_cart', 'restore_outcomes')->set(
-                $key,
-                array_slice($outcomes, 0, self::MAX_OUTCOMES, true),
-            );
+            $bycourse[$courseid] = array_slice($outcomes, 0, self::MAX_OUTCOMES, true);
+            return \cache::make('block_sharing_cart', 'restore_outcomes')->set($key, $bycourse);
         } finally {
             $lock->release();
         }
@@ -92,19 +91,63 @@ final class outcome_repository {
      * @return array<int, array> Restore results keyed by task ID
      */
     public function get_recent(int $userid, int $courseid): array {
-        $outcomes = \cache::make('block_sharing_cart', 'restore_outcomes')->get($this->key($userid, $courseid));
-        $cutoff = time() - DAYSECS;
-        return array_filter($outcomes ?: [], static fn(array $outcome): bool => $outcome['time'] > $cutoff);
+        return $this->get_user_outcomes($userid)[$courseid] ?? [];
     }
 
     /**
-     * Build the cache and lock key for the user and destination course.
+     * Whether this user has unexpired outcomes, even if a destination or cart item no longer exists.
      *
      * @param int $userid Task owner
-     * @param int $courseid Destination course
+     * @return bool
+     */
+    public function has_user_outcomes(int $userid): bool {
+        return $this->get_user_outcomes($userid) !== [];
+    }
+
+    /**
+     * Erase all outcomes for the user without affecting other users.
+     *
+     * @param int $userid Task owner
+     */
+    public function delete_for_user(int $userid): void {
+        $key = $this->key($userid);
+        $lock = \core\lock\lock_config::get_lock_factory('block_sharing_cart_restore_outcomes')->get_lock($key, 5);
+        if (!$lock) {
+            throw new \moodle_exception('locktimeout');
+        }
+        try {
+            \cache::make('block_sharing_cart', 'restore_outcomes')->delete($key);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * Read nonexpired outcomes for all the user's destination courses.
+     *
+     * @param int $userid Task owner
+     * @return array<int, array> Outcomes grouped by destination course ID
+     */
+    private function get_user_outcomes(int $userid): array {
+        $bycourse = \cache::make('block_sharing_cart', 'restore_outcomes')->get($this->key($userid)) ?: [];
+        $cutoff = time() - DAYSECS;
+        $recent = [];
+        foreach ($bycourse as $courseid => $outcomes) {
+            $outcomes = array_filter($outcomes, static fn(array $outcome): bool => $outcome['time'] > $cutoff);
+            if ($outcomes !== []) {
+                $recent[$courseid] = $outcomes;
+            }
+        }
+        return $recent;
+    }
+
+    /**
+     * Build the user-scoped cache and lock key. Older per-course notices expire without being read.
+     *
+     * @param int $userid Task owner
      * @return string Cache and lock key
      */
-    private function key(int $userid, int $courseid): string {
-        return $userid . '_' . $courseid;
+    private function key(int $userid): string {
+        return 'user_' . $userid;
     }
 }

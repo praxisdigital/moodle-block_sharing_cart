@@ -170,6 +170,10 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             );
             $succeeded = $rc->get_status() === \backup::STATUS_FINISHED_OK;
         } catch (\Throwable $e) {
+            // Core marks the plan complete before notifying course_restored observers.
+            if ($rc?->get_status() === \backup::STATUS_FINISHED_OK) {
+                $copystate = outcome_repository::COPY_COMPLETED;
+            }
             if ($copystate !== outcome_repository::COPY_COMPLETED) {
                 $this->delete_created_section_if_empty($courseid);
             }
@@ -180,17 +184,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                     $this->discard_replaced_section_details($rc);
                 }
                 if ($copystate !== outcome_repository::COPY_COMPLETED) {
-                    if ($copystate === outcome_repository::COPY_UNCERTAIN) {
-                        // Do not serialise a partially executed plan, which can retain live XML parser state.
-                        $savedcontroller = \restore_controller::load_controller($rc->get_restoreid());
-                        try {
-                            $savedcontroller->set_status(\backup::STATUS_FINISHED_ERR);
-                        } finally {
-                            $savedcontroller->destroy();
-                        }
-                    } else {
-                        $rc->set_status(\backup::STATUS_FINISHED_ERR);
-                    }
+                    $this->mark_controller_failed($rc, $copystate);
                 }
             }
 
@@ -207,6 +201,30 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             } finally {
                 $this->record_outcome($userid, $courseid, $succeeded, $copystate);
             }
+        }
+    }
+
+    /**
+     * Mark the Moodle restore failed without letting bookkeeping hide the original error.
+     *
+     * @param \restore_controller $controller Live controller
+     * @param string $copystate How far Moodle got in copying the content
+     */
+    private function mark_controller_failed(\restore_controller $controller, string $copystate): void {
+        try {
+            if ($copystate === outcome_repository::COPY_UNCERTAIN) {
+                // Do not serialise a partially executed plan, which can retain live XML parser state.
+                $savedcontroller = \restore_controller::load_controller($controller->get_restoreid());
+                try {
+                    $savedcontroller->set_status(\backup::STATUS_FINISHED_ERR);
+                } finally {
+                    $savedcontroller->destroy();
+                }
+            } else {
+                $controller->set_status(\backup::STATUS_FINISHED_ERR);
+            }
+        } catch (\Throwable $error) {
+            mtrace('Could not mark the Moodle restore controller as failed: ' . $error->getMessage());
         }
     }
 
@@ -229,6 +247,9 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             $name = \core_text::substr(clean_param($name, PARAM_TEXT), 0, 100);
             $restore = $this->factory()->restore();
             $destination = $restore::refresh_destination($data->backup_settings ?? null, $data->item->type ?? '');
+            if ($copystate === outcome_repository::COPY_COMPLETED && $this->createdsectionid !== null) {
+                $destination['to_section_id'] = $this->createdsectionid;
+            }
             if (!$restore->outcomes()->save($userid, $courseid, $taskid, $succeeded, $name, $destination, $copystate)) {
                 mtrace('Could not record Sharing Cart restore outcome for task ' . $taskid);
             }
@@ -282,8 +303,6 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             $moduleselectionexplicit = !empty($backupsettings->module_selection_explicit);
             $planner = $this->factory()->restore()->section_planner();
             $activityuserinfo = $planner->activity_userinfo_settings($restorecontroller);
-            $this->only_include_specified_course_modules($restorecontroller, $coursemodulestoinclude);
-
             $movetosectionid = (int)($backupsettings->move_to_section_id ?? 0);
             $insertasnewsection = !empty($backupsettings->insert_as_new_section);
             if ($movetosectionid > 0 || $insertasnewsection) {
@@ -299,7 +318,14 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                         : $coursemodulestoinclude,
                     $moduleselectionexplicit
                 );
+                if ($item->is_subsection()) {
+                    // The owner module is implicit in a subsection copy and must never be disabled first.
+                    $coursemodulestoinclude = $this->sectionplan->coursemodulestoinclude;
+                }
+            }
+            $this->only_include_specified_course_modules($restorecontroller, $coursemodulestoinclude);
 
+            if ($this->sectionplan !== null) {
                 $replacesectiondetails = !empty($backupsettings->replace_section_details)
                     && $this->sectionplan->merges_into_target();
 
@@ -309,6 +335,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                     targetsectionid: $this->sectionplan->targetsectionid,
                     plannedsections: array_values($this->sectionplan->sections),
                     replacesectiondetails: $replacesectiondetails,
+                    rootoldsectionid: $this->sectionplan->rootoldsectionid,
                 );
                 \core\di::get(\core\hook\manager::class)->dispatch($beforessectionsrestored);
 

@@ -241,6 +241,63 @@ final class asynchronous_restore_task_test extends \advanced_testcase
     }
 
     /**
+     * A core observer can throw before execute_plan() returns, even though the copy is complete.
+     */
+    public function test_course_restored_observer_error_preserves_new_root_and_records_warning(): void {
+        global $DB, $USER;
+
+        // The cart's section backup is TYPE_1COURSE, so the real restore plan emits course_restored.
+        $source = $this->create_course(2, [1 => 'Copied root', 2 => 'Copied child']);
+        $this->add_page($source, 2, 'Copied child page');
+        $DB->set_field('course_sections', 'summary', '<p>Copied root details</p>', ['id' => $source->sections[1]->id]);
+        $this->declare_section_tree([[$source->sections[2]->id, $source->sections[1]->id, 1]]);
+        $itemid = $this->copy_section_to_cart((int)$source->sections[1]->id);
+        $target = $this->create_course(1, [1 => 'Drop anchor']);
+        $courseid = (int)$target->id;
+        $userid = (int)$USER->id;
+
+        self::assertTrue(item_into_section::execute($itemid, (int)$target->sections[1]->id, [], asnewsection: true));
+        $tasks = \core\task\manager::get_adhoc_tasks(asynchronous_restore_task::class);
+        self::assertCount(1, $tasks);
+        $taskid = (int)reset($tasks)->get_id();
+
+        $observedcourses = [];
+        \core\event\manager::phpunit_replace_observers([[
+            'eventname' => \core\event\course_restored::class,
+            'callback' => static function (\core\event\course_restored $event) use (&$observedcourses): void {
+                $observedcourses[] = (int)$event->objectid;
+                // Core's observer dispatch catches Exception but lets Error escape.
+                throw new \Error('Test course_restored observer failure');
+            },
+        ]]);
+        try {
+            $this->runAdhocTasks(asynchronous_restore_task::class);
+        } finally {
+            // Clear the interrupted event dispatch, then drop the replacement observer list.
+            \core\event\manager::phpunit_reset();
+            \core\event\manager::phpunit_reset();
+        }
+
+        self::assertSame([$courseid], $observedcourses);
+        self::assertStringContainsString('Test course_restored observer failure', $this->getActualOutputForAssertion());
+        self::assertEmpty(\core\task\manager::get_adhoc_tasks(asynchronous_restore_task::class));
+        $sections = $this->sections_by_name($courseid);
+        self::assertEqualsCanonicalizing(['', 'Drop anchor', 'Copied root', 'Copied child'], array_keys($sections));
+        $rootid = (int)$sections['Copied root']->id;
+        self::assertStringContainsString('Copied root details', $sections['Copied root']->summary);
+        self::assertSame([], $this->module_names($rootid));
+        self::assertSame(['Copied child page'], $this->module_names((int)$sections['Copied child']->id));
+
+        $outcomes = $this->factory->restore()->outcomes()->get_recent($userid, $courseid);
+        self::assertArrayHasKey($taskid, $outcomes);
+        self::assertFalse($outcomes[$taskid]['succeeded']);
+        self::assertSame('completed', $outcomes[$taskid]['copy_state']);
+        self::assertSame('Copied root', $outcomes[$taskid]['name']);
+        self::assertSame($rootid, $outcomes[$taskid]['to_section_id']);
+        self::assertTrue($outcomes[$taskid]['refresh_course']);
+    }
+
+    /**
      * Copies a three-level section tree whose only activity is in the last section.
      *
      * @return int id of the root cart item
@@ -1900,6 +1957,43 @@ final class asynchronous_restore_task_test extends \advanced_testcase
         $this->restore($item->get_id(), $targetsectionid);
 
         self::assertSame(['Standalone page'], $this->module_names($targetsectionid));
+    }
+
+    /**
+     * A standalone subsection backup must keep its owner and delegated content without a configurable selection.
+     */
+    public function test_standalone_subsection_restore_succeeds_without_configure_capability(): void {
+        global $DB;
+
+        $source = $this->create_course(1);
+        $subsection = self::getDataGenerator()->create_module('subsection', [
+            'course' => $source->id, 'section' => 1, 'name' => 'Standalone subsection',
+        ]);
+        $delegated = $DB->get_record('course_sections', [
+            'course' => $source->id, 'component' => 'mod_subsection', 'itemid' => $subsection->id,
+        ], '*', MUST_EXIST);
+        $this->add_page($source, 1, 'Unrelated source page');
+        $this->add_page($source, (int)$delegated->section, 'Nested page');
+        $target = $this->create_course(1, [1 => 'Target']);
+        $targetsectionid = (int)$target->sections[1]->id;
+        $this->set_teacher_without_restore_configure((int)$source->id, (int)$target->id);
+
+        $result = course_module_into_sharing_cart::execute((int)$subsection->cmid, ['users' => false, 'anonymize' => false]);
+        $this->runAdhocTasks(asynchronous_backup_task::class);
+        $item = $this->factory->item()->repository()->get_by_id((int)$result->id);
+        self::assertSame(entity::STATUS_BACKEDUP, $item->get_status());
+        self::assertNull($item->get_parent_item_id());
+        self::assertTrue($item->is_subsection());
+
+        $this->restore($item->get_id(), $targetsectionid);
+
+        self::assertSame(['Standalone subsection'], $this->module_names($targetsectionid));
+        $owner = $DB->get_record('subsection', ['course' => $target->id, 'name' => 'Standalone subsection'], '*', MUST_EXIST);
+        $restoreddelegated = $DB->get_record('course_sections', [
+            'course' => $target->id, 'component' => 'mod_subsection', 'itemid' => $owner->id,
+        ], '*', MUST_EXIST);
+        self::assertSame(['Nested page'], $this->module_names((int)$restoreddelegated->id));
+        self::assertSame(2, $DB->count_records('course_modules', ['course' => $target->id]));
     }
 
     /**
