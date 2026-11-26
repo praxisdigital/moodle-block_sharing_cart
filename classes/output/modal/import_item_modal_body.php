@@ -71,9 +71,42 @@ class import_item_modal_body implements \core\output\named_templatable, \rendera
      * @return array
      */
     private function get_replace_section_details_context(): array {
-        $context = ['can_replace_section_details' => false, 'target_section_name' => ''];
+        $sourcename = '';
+        if ($this->item->is_section()) {
+            $file = $this->basefactory->item()->repository()->get_stored_file_by_item($this->item);
+            // A missing cache entry must never cause synchronous archive extraction for a placement hint.
+            $sourcename = $file ? $this->basefactory->backup()->handler()->get_section_custom_name(
+                $file,
+                (int)$this->item->get_old_instance_id()
+            ) : null;
+        }
+        $plainname = $sourcename === null ? get_string('section') : html_to_text(format_string($sourcename), 0, false);
+        $context = [
+            'can_replace_section_details' => false,
+            'target_section_name' => '',
+            'restore_target_name' => '',
+            'restore_source_name' => $plainname,
+            'restore_replacement_name' => $plainname,
+        ];
 
-        if ($this->asnewsection || !$this->item->is_section() || $this->clipboardtargetid <= 0) {
+        if ($this->asnewsection) {
+            $context['restore_target_name'] = $context['restore_source_name'];
+            if ($context['restore_target_name'] === '') {
+                $coursecontext = $this->basefactory->moodle()->page()->context->get_course_context(false);
+                $courseid = $this->clipboardtargetid > 0
+                    ? (int)$this->db->get_field('course_sections', 'course', ['id' => $this->clipboardtargetid])
+                    : (int)($coursecontext->instanceid ?? 0);
+                $context['restore_target_name'] = html_to_text(format_string(
+                    $this->basefactory->restore()->section_planner()->new_section_destination_name(
+                        $courseid,
+                        $this->clipboardtargetid
+                    )
+                ), 0, false);
+            }
+            return $context;
+        }
+
+        if ($this->clipboardtargetid <= 0) {
             return $context;
         }
 
@@ -82,14 +115,33 @@ class import_item_modal_body implements \core\output\named_templatable, \rendera
             return $context;
         }
 
+        $targetformat = course_get_format($targetsection->course);
+        $formattedtargetname = format_string($targetformat->get_section_name($targetsection));
+        $context['target_section_name'] = $formattedtargetname;
+        $context['restore_target_name'] = html_to_text($formattedtargetname, 0, false);
         $hasname = (string)$targetsection->name !== '';
+        // An unnamed target may take the backed-up title. If unknown, use a generic hint, never the cart label.
+        if (!$hasname && $sourcename !== '' && $this->item->is_section()) {
+            $context['restore_target_name'] = $context['restore_source_name'];
+        }
+
+        if (!$this->item->is_section()) {
+            return $context;
+        }
+
+        if ($sourcename === '') {
+            // Replacing with an unnamed source clears a custom target title, revealing its format-derived name.
+            $context['restore_replacement_name'] = html_to_text(
+                format_string($targetformat->get_default_section_name($targetsection)),
+                0,
+                false
+            );
+        }
+
         $hassummary = trim(strip_tags((string)$targetsection->summary)) !== ''
             || str_contains((string)$targetsection->summary, '<img');
 
         $context['can_replace_section_details'] = $hasname || $hassummary;
-        $context['target_section_name'] = format_string(
-            course_get_format($targetsection->course)->get_section_name($targetsection)
-        );
 
         return $context;
     }
@@ -184,12 +236,15 @@ class import_item_modal_body implements \core\output\named_templatable, \rendera
             ]);
         }
 
+        $formattedtitle = format_string($item->get_name());
         $node = (object)[
             'id' => $item->get_old_instance_id(),
-            'title' => $this->truncate(format_string($item->get_name())),
+            'title' => $this->truncate($formattedtitle),
+            'plain_title' => html_to_text($formattedtitle, 0, false),
             'type' => $item->is_section() ? 'section' : 'coursemodule',
             'is_section' => $item->is_section(),
             'is_subsection' => $item->is_subsection(),
+            'is_container' => $item->is_section() || $item->is_subsection(),
             'mod_icon' => $ismodule ? $output->image_url('icon', $item->get_type()) : null,
             'module_is_disabled_on_site' => $moduleisdisabledonsite,
             'locked' => $moduleisdisabledonsite || $canconfigurerestore === false,
@@ -222,47 +277,10 @@ class import_item_modal_body implements \core\output\named_templatable, \rendera
     private function get_user_msgs(object $section): array {
         $usermsgs = [];
 
-        if ($this->is_subsection_imported_into_default_named_section($section)) {
-            $usermsgs[] = get_string('import_subsection_into_default_named_section_warning', 'block_sharing_cart');
-        }
-
         if (empty($section->course_modules)) {
             $usermsgs[] = get_string('empty_section_restore', 'block_sharing_cart');
         }
 
         return $usermsgs;
-    }
-
-    /**
-     * is_subsection_imported_into_default_named_section
-     *
-     * @param object $section
-     * @return bool
-     */
-    private function is_subsection_imported_into_default_named_section(object $section): bool {
-        if (!isset($section)) {
-            return false;
-        }
-
-        if ($this->item->is_subsection() && $this->clipboardtargetid !== 0) {
-            try {
-                $targetsectionname = $this->db->get_field(
-                    'course_sections',
-                    'name',
-                    [
-                        'id' => $this->clipboardtargetid,
-                    ],
-                    MUST_EXIST
-                );
-            } catch (\Exception $e) {
-                return false;
-            }
-            // Default named sections will have a null name.
-            if (!$targetsectionname) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

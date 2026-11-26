@@ -16,7 +16,6 @@
 
 namespace block_sharing_cart\admin_settings;
 
-
 /**
  * Class admin_settings\multi_checkbox_with_icon for the Sharing Cart block.
  *

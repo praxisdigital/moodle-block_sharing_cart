@@ -20,8 +20,10 @@
     Example context (json):
     {"sections":[]}
 }}
-<div class="import_form">
+<div class="import_form" data-restore-target-name="{{restore_target_name}}"
+     data-restore-source-name="{{restore_source_name}}" data-restore-replacement-name="{{restore_replacement_name}}">
     <p>{{#str}}confirm_copy_item_form_text, block_sharing_cart{{/str}}</p>
+    <p class="alert alert-danger d-none" data-region="restore-selection-error" role="alert"></p>
     {{#sections}}
         <div class="form-check">
             <label class="form-check-label">

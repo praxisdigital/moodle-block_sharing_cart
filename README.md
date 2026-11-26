@@ -99,7 +99,7 @@ GPL v3
 Change Log
 ----------
 
-* 5.2, release 4 2026.11.10
+* 5.2, release 4 2026.11.11
     * Items can be dragged from the Sharing Cart straight to a position in the course: activities before/after
       an activity or at the end of a section. Sections can be dropped between top-level sections to create a new
       section. Section drops depend on the course format's section-list markup; some formats may only support
@@ -112,6 +112,28 @@ Change Log
     * Course formats that rebuild nested section hierarchies can set `managessectionhierarchy` on the
       `before_sections_restored` hook. This keeps empty structural sections available for the format to attach after
       the restore.
+    * You can now deselect a subsection while keeping selected activities. Those activities are restored into the
+      nearest included parent section.
+    * New sections receiving those selected activities are preserved for older API callers that omit the optional
+      explicit-selection flag, rather than incorrectly placing the activities in General.
+    * Copying a subsection item preserves the subsection itself and nests the selected activities inside it, just as
+      when selecting that subsection from a full section copy. The destination section keeps its title and description.
+      Copying an individual activity remains activity-only.
+    * Empty subsection copy selections are rejected without closing the dialog or clearing the clipboard.
+      Delayed validation messages no longer overwrite corrected selections.
+    * Restoring an individual subsection or activity from a shared section backup no longer copies sibling content
+      or unrelated section details. Legacy default selections include only the chosen cart item's own contents.
+      Older root subsection items using course-module IDs are also supported.
+    * Selected activities retain backed-up user data when their original section is excluded. Quiz attempts,
+      responses and grades are preserved without enabling user data when it was disabled or restricted.
+    * Reduced database queries when reading large Sharing Cart item trees while preserving their order and scope.
+    * Section titles used by restore placement hints are cached during backup processing. Opening the restore dialog
+      no longer decompresses the backup to read a title, avoiding repeated media-size-dependent work.
+      Missing or purged cache entries use generic placement hints; the actual restore is unchanged.
+    * Fixed section-detail replacement when course formats prepare restores through Sharing Cart hooks, preserving
+      copied titles, descriptions and format-managed images.
+    * Added backup/restore regression coverage for subsection selection, nested section hierarchies, empty selections
+      and generic course-format hooks, without depending on external course-format plugins.
 * 5.2, release 3 2026.09.29
     * Added support for copying sections with a nested structure (e.g. subsections) into the
       cart and restoring them with the structure preserved, via hooks a course format can

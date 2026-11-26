@@ -18,6 +18,7 @@ namespace block_sharing_cart\task;
 
 use async_helper;
 use block_sharing_cart\app\factory as basefactory;
+use block_sharing_cart\app\restore\outcome_repository;
 use block_sharing_cart\app\restore\section_plan;
 use block_sharing_cart\hook\restore\after_sections_restored;
 use block_sharing_cart\hook\restore\before_sections_restored;
@@ -42,8 +43,11 @@ class asynchronous_restore_task extends \core\task\adhoc_task
     /** @var section_plan|null Where the restored sections go; null when the restore has no target section. */
     private ?section_plan $sectionplan = null;
 
-    /** @var int Section whose title and description were blanked for replacement; 0 when none. */
+    /** @var int Section with a prepared replacement snapshot; 0 when none. */
     private int $replacedsectionid = 0;
+
+    /** @var bool Whether the destination details may have been cleared. */
+    private bool $sectionblankingstarted = false;
 
     /**
      * Factory used by the task; overridable in tests.
@@ -79,31 +83,33 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             return;
         }
 
-        $item = $factory->item()->entity((object)$customdata->item);
-        $backupfile = $factory->item()->repository()->get_stored_file_by_item($item);
-        if (!$backupfile) {
-            mtrace(
-                'Sharing cart backup file not found for item (id: ' . $item->get_id()
-                . '); ending restore execution.'
-            );
-            return;
-        }
-
-        mtrace(implode(' | ', [
-            'hostname=' . (gethostname() ?: 'unknown-host'),
-            'itemid=' . $item->get_id(),
-            'fileid=' . $backupfile->get_id(),
-            'courseid=' . $courseid,
-            'userid=' . $userid,
-        ]));
-
-        // Restore controller for this backup file.
-        $rc = $factory->restore()->restore_controller($backupfile, $courseid, $userid);
-        $restoreid = $rc->get_restoreid();
-
-        mtrace('Processing asynchronous restore for id: ' . $restoreid);
-
+        $rc = null;
+        $succeeded = false;
+        $copystate = outcome_repository::COPY_NOT_STARTED;
         try {
+            $item = $factory->item()->entity((object)$customdata->item);
+            $backupfile = $factory->item()->repository()->get_stored_file_by_item($item);
+            if (!$backupfile) {
+                mtrace('Sharing cart backup file not found for item (id: ' . $item->get_id() . ').');
+                return;
+            }
+            $selection = $factory->restore()->selection();
+            if ($selection->needs_archive_module_id($item)) {
+                $selection->require_own_archive($item, $backupfile);
+            }
+
+            mtrace(implode(' | ', [
+                'hostname=' . (gethostname() ?: 'unknown-host'),
+                'itemid=' . $item->get_id(),
+                'fileid=' . $backupfile->get_id(),
+                'courseid=' . $courseid,
+                'userid=' . $userid,
+            ]));
+
+            $rc = $factory->restore()->restore_controller($backupfile, $courseid, $userid);
+            $restoreid = $rc->get_restoreid();
+            mtrace('Processing asynchronous restore for id: ' . $restoreid);
+
             $restorerecord = $db->get_record(
                 'backup_controllers',
                 ['backupid' => $restoreid],
@@ -127,10 +133,14 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             // Check that the restore is in the correct status and.
             // That is set for asynchronous execution.
             if ($status == \backup::STATUS_AWAITING && $execution == \backup::EXECUTION_DELAYED) {
-                $this->before_restore_finished_hook($rc);
+                $this->before_restore_finished_hook($rc, $backupfile);
 
-                // Execute the restore.
+                // Core can persist content even if the plan or a later format hook throws.
+                $copystate = outcome_repository::COPY_UNCERTAIN;
                 $rc->execute_plan();
+                if ($rc->get_status() === \backup::STATUS_FINISHED_OK) {
+                    $copystate = outcome_repository::COPY_COMPLETED;
+                }
 
                 $this->after_restore_finished_hook($rc);
 
@@ -158,13 +168,25 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 $started,
                 $finished
             );
-        } catch (\Exception $e) {
-            // Before set_status(), which can fail on its own after execute_plan() has run.
-            $this->delete_created_section_if_empty($courseid);
-            $this->rollback_replaced_section_details($rc);
-
-            // If an exception is thrown, mark the restore as failed.
-            $rc->set_status(\backup::STATUS_FINISHED_ERR);
+            $succeeded = $rc->get_status() === \backup::STATUS_FINISHED_OK;
+        } catch (\Throwable $e) {
+            // Core marks the plan complete before notifying course_restored observers.
+            if ($rc?->get_status() === \backup::STATUS_FINISHED_OK) {
+                $copystate = outcome_repository::COPY_COMPLETED;
+            }
+            if ($copystate !== outcome_repository::COPY_COMPLETED) {
+                $this->delete_created_section_if_empty($courseid);
+            }
+            if ($rc !== null) {
+                if ($copystate !== outcome_repository::COPY_COMPLETED && $this->sectionblankingstarted) {
+                    $this->rollback_replaced_section_details($rc);
+                } else {
+                    $this->discard_replaced_section_details($rc);
+                }
+                if ($copystate !== outcome_repository::COPY_COMPLETED) {
+                    $this->mark_controller_failed($rc, $copystate);
+                }
+            }
 
             // Retrying isn't going to fix this, so add a no-retry flag to customdata.
             // We can cancel the task in the task manager.
@@ -174,9 +196,65 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             mtrace('Exception thrown during restore execution, marking job as failed.');
             mtrace($e->getMessage());
         } finally {
-            // Cleanup.
-            // Always destroy the controller.
-            $rc->destroy();
+            try {
+                $rc?->destroy();
+            } finally {
+                $this->record_outcome($userid, $courseid, $succeeded, $copystate);
+            }
+        }
+    }
+
+    /**
+     * Mark the Moodle restore failed without letting bookkeeping hide the original error.
+     *
+     * @param \restore_controller $controller Live controller
+     * @param string $copystate How far Moodle got in copying the content
+     */
+    private function mark_controller_failed(\restore_controller $controller, string $copystate): void {
+        try {
+            if ($copystate === outcome_repository::COPY_UNCERTAIN) {
+                // Do not serialise a partially executed plan, which can retain live XML parser state.
+                $savedcontroller = \restore_controller::load_controller($controller->get_restoreid());
+                try {
+                    $savedcontroller->set_status(\backup::STATUS_FINISHED_ERR);
+                } finally {
+                    $savedcontroller->destroy();
+                }
+            } else {
+                $controller->set_status(\backup::STATUS_FINISHED_ERR);
+            }
+        } catch (\Throwable $error) {
+            mtrace('Could not mark the Moodle restore controller as failed: ' . $error->getMessage());
+        }
+    }
+
+    /**
+     * Publish the result without retrying a completed restore if notification storage is unavailable.
+     *
+     * @param int $userid Task owner
+     * @param int $courseid Destination course
+     * @param bool $succeeded Whether the restore completed
+     * @param string $copystate How far Moodle got in copying the content
+     */
+    private function record_outcome(int $userid, int $courseid, bool $succeeded, string $copystate): void {
+        $taskid = (int)$this->get_id();
+        if ($taskid <= 0) {
+            return;
+        }
+        try {
+            $data = $this->get_custom_data();
+            $name = (string)($data->item->name ?? '');
+            $name = \core_text::substr(clean_param($name, PARAM_TEXT), 0, 100);
+            $restore = $this->factory()->restore();
+            $destination = $restore::refresh_destination($data->backup_settings ?? null, $data->item->type ?? '');
+            if ($copystate === outcome_repository::COPY_COMPLETED && $this->createdsectionid !== null) {
+                $destination['to_section_id'] = $this->createdsectionid;
+            }
+            if (!$restore->outcomes()->save($userid, $courseid, $taskid, $succeeded, $name, $destination, $copystate)) {
+                mtrace('Could not record Sharing Cart restore outcome for task ' . $taskid);
+            }
+        } catch (\Exception $e) {
+            mtrace('Could not record Sharing Cart restore outcome for task ' . $taskid . ': ' . $e->getMessage());
         }
     }
 
@@ -193,14 +271,26 @@ class asynchronous_restore_task extends \core\task\adhoc_task
      * Runs before execute_plan(): decides which sections are restored and where, and lets the course format prepare.
      *
      * @param \restore_controller $restorecontroller
+     * @param \stored_file $backupfile Archive opened by the worker
      * @return void
      */
-    private function before_restore_finished_hook(\restore_controller $restorecontroller): void {
+    private function before_restore_finished_hook(\restore_controller $restorecontroller, \stored_file $backupfile): void {
         try {
             mtrace('Executing before_restore_finished_hook...');
 
             $customdata = $this->get_custom_data();
             $backupsettings = $customdata->backup_settings ?? (object)[];
+            $item = $this->factory()->item()->repository()->get_by_id((int)($customdata->item->id ?? 0));
+            if (!$item) {
+                throw new \moodle_exception('invalidrecord', 'error');
+            }
+            // Repeat queue-time validation before creating sections or changing the destination.
+            $selection = $this->factory()->restore()->selection();
+            if ($selection->needs_archive_module_id($item)) {
+                $selection->require_own_archive($item, $backupfile);
+            }
+            $normalized = $selection->normalize((array)$backupsettings);
+            $coursemodulestoinclude = $selection->module_ids($item, $normalized, $restorecontroller->get_info());
             $insertaftersectionid = (int)($backupsettings->insert_after_section_id ?? 0);
             if ($insertaftersectionid) {
                 $movetosectionid = $this->create_section_after($restorecontroller->get_courseid(), $insertaftersectionid);
@@ -210,33 +300,42 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 $this->set_custom_data($customdata);
             }
 
-            $coursemodulestoinclude = array_map(
-                'intval',
-                $backupsettings->course_modules_to_include ?? []
-            );
-            if (!empty($coursemodulestoinclude) && $coursemodulestoinclude !== [0]) {
-                $this->only_include_specified_course_modules($restorecontroller, $coursemodulestoinclude);
-            }
-
+            $moduleselectionexplicit = !empty($backupsettings->module_selection_explicit);
+            $planner = $this->factory()->restore()->section_planner();
+            $activityuserinfo = $planner->activity_userinfo_settings($restorecontroller);
             $movetosectionid = (int)($backupsettings->move_to_section_id ?? 0);
             $insertasnewsection = !empty($backupsettings->insert_as_new_section);
             if ($movetosectionid > 0 || $insertasnewsection) {
-                $planner = $this->factory()->restore()->section_planner();
-                $item = $this->factory()->item()->repository()->get_by_id((int)($customdata->item->id ?? 0));
-
                 $this->sectionplan = $planner->plan(
                     $restorecontroller,
                     $item,
                     $movetosectionid,
                     $insertasnewsection,
-                    array_map('intval', (array)($backupsettings->sections_to_include ?? []))
+                    $normalized['sections_to_include'],
+                    // Keep legacy section-list intent: default descendants must not become explicit flatten requests.
+                    $item->is_section()
+                        ? $normalized['course_modules_to_include']
+                        : $coursemodulestoinclude,
+                    $moduleselectionexplicit
                 );
+                if ($item->is_subsection()) {
+                    // The owner module is implicit in a subsection copy and must never be disabled first.
+                    $coursemodulestoinclude = $this->sectionplan->coursemodulestoinclude;
+                }
+            }
+            $this->only_include_specified_course_modules($restorecontroller, $coursemodulestoinclude);
+
+            if ($this->sectionplan !== null) {
+                $replacesectiondetails = !empty($backupsettings->replace_section_details)
+                    && $this->sectionplan->merges_into_target();
 
                 $beforessectionsrestored = new before_sections_restored(
                     restoreid: $restorecontroller->get_restoreid(),
                     courseid: (int)$restorecontroller->get_courseid(),
                     targetsectionid: $this->sectionplan->targetsectionid,
                     plannedsections: array_values($this->sectionplan->sections),
+                    replacesectiondetails: $replacesectiondetails,
+                    rootoldsectionid: $this->sectionplan->rootoldsectionid,
                 );
                 \core\di::get(\core\hook\manager::class)->dispatch($beforessectionsrestored);
 
@@ -248,10 +347,10 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                     );
                 }
 
-                $planner->apply($restorecontroller, $this->sectionplan);
+                $planner->apply($restorecontroller, $this->sectionplan, $activityuserinfo);
 
-                if (!empty($backupsettings->replace_section_details) && $this->sectionplan->merges_into_target()) {
-                    $this->replace_section_details($restorecontroller);
+                if ($replacesectiondetails) {
+                    $this->snapshot_and_blank_section_details($restorecontroller);
                 }
             }
 
@@ -386,6 +485,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
     private function after_restore_finished_hook(\restore_controller $restorecontroller): void {
         try {
             mtrace('Executing after_restore_finished_hook...');
+            $backupsettings = $this->get_custom_data()->backup_settings ?? (object)[];
 
             if ($this->sectionplan !== null) {
                 $planner = $this->factory()->restore()->section_planner();
@@ -396,11 +496,14 @@ class asynchronous_restore_task extends \core\task\adhoc_task
 
                 mtrace('Placing ' . count($restoredsections) . ' restored nested section(s) after the target section...');
                 $planner->place_after_target($courseid, $targetsectionid, $restoredsections);
+                $planner->place_flattened_activities($restorecontroller, $this->sectionplan);
 
                 \core\di::get(\core\hook\manager::class)->dispatch(new after_sections_restored(
                     courseid: $courseid,
                     targetsectionid: $targetsectionid,
                     restoredsections: $restoredsections,
+                    insertaftersectionid: $this->createdsectionid === $targetsectionid && !$this->sectionplan->rootomitted
+                        ? (int)($backupsettings->insert_after_section_id ?? 0) : 0,
                 ));
 
                 if ($this->createdsectionid && $this->sectionplan->rootomitted) {
@@ -411,7 +514,6 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 rebuild_course_cache($courseid, true);
             }
 
-            $backupsettings = $this->get_custom_data()->backup_settings ?? (object)[];
             $beforecmid = (int)($backupsettings->before_cm_id ?? 0);
             $movetosectionid = (int)($backupsettings->move_to_section_id ?? 0);
             if ($beforecmid && $movetosectionid) {
@@ -429,24 +531,26 @@ class asynchronous_restore_task extends \core\task\adhoc_task
     }
 
     /**
-     * Blanks the target section's title and description so the restore fills them from the copy.
+     * Capture the latest target details immediately before clearing them for replacement.
      *
      * @param \restore_controller $restorecontroller
      * @return void
      */
-    private function replace_section_details(\restore_controller $restorecontroller): void {
+    private function snapshot_and_blank_section_details(\restore_controller $restorecontroller): void {
         $sectionid = $this->sectionplan->targetsectionid;
-        mtrace("...Replacing the title and description of section (id: $sectionid) with the copied section's");
+        $courseid = (int)$restorecontroller->get_courseid();
+        mtrace("...Preparing replacement of the title and description of section (id: $sectionid)");
 
-        $this->factory()->restore()->section_details_replacement()->snapshot_and_blank(
-            (int)$restorecontroller->get_courseid(),
-            $sectionid
-        );
+        $replacement = $this->factory()->restore()->section_details_replacement();
+        $replacement->snapshot($courseid, $sectionid);
         $this->replacedsectionid = $sectionid;
+        // Set this before the first write, since blanking can itself fail partway through.
+        $this->sectionblankingstarted = true;
+        $replacement->blank($courseid, $sectionid);
     }
 
     /**
-     * Drops the snapshot taken by replace_section_details() once the restore succeeded.
+     * Drops the replacement snapshot once the restore succeeded.
      *
      * @param \restore_controller $restorecontroller
      * @return void
@@ -461,6 +565,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             $this->replacedsectionid
         );
         $this->replacedsectionid = 0;
+        $this->sectionblankingstarted = false;
     }
 
     /**
@@ -484,6 +589,7 @@ class asynchronous_restore_task extends \core\task\adhoc_task
             mtrace('Could not put back the section details: ' . $e->getMessage());
         }
         $this->replacedsectionid = 0;
+        $this->sectionblankingstarted = false;
     }
 
     /**
@@ -507,7 +613,10 @@ class asynchronous_restore_task extends \core\task\adhoc_task
                 mtrace(
                     '...' . ($includeactivity ? "Including activity: (id: $cmid)" : "Excluding activity: (id: $cmid)")
                 );
-                $task->get_setting('included')->set_value($includeactivity);
+                $setting = $task->get_setting('included');
+                if ((bool)$setting->get_value() !== $includeactivity) {
+                    $setting->set_value($includeactivity);
+                }
             }
         }
     }

@@ -21,14 +21,15 @@ namespace block_sharing_cart\app\restore;
  *
  * The root section (the restored item's own) either merges into the target section or, with insert_as_new_section,
  * is created as a new section under it (target 0 = top level of the course). Empty sections can be omitted for flat
- * course formats. Descendant sections always become new sections. Everything else in the backup is excluded.
+ * course formats. Descendant sections always become new sections. Activities from excluded sections can still be
+ * restored when explicitly selected; they are placed in the nearest included ancestor section.
  *
  * @package   block_sharing_cart
  * @copyright moxis
  * @license   https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class section_plan {
-    /** @var int Original id of the restored item's own section; 0 for legacy (non section) items. */
+    /** @var int Original section ID (delegated for a subsection item); 0 for individual activities. */
     public int $rootoldsectionid = 0;
 
     /** @var int Section chosen by the user; 0 = top level of the course. */
@@ -54,6 +55,18 @@ final class section_plan {
      */
     public array $sections = [];
 
+    /** @var array<int, int> Every descendant section's original parent section id, including excluded sections. */
+    public array $sectionparents = [];
+
+    /** @var int[] Original section ids explicitly selected for restore, even when they have no selected activities. */
+    public array $explicitsectionids = [];
+
+    /** @var int[]|null Selected course-module ids; [] means none, null means use the legacy include-all setting. */
+    public ?array $coursemodulestoinclude = null;
+
+    /** @var array<int, int> Flattened activity IDs mapped to the original destination section IDs. */
+    public array $flatteneddestinations = [];
+
     /**
      * Plan for one target section.
      *
@@ -69,7 +82,7 @@ final class section_plan {
      * Plans a section that the restore creates as a new section.
      *
      * @param int $oldsectionid section id in the backup
-     * @param int $oldparentsectionid parent section id in the backup
+     * @param int $oldparentsectionid original ID of the effective parent after selection, or 0 for the root
      * @param int $sortorder position among its siblings
      * @param int $newsectionnumber section number the section gets in the target course
      * @return void

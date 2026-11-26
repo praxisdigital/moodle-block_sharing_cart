@@ -44,7 +44,7 @@
             <span class="ms-2 me-1">{{{name}}}</span>
 
             {{#show_run_now}}
-                <button class="btn btn-secondary text-nowrap ms-auto" type="button">{{#str}}
+                <button class="btn btn-secondary text-nowrap ms-auto" type="button" data-action="run-restore-now">{{#str}}
                     run_now, block_sharing_cart{{/str}}</button>
             {{/show_run_now}}
         </div>
@@ -55,6 +55,19 @@
         </div>
     </div>
 {{/queue_items}}
+{{#restore_successes}}
+    <span hidden data-region="restore-success" data-id="{{id}}" data-time="{{time}}"
+          data-to-section-id="{{to_section_id}}"{{#refresh_course}} data-refresh-course="1"{{/refresh_course}}></span>
+{{/restore_successes}}
+{{#restore_failures}}
+    <div class="alert {{#has_possible_copy}}alert-warning{{/has_possible_copy}}{{^has_possible_copy}}alert-danger{{/has_possible_copy}} alert-dismissible mb-2"
+         data-region="restore-failure" data-id="{{id}}" data-time="{{time}}"
+         {{#has_possible_copy}}data-refresh-destination="1" data-to-section-id="{{to_section_id}}"
+         {{#refresh_course}}data-refresh-course="1"{{/refresh_course}}{{/has_possible_copy}}>
+        <span>{{message}}</span>
+        <button type="button" class="btn-close" data-action="dismiss-restore-error" aria-label="{{#str}}close, core{{/str}}"></button>
+    </div>
+{{/restore_failures}}
 {{^queue_items.0}}
-    {{#str}}no_restores, block_sharing_cart{{/str}}
+    <div data-region="no-restores">{{#str}}no_restores, block_sharing_cart{{/str}}</div>
 {{/queue_items.0}}

@@ -217,7 +217,8 @@ copied section" whenever the target has a title or description, and the web
 service accepts `replacesectiondetails`. `section_details_replacement`
 implements it by keeping the target's title, description and description files
 in a snapshot (file area `block_sharing_cart/section_snapshot`, item id = the
-section), then blanking them right before the plan runs so core fills them from
+section) before format preflight, without changing the original destination details used by its safety checks.
+After preflight, it blanks them right before the plan runs so core fills them from
 the backup exactly as for a new section, files included. When the restore
 finishes the snapshot is discarded; when it fails the snapshot is put back, so a
 failed restore never leaves the section without its original text. The option
@@ -287,10 +288,17 @@ import modal drop whole branches; an excluded section drops its subtree.
 
 ## 10. Backwards compatibility
 
-- Items copied before this change have no nested section items and restore
-  exactly as before.
-- `mod_subsection` (core) items and single activity items keep the legacy
-  restore path untouched.
+- Existing backups remain readable without a new archive format. Restores are limited to the chosen cart item
+  and preserve core subsection containers as described below.
+- Core subsection items restore their owner module into the target and retain their selected activities inside the
+  restored delegated subsection. Modern standalone items identify their delegated section by section ID; older roots
+  and subsection items inside a shared section backup use the owner's course-module ID. The planner resolves both
+  representations from the archive. If the ID spaces collide, the selected children's original sections identify the
+  correct owner; a missing or ambiguous match is rejected. No unrelated section details are merged into the destination.
+- Every restore is scoped to the selected cart item and its descendants. Queue-time and worker-time validation
+  reject IDs outside that tree and explicitly empty content selections. Legacy empty module lists still mean
+  include-all, but only within the selected item. `module_selection_explicit` distinguishes an intentional empty
+  module selection when a custom child section is selected independently.
 - Backup file format is unchanged; the cart's `version` column is not bumped.
 
 ## 11. Testing
@@ -299,12 +307,20 @@ import modal drop whole branches; an excluded section drops its subtree.
   redirected `resolve_section_tree` hook producing nested items; restore task
   creating descendant sections after the target and delivering the
   `after_sections_restored` payload; restore validity rules for child items.
-- pxgrid PHPUnit (skipped when the cart is absent): copy a nested section from
-  course A, restore into course B, assert the `format_pxgrid_sections` parent
-  chain, sort order and activity placement, and that an existing subsection at
-  the same position in B is left alone.
-- Behat: copy a nested pxgrid section, verify folders within folders in the
-  block and the modal, insert into another course, verify the course page.
+  Core Custom sections courses and hook test doubles exercise both the flat
+  fallback and hierarchy-managed structural ancestors without an external format dependency.
+- Cart Behat: reject an empty subsection selection, correct it in the same modal,
+  then verify the restored owner and nested activity through live refresh using
+  both clipboard paste and drag-and-drop. Delayed-validation tests are also format-independent.
+- Format-owned integration tests belong in the relevant course-format repository.
+  They should verify source/destination format combinations, persisted hierarchy
+  mappings, ordering, images and format-specific restrictions. The public cart
+  suite does not initialize or query an external format's implementation or tables.
+  The format-owned matrix should cover same-format copies and both directions with
+  core Custom sections, including direct subsections, partial/empty selections,
+  nested child/grandchild sections, legacy subsection identities and quiz copies
+  with the source course present or deleted. Test both clipboard and drag-and-drop
+  browser entry points, including live refresh and correction of an empty selection.
 
 ## 12. Release checklist (not done for the POC)
 

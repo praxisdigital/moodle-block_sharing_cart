@@ -47,7 +47,8 @@ class handler
      * @param entity $item
      * @param int $sectionid target section; 0 means the top level of $courseid (only with insert_as_new_section)
      * @param int $itemid
-     * @param array $settings restore selections and nested-section options
+     * @param array $settings course_modules_to_include, sections_to_include, insert_as_new_section, replace_section_details
+     *     and module_selection_explicit (false by default for legacy callers)
      * @param int $courseid required when $sectionid is 0
      * @param int $beforecmid Place the restored activities before this course module (0 = end of the section).
      * @param bool $asnewsection Create a new drop-target section after $sectionid.
@@ -88,7 +89,12 @@ class handler
             throw new \Exception('Backup file not found for item (id: ' . $item->get_id() . ')');
         }
 
-        $this->basefactory->restore()->assert_backup_file_looks_valid($backupfile);
+        $selection = $this->basefactory->restore()->selection();
+        $selection->validate_for_queue($item, $settings, $backupfile);
+        if (!$selection->needs_archive_module_id($item)) {
+            $this->basefactory->restore()->assert_backup_file_looks_valid($backupfile);
+        }
+        // Migrated activities are checked when the worker opens the archive. Listing an unindexed TGZ can stream it all.
 
         if (
             !$this->restore_is_valid(

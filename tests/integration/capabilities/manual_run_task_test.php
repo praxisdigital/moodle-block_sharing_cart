@@ -50,12 +50,26 @@ final class manual_run_task_test extends \advanced_testcase
     }
 
     /**
+     * Ownership of an adhoc task does not grant permission to run it manually.
+     */
+    public function test_task_owner_without_capability_cannot_run_task(): void {
+        $user = self::getDataGenerator()->create_user();
+        $task = new \block_sharing_cart\task\asynchronous_restore_task();
+        $task->set_userid((int)$user->id);
+        $taskid = \core\task\manager::queue_adhoc_task($task);
+        self::setUser($user);
+
+        $this->expectException(\required_capability_exception::class);
+        \block_sharing_cart\external\task\run_now::execute($taskid);
+    }
+
+    /**
      * test_user_expected_not_allowed
      *
      * @return void
      */
     public function test_user_expected_not_allowed(): void {
-        $generator = $this->getDataGenerator();
+        $generator = self::getDataGenerator();
         $USER = $generator->create_user();
         $course = $generator->create_course();
         $coursecontext = course::instance($course->id);
@@ -75,7 +89,7 @@ final class manual_run_task_test extends \advanced_testcase
      * @return void
      */
     public function test_user_with_manager_role_expected_not_allowed(): void {
-        $generator = $this->getDataGenerator();
+        $generator = self::getDataGenerator();
         $USER = $generator->create_user();
         $course = $generator->create_course();
 
@@ -93,7 +107,7 @@ final class manual_run_task_test extends \advanced_testcase
      * @return void
      */
     public function test_user_enrolled_in_course_with_capable_role_expected_allowed(): void {
-        $generator = $this->getDataGenerator();
+        $generator = self::getDataGenerator();
         $USER = $generator->create_user();
         $course = $generator->create_course();
 
@@ -125,7 +139,7 @@ final class manual_run_task_test extends \advanced_testcase
      * @return void
      */
     public function test_user_assign_to_capable_role_expected_allowed(): void {
-        $generator = $this->getDataGenerator();
+        $generator = self::getDataGenerator();
         $USER = $generator->create_user();
 
         $systemcontext = system::instance();
@@ -159,7 +173,7 @@ final class manual_run_task_test extends \advanced_testcase
     public function test_user_with_site_admin_expected_allowed(): void {
         global $USER;
 
-        $generator = $this->getDataGenerator();
+        $generator = self::getDataGenerator();
         $course = $generator->create_course();
         self::setAdminUser();
 

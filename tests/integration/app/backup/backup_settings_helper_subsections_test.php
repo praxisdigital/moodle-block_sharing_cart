@@ -78,7 +78,7 @@ final class backup_settings_helper_subsections_test extends \advanced_testcase
         global $CFG;
 
         if (!$this->is_plugin_installed("block_sharing_cart") || $CFG->version < 2024100700) {
-            $this->markTestSkipped("Skipping tests. Subsections are unsupported.");
+            self::markTestSkipped("Skipping tests. Subsections are unsupported.");
         }
 
         $this->resetAfterTest();
@@ -102,8 +102,8 @@ final class backup_settings_helper_subsections_test extends \advanced_testcase
 
         $backupplansettings = $this->helper->construct_backup_plan_settings($this->customdata1, $backupcontrollercontext, $item);
 
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->forum1course2, 'forum')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1course2, 'forum')]);
+        self::assertTrue($backupplansettings[$this->get_module_include($this->forum1course2, 'forum')]);
+        self::assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1course2, 'forum')]);
     }
 
     /**
@@ -119,11 +119,11 @@ final class backup_settings_helper_subsections_test extends \advanced_testcase
 
         $backupplansettings = $this->helper->construct_backup_plan_settings($this->customdata1, $backupcontrollercontext, $item);
 
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->book1undersubsection1course2, 'book')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->book1undersubsection1course2, 'book')]);
+        self::assertTrue($backupplansettings[$this->get_module_include($this->book1undersubsection1course2, 'book')]);
+        self::assertFalse($backupplansettings[$this->get_module_userinfo($this->book1undersubsection1course2, 'book')]);
 
-        $this->assertFalse($backupplansettings[$this->get_module_include($this->subsectionmodule1course2, 'subsection')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->subsectionmodule1course2, 'subsection')]);
+        self::assertFalse($backupplansettings[$this->get_module_include($this->subsectionmodule1course2, 'subsection')]);
+        self::assertFalse($backupplansettings[$this->get_module_userinfo($this->subsectionmodule1course2, 'subsection')]);
     }
 
     // Subsections have corresponding "hidden" sections that must be included, as well as the "real" parent section.
@@ -141,29 +141,29 @@ final class backup_settings_helper_subsections_test extends \advanced_testcase
 
         $backupplansettings = $this->helper->construct_backup_plan_settings($this->customdata1, $backupcontrollercontext, $item);
 
-        $this->assertFalse($backupplansettings[$this->get_section_include($this->section1course3)]);
-        $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->section1course3)]);
+        self::assertFalse($backupplansettings[$this->get_section_include($this->section1course3)]);
+        self::assertFalse($backupplansettings[$this->get_section_userinfo($this->section1course3)]);
 
-        $this->assertFalse($backupplansettings[$this->get_module_include($this->forum1course3, 'forum')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1course3, 'forum')]);
+        self::assertFalse($backupplansettings[$this->get_module_include($this->forum1course3, 'forum')]);
+        self::assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1course3, 'forum')]);
 
-        $this->assertTrue($backupplansettings[$this->get_section_include($this->subsectionparent1course3)]);
-        $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->subsectionparent1course3)]);
+        self::assertTrue($backupplansettings[$this->get_section_include($this->subsectionparent1course3)]);
+        self::assertFalse($backupplansettings[$this->get_section_userinfo($this->subsectionparent1course3)]);
 
-        $this->assertTrue($backupplansettings[$this->get_section_include($this->subsection1hiddensectioncourse3)]);
-        $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->subsection1hiddensectioncourse3)]);
+        self::assertTrue($backupplansettings[$this->get_section_include($this->subsection1hiddensectioncourse3)]);
+        self::assertFalse($backupplansettings[$this->get_section_userinfo($this->subsection1hiddensectioncourse3)]);
 
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->subsectionmodule1course3, 'subsection')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->subsectionmodule1course3, 'subsection')]);
+        self::assertTrue($backupplansettings[$this->get_module_include($this->subsectionmodule1course3, 'subsection')]);
+        self::assertFalse($backupplansettings[$this->get_module_userinfo($this->subsectionmodule1course3, 'subsection')]);
 
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->book1undersubsection1course3, 'book')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->book1undersubsection1course3, 'book')]);
+        self::assertTrue($backupplansettings[$this->get_module_include($this->book1undersubsection1course3, 'book')]);
+        self::assertFalse($backupplansettings[$this->get_module_userinfo($this->book1undersubsection1course3, 'book')]);
 
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->quiz1undersubsection1course3, 'quiz')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->quiz1undersubsection1course3, 'quiz')]);
+        self::assertTrue($backupplansettings[$this->get_module_include($this->quiz1undersubsection1course3, 'quiz')]);
+        self::assertFalse($backupplansettings[$this->get_module_userinfo($this->quiz1undersubsection1course3, 'quiz')]);
 
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->forum1undersubsection1course3, 'forum')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1undersubsection1course3, 'forum')]);
+        self::assertTrue($backupplansettings[$this->get_module_include($this->forum1undersubsection1course3, 'forum')]);
+        self::assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1undersubsection1course3, 'forum')]);
     }
 
     // Only the specified section should be included (including child modules and nested subsection modules).
@@ -180,29 +180,29 @@ final class backup_settings_helper_subsections_test extends \advanced_testcase
 
         $backupplansettings = $this->helper->construct_backup_plan_settings($this->customdata1, $backupcontrollercontext, $item);
 
-        $this->assertFalse($backupplansettings[$this->get_section_include($this->section1course3)]);
-        $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->section1course3)]);
+        self::assertFalse($backupplansettings[$this->get_section_include($this->section1course3)]);
+        self::assertFalse($backupplansettings[$this->get_section_userinfo($this->section1course3)]);
 
-        $this->assertFalse($backupplansettings[$this->get_module_include($this->forum1course3, 'forum')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1course3, 'forum')]);
+        self::assertFalse($backupplansettings[$this->get_module_include($this->forum1course3, 'forum')]);
+        self::assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1course3, 'forum')]);
 
-        $this->assertTrue($backupplansettings[$this->get_section_include($this->subsectionparent1course3)]);
-        $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->subsectionparent1course3)]);
+        self::assertTrue($backupplansettings[$this->get_section_include($this->subsectionparent1course3)]);
+        self::assertFalse($backupplansettings[$this->get_section_userinfo($this->subsectionparent1course3)]);
 
-        $this->assertTrue($backupplansettings[$this->get_section_include($this->subsection1hiddensectioncourse3)]);
-        $this->assertFalse($backupplansettings[$this->get_section_userinfo($this->subsection1hiddensectioncourse3)]);
+        self::assertTrue($backupplansettings[$this->get_section_include($this->subsection1hiddensectioncourse3)]);
+        self::assertFalse($backupplansettings[$this->get_section_userinfo($this->subsection1hiddensectioncourse3)]);
 
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->subsectionmodule1course3, 'subsection')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->subsectionmodule1course3, 'subsection')]);
+        self::assertTrue($backupplansettings[$this->get_module_include($this->subsectionmodule1course3, 'subsection')]);
+        self::assertFalse($backupplansettings[$this->get_module_userinfo($this->subsectionmodule1course3, 'subsection')]);
 
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->book1undersubsection1course3, 'book')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->book1undersubsection1course3, 'book')]);
+        self::assertTrue($backupplansettings[$this->get_module_include($this->book1undersubsection1course3, 'book')]);
+        self::assertFalse($backupplansettings[$this->get_module_userinfo($this->book1undersubsection1course3, 'book')]);
 
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->quiz1undersubsection1course3, 'quiz')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->quiz1undersubsection1course3, 'quiz')]);
+        self::assertTrue($backupplansettings[$this->get_module_include($this->quiz1undersubsection1course3, 'quiz')]);
+        self::assertFalse($backupplansettings[$this->get_module_userinfo($this->quiz1undersubsection1course3, 'quiz')]);
 
-        $this->assertTrue($backupplansettings[$this->get_module_include($this->forum1undersubsection1course3, 'forum')]);
-        $this->assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1undersubsection1course3, 'forum')]);
+        self::assertTrue($backupplansettings[$this->get_module_include($this->forum1undersubsection1course3, 'forum')]);
+        self::assertFalse($backupplansettings[$this->get_module_userinfo($this->forum1undersubsection1course3, 'forum')]);
     }
 
     /**

@@ -23,5 +23,8 @@
 <div class="clipboard d-none">
     <span>{{#str}}copying_this_item, block_sharing_cart{{/str}}:</span>
     <div class="info"></div>
-    <i class="fa fa-ban" data-action="clear-clipboard"></i>
+    <button type="button" class="btn btn-link p-0" data-action="clear-clipboard"
+            aria-label="{{#str}}cancel, core{{/str}}" title="{{#str}}cancel, core{{/str}}">
+        <i class="fa fa-ban" aria-hidden="true"></i>
+    </button>
 </div>

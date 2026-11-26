@@ -91,21 +91,39 @@ class items implements \core\output\named_templatable, \renderable {
                     'icon',
                     $item->type
                 ) : null,
-                'to_section_id' => $backupsettings->move_to_section_id ?? null,
-                'refresh_course' => !empty($backupsettings->insert_after_section_id)
-                    || !empty($backupsettings->insert_as_new_section)
-                    || in_array($item->type, [
-                        \block_sharing_cart\app\item\entity::TYPE_SECTION,
-                        \block_sharing_cart\app\item\entity::TYPE_MOD_SUBSECTION,
-                    ], true),
                 'is_running' => $isrunning,
                 'is_failed' => $isfailed,
                 'show_run_now' => $this->allow_to_run_now() && !$isrunning && !$isfailed && $haswaited5seconds,
-            ];
+            ] + \block_sharing_cart\app\restore\factory::refresh_destination($backupsettings, $item->type);
+        }
+
+        $successes = [];
+        $failures = [];
+        foreach ($this->basefactory->restore()->outcomes()->get_recent((int)$USER->id, (int)$COURSE->id) as $outcome) {
+            // The result can be published just before cron removes the running task row.
+            if (isset($records[$outcome['id']])) {
+                continue;
+            }
+            if ($outcome['succeeded']) {
+                $successes[] = $outcome;
+            } else {
+                $copystate = $outcome['copy_state'] ?? \block_sharing_cart\app\restore\outcome_repository::COPY_UNCERTAIN;
+                $messagekey = match ($copystate) {
+                    \block_sharing_cart\app\restore\outcome_repository::COPY_NOT_STARTED => 'restore_failure_notice',
+                    \block_sharing_cart\app\restore\outcome_repository::COPY_COMPLETED => 'restore_post_copy_warning',
+                    default => 'restore_uncertain_warning',
+                };
+                $failures[] = [
+                    'message' => get_string($messagekey, 'block_sharing_cart', $outcome['name']),
+                    'has_possible_copy' => $messagekey !== 'restore_failure_notice',
+                ] + $outcome;
+            }
         }
 
         return [
             'queue_items' => array_values($queueitems),
+            'restore_successes' => $successes,
+            'restore_failures' => $failures,
         ];
     }
 

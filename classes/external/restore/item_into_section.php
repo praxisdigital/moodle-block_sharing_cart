@@ -75,6 +75,12 @@ class item_into_section extends external_api
                 VALUE_DEFAULT,
                 false
             ),
+            'moduleselectionexplicit' => new external_value(
+                PARAM_BOOL,
+                'Whether coursemodulestoinclude is an explicit selection, including an empty selection',
+                VALUE_DEFAULT,
+                false
+            ),
         ]);
     }
 
@@ -89,6 +95,7 @@ class item_into_section extends external_api
      * @param bool $replacesectiondetails
      * @param int $beforecmid
      * @param bool $asnewsection whether to create a section after the target for drag/drop
+     * @param bool $moduleselectionexplicit whether the module list is explicit, including an empty selection
      */
     public static function execute(
         int $itemid,
@@ -99,7 +106,8 @@ class item_into_section extends external_api
         int $courseid = 0,
         bool $replacesectiondetails = false,
         int $beforecmid = 0,
-        bool $asnewsection = false
+        bool $asnewsection = false,
+        bool $moduleselectionexplicit = false
     ): bool {
         global $USER, $DB;
 
@@ -115,6 +123,7 @@ class item_into_section extends external_api
             'insertasnewsection' => $insertasnewsection,
             'courseid' => $courseid,
             'replacesectiondetails' => $replacesectiondetails,
+            'moduleselectionexplicit' => $moduleselectionexplicit,
         ]);
 
         if ($params['asnewsection'] && $params['insertasnewsection']) {
@@ -163,6 +172,7 @@ class item_into_section extends external_api
         // Only pass include/exclude list when the user can configure restore in the target course context.
         if (has_capability('moodle/restore:configure', $context)) {
             $settings['course_modules_to_include'] = $params['coursemodulestoinclude'] ?? [];
+            $settings['module_selection_explicit'] = $params['moduleselectionexplicit'];
             $settings['sections_to_include'] = $params['sectionstoinclude'] ?? [];
         }
 

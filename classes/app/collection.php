@@ -16,7 +16,6 @@
 
 namespace block_sharing_cart\app;
 
-
 /**
  * collection class
  *

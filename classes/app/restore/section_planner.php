@@ -45,6 +45,48 @@ final class section_planner {
     }
 
     /**
+     * Names an unnamed new root without borrowing a generated label from the source course.
+     *
+     * @param int $courseid destination course, or 0 when unavailable
+     * @param int $targetsectionid 0 for a top-level insertion
+     * @return string Format-derived name where predictable, otherwise a generic label for the new section.
+     */
+    public function new_section_destination_name(int $courseid, int $targetsectionid): string {
+        $fallback = get_string('newsection', 'format_topics');
+        if ($courseid <= 0) {
+            return $fallback;
+        }
+
+        $format = course_get_format($courseid);
+        if ($format->get_format() === 'topics') {
+            // Topics gives every unnamed section the same generated name, regardless of its eventual number.
+            return $format->get_format_string('newsection');
+        }
+
+        if ($format->get_format() === 'weeks' && $targetsectionid === 0) {
+            // Top-level sections stay at the end, using the same initial number as plan().
+            $nextnumber = $this->max_regular_section_number($courseid) + 1;
+            return $format->get_default_section_name((object)['section' => $nextnumber]);
+        }
+
+        // Moving a section or applying a format's hierarchy hooks can change its number and generated name.
+        return $fallback;
+    }
+
+    /**
+     * Find the last regular section number, ignoring delegated subsections.
+     *
+     * @param int $courseid Destination course
+     * @return int
+     */
+    private function max_regular_section_number(int $courseid): int {
+        return (int)$this->basefactory->moodle()->db()->get_field_sql(
+            'SELECT MAX(section) FROM {course_sections} WHERE course = ? AND (component IS NULL OR component = ?)',
+            [$courseid, '']
+        );
+    }
+
+    /**
      * Decides which sections of the backup are restored and the section number each of them gets.
      *
      * @param \restore_controller $restorecontroller
@@ -52,6 +94,8 @@ final class section_planner {
      * @param int $targetsectionid 0 = top level of the course
      * @param bool $insertasnewsection
      * @param int[] $sectionstoinclude old ids of nested sections to restore; empty = all
+     * @param int[] $coursemodulestoinclude selected module ids; empty or [0] = legacy include-all unless selection is explicit
+     * @param bool $moduleselectionexplicit whether the module list is explicit, including an empty selection
      * @return section_plan
      */
     public function plan(
@@ -59,7 +103,9 @@ final class section_planner {
         entity|false $item,
         int $targetsectionid,
         bool $insertasnewsection,
-        array $sectionstoinclude
+        array $sectionstoinclude,
+        array $coursemodulestoinclude = [],
+        bool $moduleselectionexplicit = false
     ): section_plan {
         $db = $this->basefactory->moodle()->db();
         $courseid = (int)$restorecontroller->get_courseid();
@@ -80,10 +126,17 @@ final class section_planner {
 
         $plan = new section_plan($targetsectionid, $targetsectionnumber);
 
-        // Core subsection items and single activity items keep the legacy behaviour.
+        // Individual items never restore siblings: subsections retain their owner module and delegated section.
         if (!$item || !$item->is_section()) {
             if ($targetsectionid === 0) {
                 throw new \Exception('Only section items can be restored to the top level of a course.');
+            }
+            $plan->coursemodulestoinclude = $coursemodulestoinclude;
+            if ($item && $item->is_subsection()) {
+                $task = $this->subsection_task($restorecontroller, $item, $coursemodulestoinclude);
+                $plan->rootoldsectionid = $this->old_section_id_of_task($task);
+                // The dialog header implicitly includes this container, not just its selected contents.
+                $plan->coursemodulestoinclude[] = $task->get_delegated_cm();
             }
             return $plan;
         }
@@ -91,11 +144,17 @@ final class section_planner {
         $plan->rootoldsectionid = (int)$item->get_old_instance_id();
         $plan->selective = true;
         $plan->insertasnewsection = $insertasnewsection;
+        $plan->explicitsectionids = array_values(array_filter($sectionstoinclude, static fn(int $id): bool => $id > 0));
+        if ($moduleselectionexplicit) {
+            // The dialog also explicitly selects the root item, even when none of its activities are checked.
+            $plan->explicitsectionids[] = $plan->rootoldsectionid;
+        }
+        if ($moduleselectionexplicit || (!empty($coursemodulestoinclude) && $coursemodulestoinclude !== [0])) {
+            $plan->coursemodulestoinclude = $coursemodulestoinclude;
+        }
+        $plan->sectionparents[$plan->rootoldsectionid] = 0;
 
-        $maxnumber = (int)$db->get_field_sql(
-            'SELECT MAX(section) FROM {course_sections} WHERE course = ? AND (component IS NULL OR component = ?)',
-            [$courseid, '']
-        );
+        $maxnumber = $this->max_regular_section_number($courseid);
         $counter = 0;
 
         // As a new section the root is planned like a descendant, with the target (or the top level) as parent.
@@ -110,32 +169,93 @@ final class section_planner {
 
         $childrenbyparent = $this->section_children_by_parent_item($item);
 
-        $walk = function (entity $parent) use (&$walk, $plan, &$counter, $childrenbyparent, $sectionstoinclude, $maxnumber): void {
+        $walk = function (
+            entity $parent,
+            int $effectiveparentid
+        ) use (
+            &$walk,
+            $plan,
+            &$counter,
+            $childrenbyparent,
+            $sectionstoinclude,
+            $maxnumber
+        ): void {
             foreach ($childrenbyparent[$parent->get_id()] ?? [] as $child) {
                 $oldsectionid = (int)$child->get_old_instance_id();
+                $plan->sectionparents[$oldsectionid] = (int)$parent->get_old_instance_id();
 
-                // An excluded section drops its whole branch.
+                // Excluding a section drops it, but explicitly selected descendants can be restored independently.
                 if (!empty($sectionstoinclude) && !in_array($oldsectionid, $sectionstoinclude, true)) {
+                    $walk($child, $effectiveparentid);
                     continue;
                 }
 
                 $plan->add_section(
                     $oldsectionid,
-                    (int)$parent->get_old_instance_id(),
+                    $effectiveparentid,
                     (int)($child->get_sortorder() ?? 0),
                     $maxnumber + (++$counter)
                 );
 
-                $walk($child);
+                $walk($child, $oldsectionid);
             }
         };
-        $walk($item);
+        $walk($item, $plan->rootoldsectionid);
 
         return $plan;
     }
 
     /**
-     * Omits empty sections when the target format will not recreate nested sections.
+     * Resolve both historical root CM IDs and modern delegated-section IDs without consulting the source course.
+     *
+     * @param \restore_controller $controller backup being restored
+     * @param entity $item selected subsection
+     * @param int[] $moduleids selected child module IDs
+     * @return \restore_section_task
+     */
+    private function subsection_task(\restore_controller $controller, entity $item, array $moduleids): \restore_section_task {
+        $candidates = [];
+        $oldid = (int)$item->get_old_instance_id();
+        foreach ($controller->get_plan()->get_tasks() as $task) {
+            if (!$task instanceof \restore_section_task || $task->get_delegated_cm() === null) {
+                continue;
+            }
+            $sectionid = $this->old_section_id_of_task($task);
+            // Nested items always use CM IDs. Root items have used both representations over time.
+            if ($task->get_delegated_cm() === $oldid || ($item->get_parent_item_id() === null && $sectionid === $oldid)) {
+                $candidates[$sectionid] = $task;
+            }
+        }
+        if ($candidates === []) {
+            throw new \coding_exception('The copied subsection was not found in its backup.');
+        }
+        if (count($candidates) > 1) {
+            // IDs from separate tables can collide. Only the section containing all selected children is valid.
+            $modulesections = $this->module_section_ids($controller);
+            $candidates = array_filter($candidates, function (\restore_section_task $task) use (
+                $moduleids,
+                $modulesections
+            ): bool {
+                $sectionid = $this->old_section_id_of_task($task);
+                if ($moduleids === []) {
+                    return false;
+                }
+                foreach ($moduleids as $moduleid) {
+                    if (($modulesections[$moduleid] ?? null) !== $sectionid) {
+                        return false;
+                    }
+                }
+                return true;
+            });
+        }
+        if (count($candidates) !== 1) {
+            throw new \coding_exception('The copied subsection identity is ambiguous in its backup.');
+        }
+        return reset($candidates);
+    }
+
+    /**
+     * Omits empty structural sections, but preserves explicit selections, when the target format will not recreate nesting.
      *
      * @param \restore_controller $restorecontroller
      * @param section_plan $plan
@@ -152,12 +272,33 @@ final class section_planner {
         }
 
         $modulesections = $this->module_section_ids($restorecontroller);
+        [$delegatedowners, $delegatedsectionincluded] = $this->delegated_section_context(
+            $restorecontroller,
+            $plan,
+            $modulesections
+        );
 
-        $sectionswithcontent = [];
+        // Explicit section choices must survive even when their activity selection is empty.
+        $sectionswithcontent = array_fill_keys($plan->explicitsectionids, true);
         foreach ($restorecontroller->get_plan()->get_tasks() as $task) {
-            if ($task instanceof \restore_activity_task && $task->get_setting('included')->get_value()) {
-                $oldsectionid = $modulesections[(int)$task->get_old_moduleid()] ?? 0;
-                $sectionswithcontent[$oldsectionid] = true;
+            if ($task instanceof \restore_activity_task) {
+                $oldmoduleid = (int)$task->get_old_moduleid();
+                $selectedexplicitly = $plan->coursemodulestoinclude !== null
+                    && in_array($oldmoduleid, $plan->coursemodulestoinclude, true);
+                if ($task->get_setting('included')->get_value() || $selectedexplicitly) {
+                    $oldsectionid = $modulesections[$oldmoduleid] ?? 0;
+                    $destinationid = $this->nearest_included_section_id(
+                        $oldsectionid,
+                        $plan,
+                        $delegatedowners,
+                        $delegatedsectionincluded
+                    );
+                    // Selected modules disabled by their container's dependencies can be re-enabled by apply().
+                    // Count their effective destinations now, before an apparently empty destination is omitted.
+                    if ($destinationid !== null && ($destinationid === $oldsectionid || $selectedexplicitly)) {
+                        $sectionswithcontent[$destinationid] = true;
+                    }
+                }
             }
             if ($task instanceof \restore_section_task && $this->section_has_summary($task)) {
                 $sectionswithcontent[$this->old_section_id_of_task($task)] = true;
@@ -181,11 +322,7 @@ final class section_planner {
         }
 
         if (!empty($plan->sections)) {
-            $db = $this->basefactory->moodle()->db();
-            $maxnumber = (int)$db->get_field_sql(
-                'SELECT MAX(section) FROM {course_sections} WHERE course = ? AND (component IS NULL OR component = ?)',
-                [(int)$restorecontroller->get_courseid(), '']
-            );
+            $maxnumber = $this->max_regular_section_number((int)$restorecontroller->get_courseid());
             $plan->renumber_sections($maxnumber + 1);
         }
     }
@@ -256,43 +393,106 @@ final class section_planner {
     }
 
     /**
+     * Capture effective user-data choices before excluding containers can clear their dependent activity settings.
+     *
+     * @param \restore_controller $restorecontroller
+     * @return array Original module id => effective userinfo setting.
+     */
+    public function activity_userinfo_settings(\restore_controller $restorecontroller): array {
+        $settings = [];
+        foreach ($restorecontroller->get_plan()->get_tasks() as $task) {
+            if ($task instanceof \restore_activity_task) {
+                $settings[(int)$task->get_old_moduleid()] = (bool)$task->get_setting('userinfo')->get_value();
+            }
+        }
+        return $settings;
+    }
+
+    /**
      * Rewrite the section numbers in the extracted backup and switch off the section (and module) tasks that are not
      * part of the plan.
      *
      * @param \restore_controller $restorecontroller
      * @param section_plan $plan
+     * @param array $activityuserinfo Effective activity user-data settings captured before scoping.
      * @return void
      */
-    public function apply(\restore_controller $restorecontroller, section_plan $plan): void {
+    public function apply(\restore_controller $restorecontroller, section_plan $plan, array $activityuserinfo = []): void {
         $targetnumber = $plan->targetsectionnumber;
         $planned = $plan->sections;
 
-        // Old module id => old section id, and delegated (core subsection) section id => the section owning its
-        // parent module, used to tell whether something belongs to an included branch.
+        // Old module id => old section id, and delegated section id => owner section / inclusion.
         $modulesections = $this->module_section_ids($restorecontroller);
-        $delegatedowners = [];
-        foreach ($restorecontroller->get_info()->sections ?? [] as $section) {
-            if (!empty($section->parentcmid) && isset($modulesections[(int)$section->parentcmid])) {
-                $delegatedowners[(int)$section->sectionid] = $modulesections[(int)$section->parentcmid];
-            }
-        }
+        [$delegatedowners, $delegatedsectionincluded] = $this->delegated_section_context(
+            $restorecontroller,
+            $plan,
+            $modulesections
+        );
 
+        $moduleexplicitlyselected = static function (int $oldmoduleid) use ($plan): bool {
+            return $plan->coursemodulestoinclude !== null
+                && in_array($oldmoduleid, $plan->coursemodulestoinclude, true);
+        };
         $includedsectionids = $plan->included_section_ids();
-        $isincluded = static function (int $oldsectionid) use ($includedsectionids, $delegatedowners): bool {
-            $oldsectionid = $delegatedowners[$oldsectionid] ?? $oldsectionid;
+
+        $isincluded = static function (int $oldsectionid) use ($includedsectionids, $delegatedsectionincluded): bool {
+            if (isset($delegatedsectionincluded[$oldsectionid])) {
+                return $delegatedsectionincluded[$oldsectionid];
+            }
             return in_array($oldsectionid, $includedsectionids, true);
         };
 
         foreach ($restorecontroller->get_plan()->get_tasks() as $task) {
             if ($task instanceof \restore_activity_task) {
-                $oldsectionid = $modulesections[(int)$task->get_old_moduleid()] ?? 0;
-                if ($plan->selective && !$isincluded($oldsectionid)) {
-                    // Its section is not restored, so the module must not be either (whatever the modal sent).
-                    $task->get_setting('included')->set_value(false);
-                    continue;
+                $oldmoduleid = (int)$task->get_old_moduleid();
+                $oldsectionid = $modulesections[$oldmoduleid] ?? 0;
+                $selectedexplicitly = $moduleexplicitlyselected($oldmoduleid);
+                if ($selectedexplicitly && !$task->get_setting('included')->get_value()) {
+                    // A checked item can have been disabled by a dependency on an excluded section or delegated section.
+                    $task->get_setting('included')->set_value(true);
                 }
-                if (!$plan->selective || !isset($planned[$oldsectionid])) {
-                    $this->rewrite_xml_number("{$task->get_taskbasepath()}/module.xml", 'sectionnumber', $targetnumber);
+
+                if ($plan->selective) {
+                    $nearestincludedsectionid = $this->nearest_included_section_id(
+                        $oldsectionid,
+                        $plan,
+                        $delegatedowners,
+                        $delegatedsectionincluded
+                    );
+
+                    if ($nearestincludedsectionid === null) {
+                        // The activity is not in the copied section tree.
+                        $task->get_setting('included')->set_value(false);
+                        continue;
+                    }
+
+                    if (!$isincluded($oldsectionid)) {
+                        if (!$selectedexplicitly) {
+                            // Only explicitly selected modules can be moved out of an excluded section.
+                            $task->get_setting('included')->set_value(false);
+                            continue;
+                        }
+
+                        // Excluding an ancestor section can disable a selected activity through core task dependencies.
+                        $task->get_setting('included')->set_value(true);
+
+                        // The user explicitly selected an activity under an excluded section; flatten it into the
+                        // nearest included section rather than dropping it or restoring its excluded ancestors.
+                        $plan->flatteneddestinations[$oldmoduleid] = $nearestincludedsectionid;
+                        $this->rewrite_xml_number(
+                            "{$task->get_taskbasepath()}/module.xml",
+                            'sectionnumber',
+                            $this->planned_section_number($nearestincludedsectionid, $plan)
+                        );
+                        continue;
+                    }
+                }
+                $hasincludeddelegatedsection = !empty($delegatedsectionincluded[$oldsectionid]);
+                if (!$plan->selective || (!isset($planned[$oldsectionid]) && !$hasincludeddelegatedsection)) {
+                    $sectionnumber = $plan->selective
+                        ? $this->planned_section_number($nearestincludedsectionid, $plan)
+                        : $targetnumber;
+                    $this->rewrite_xml_number("{$task->get_taskbasepath()}/module.xml", 'sectionnumber', $sectionnumber);
                 }
                 continue;
             }
@@ -305,16 +505,38 @@ final class section_planner {
             $sectionxmlpath = "{$task->get_taskbasepath()}/section.xml";
 
             if (!$plan->selective) {
-                // Legacy behaviour: everything merges into the target section.
-                $this->rewrite_xml_number($sectionxmlpath, 'number', $targetnumber);
+                // Retain only the chosen delegated section. Core creates it and maps its selected children to it.
+                // Its owner module is placed in the target; unrelated regular section details must not be merged.
+                $included = $oldsectionid === $plan->rootoldsectionid;
+                $setting = $task->get_setting('included');
+                if (
+                    !$included && $plan->rootoldsectionid > 0 && $task->get_delegated_cm() === null &&
+                    $setting->get_value() && $setting->get_status() === \base_setting::LOCKED_BY_PERMISSION
+                ) {
+                    // This is the archive's wrapper, not part of the subsection the user is restoring.
+                    // Moodle locks configuration, but excluding the wrapper enforces the cart item's scope.
+                    $setting->set_status(\base_setting::NOT_LOCKED);
+                    try {
+                        $setting->set_value(false);
+                    } finally {
+                        $setting->set_status(\base_setting::LOCKED_BY_PERMISSION);
+                    }
+                } else if ((bool)$setting->get_value() !== $included) {
+                    $setting->set_value($included);
+                }
                 continue;
             }
 
             if ($task->get_delegated_cm() !== null) {
-                // Core numbers delegated sections itself; only make sure excluded branches stay excluded.
-                if (!$isincluded($oldsectionid)) {
-                    mtrace("...Excluding delegated section (id: $oldsectionid)");
-                    $task->get_setting('included')->set_value(false);
+                // Core numbers delegated sections itself. Keep it when its own parent module is selected, even if an
+                // ancestor custom section is excluded; otherwise it is excluded with the unchecked subsection.
+                $included = $isincluded($oldsectionid);
+                $setting = $task->get_setting('included');
+                if ((bool)$setting->get_value() !== $included) {
+                    if (!$included) {
+                        mtrace("...Excluding delegated section (id: $oldsectionid)");
+                    }
+                    $setting->set_value($included);
                 }
                 continue;
             }
@@ -337,6 +559,159 @@ final class section_planner {
                 $task->get_setting('included')->set_value(false);
             }
         }
+
+        // Disabling section tasks can disable their activities through core setting dependencies.
+        // Restore only the scoped content (and the chosen subsection's owner) after applying all section settings.
+        foreach ($restorecontroller->get_plan()->get_tasks() as $task) {
+            if ($task instanceof \restore_activity_task) {
+                $oldmoduleid = (int)$task->get_old_moduleid();
+                if (!$plan->selective) {
+                    $included = $moduleexplicitlyselected($oldmoduleid);
+                    $setting = $task->get_setting('included');
+                    if ((bool)$setting->get_value() !== $included) {
+                        $setting->set_value($included);
+                    }
+                }
+                $userinfo = $task->get_setting('userinfo');
+                if (
+                    $task->get_setting('included')->get_value()
+                    && isset($activityuserinfo[$oldmoduleid])
+                    && $restorecontroller->get_plan()->get_setting('users')->get_value()
+                    && !in_array(
+                        $userinfo->get_status(),
+                        [\base_setting::LOCKED_BY_PERMISSION, \base_setting::LOCKED_BY_CONFIG],
+                        true
+                    )
+                ) {
+                    // Removing an unrelated section must not discard the selected activity's attempts or grades.
+                    $userinfo->set_value($activityuserinfo[$oldmoduleid]);
+                }
+            }
+        }
+    }
+
+    /**
+     * Verify flattened placements after all destination sections have been created by Moodle.
+     *
+     * @param \restore_controller $restorecontroller The completed restore
+     * @param section_plan $plan Its Sharing Cart placement plan
+     */
+    public function place_flattened_activities(\restore_controller $restorecontroller, section_plan $plan): void {
+        if ($plan->flatteneddestinations === []) {
+            return;
+        }
+
+        $sectionids = [];
+        $tasks = $restorecontroller->get_plan()->get_tasks();
+        foreach ($tasks as $task) {
+            if ($task instanceof \restore_section_task && $task->get_setting('included')->get_value()) {
+                $sectionids[$this->old_section_id_of_task($task)] = (int)$task->get_sectionid();
+            }
+        }
+        if ($plan->merges_into_target()) {
+            $sectionids[$plan->rootoldsectionid] = $plan->targetsectionid;
+        }
+
+        $courseid = (int)$restorecontroller->get_courseid();
+        $modinfo = get_fast_modinfo($courseid);
+        $actions = \core_courseformat\formatactions::cm($courseid);
+        foreach ($tasks as $task) {
+            if (!$task instanceof \restore_activity_task || !$task->get_setting('included')->get_value()) {
+                continue;
+            }
+            $oldtarget = $plan->flatteneddestinations[(int)$task->get_old_moduleid()] ?? null;
+            if ($oldtarget === null) {
+                continue;
+            }
+            $cmid = (int)$task->get_moduleid();
+            $target = $sectionids[$oldtarget] ?? 0;
+            if (!$target || !$modinfo->get_section_info_by_id($target) || !$cmid || !isset($modinfo->get_cms()[$cmid])) {
+                throw new \coding_exception('Could not locate the restored activity or its planned destination.');
+            }
+            // An earlier activity task may have used Moodle's fallback when this section did not yet exist.
+            if ((int)$modinfo->get_cm($cmid)->section !== $target && !$actions->move_end_section($cmid, $target)) {
+                throw new \coding_exception('Could not place the restored activity in its planned destination.');
+            }
+        }
+    }
+
+    /**
+     * Shared subsection ownership and inclusion rules for empty-section detection and activity placement.
+     *
+     * @param \restore_controller $restorecontroller
+     * @param section_plan $plan
+     * @param array $modulesections Old module id => old section id.
+     * @return array{array<int, int>, array<int, bool>} Delegated owners and inclusion, keyed by old section id.
+     */
+    private function delegated_section_context(
+        \restore_controller $restorecontroller,
+        section_plan $plan,
+        array $modulesections
+    ): array {
+        $owners = [];
+        $included = [];
+        $includedsectionids = $plan->included_section_ids();
+        foreach ($restorecontroller->get_info()->sections ?? [] as $section) {
+            $parentmoduleid = (int)($section->parentcmid ?? 0);
+            if ($parentmoduleid && isset($modulesections[$parentmoduleid])) {
+                $sectionid = (int)$section->sectionid;
+                $owners[$sectionid] = $modulesections[$parentmoduleid];
+                $included[$sectionid] = $plan->coursemodulestoinclude === null
+                    ? in_array($owners[$sectionid], $includedsectionids, true)
+                    : in_array($parentmoduleid, $plan->coursemodulestoinclude, true);
+            }
+        }
+        return [$owners, $included];
+    }
+
+    /**
+     * Finds the nearest planned section for an original section, following delegated subsection ownership and the
+     * cart's section tree through excluded ancestors.
+     *
+     * @param int $oldsectionid original section id, possibly delegated
+     * @param section_plan $plan
+     * @param array $delegatedowners delegated section id => section containing its parent module
+     * @param array $delegatedsectionincluded delegated section id => whether its parent module is selected
+     * @return int|null original id of the nearest included section, or null when it is outside the copied tree
+     */
+    private function nearest_included_section_id(
+        int $oldsectionid,
+        section_plan $plan,
+        array $delegatedowners,
+        array $delegatedsectionincluded
+    ): ?int {
+        if (!empty($delegatedsectionincluded[$oldsectionid])) {
+            return $oldsectionid;
+        }
+
+        $oldsectionid = $delegatedowners[$oldsectionid] ?? $oldsectionid;
+        $visited = [];
+
+        while ($oldsectionid > 0 && !isset($visited[$oldsectionid])) {
+            if ($oldsectionid === $plan->rootoldsectionid || isset($plan->sections[$oldsectionid])) {
+                return $oldsectionid;
+            }
+
+            $visited[$oldsectionid] = true;
+            $oldsectionid = $plan->sectionparents[$oldsectionid] ?? 0;
+        }
+
+        return null;
+    }
+
+    /**
+     * Target course section number for an included original section.
+     *
+     * @param int $oldsectionid original section id
+     * @param section_plan $plan
+     * @return int
+     */
+    private function planned_section_number(int $oldsectionid, section_plan $plan): int {
+        if (isset($plan->sections[$oldsectionid])) {
+            return (int)$plan->sections[$oldsectionid]->new_section_number;
+        }
+
+        return $plan->targetsectionnumber;
     }
 
     /**
@@ -369,12 +744,24 @@ final class section_planner {
 
             $newids[$planned->old_section_id] = $newsectionid;
 
-            // The parent is the new id of the parent section when that was created in this restore (a descendant,
-            // or the root inserted as a new section); otherwise it is the target section (or 0 = top level).
+            // A flat format may omit an otherwise planned parent after preflight. Walk past any such sections.
+            // The root either has a new ID or falls back to the selected target section (0 = top level).
+            $parentoldsectionid = (int)$planned->old_parent_section_id;
+            $visited = [];
+            while (
+                $parentoldsectionid > 0 &&
+                !isset($newids[$parentoldsectionid]) &&
+                $parentoldsectionid !== $plan->rootoldsectionid &&
+                !isset($visited[$parentoldsectionid])
+            ) {
+                $visited[$parentoldsectionid] = true;
+                $parentoldsectionid = $plan->sectionparents[$parentoldsectionid] ?? 0;
+            }
+
             $restored[] = (object)[
                 'old_section_id' => (int)$planned->old_section_id,
                 'new_section_id' => $newsectionid,
-                'new_parent_section_id' => $newids[(int)$planned->old_parent_section_id] ?? $plan->targetsectionid,
+                'new_parent_section_id' => $newids[$parentoldsectionid] ?? $plan->targetsectionid,
                 'sort_order' => (int)$planned->sort_order,
             ];
         }

@@ -149,12 +149,46 @@ class factory
     }
 
     /**
+     * Create the repository for recent restore outcomes.
+     *
+     * @return outcome_repository Recent restore results for the queue
+     */
+    public function outcomes(): outcome_repository {
+        return new outcome_repository();
+    }
+
+    /**
+     * Describe which course state a queued restore can change.
+     *
+     * @param object|null $settings Restore task settings
+     * @param string $type Cart item type
+     * @return array{to_section_id: int, refresh_course: bool}
+     */
+    public static function refresh_destination(?object $settings, string $type): array {
+        return [
+            'to_section_id' => (int)($settings->move_to_section_id ?? 0),
+            'refresh_course' => !empty($settings->insert_after_section_id) || !empty($settings->insert_as_new_section)
+                || in_array($type, [\block_sharing_cart\app\item\entity::TYPE_SECTION,
+                    \block_sharing_cart\app\item\entity::TYPE_MOD_SUBSECTION], true),
+        ];
+    }
+
+    /**
      * section_planner
      *
      * @return section_planner
      */
     public function section_planner(): section_planner {
         return new section_planner($this->basefactory);
+    }
+
+    /**
+     * Restore selection validation and shared-archive scoping.
+     *
+     * @return selection
+     */
+    public function selection(): selection {
+        return new selection($this->basefactory);
     }
 
     /**

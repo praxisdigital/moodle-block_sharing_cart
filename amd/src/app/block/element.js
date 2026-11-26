@@ -5,6 +5,7 @@ import ModalEvents from 'core/modal_events';
 import {get_string as getString, get_strings as getStrings} from 'core/str';
 import Ajax from "core/ajax";
 import Notification from "core/notification";
+import RestoreSelection from './restore_selection';
 
 /**
  * @typedef BackupSettings
@@ -382,11 +383,13 @@ export default class BlockElement {
 
     /**
      * @param {ItemElement} item
+     * @param {HTMLElement} source The copy button.
+     * @param {boolean} focusTarget Whether to move focus to the first destination.
      */
-    async setClipboard(item) {
+    async setClipboard(item, source, focusTarget) {
         this.#clipboardItem = item;
 
-        await this.#course.setClipboard(item);
+        await this.#course.setClipboard(item, source, focusTarget);
     }
 
     clearClipboard() {
@@ -617,8 +620,9 @@ export default class BlockElement {
 
     /**
      * @param {Number} sectionId
+     * @param {HTMLElement|null} returnElement Button that opened the modal (if any).
      */
-    async addSectionBackupToSharingCart(sectionId) {
+    async addSectionBackupToSharingCart(sectionId, returnElement = null) {
         const sectionName = this.#course.getSectionName(sectionId);
 
         // Whether there is anything to copy is decided server side: a section without activities may still
@@ -644,13 +648,15 @@ export default class BlockElement {
             sectionName,
             saver
         );
+        modal.setReturnElement(returnElement);
         await modal.show();
     }
 
     /**
      * @param {Number} courseModuleId
+     * @param {HTMLElement|null} returnElement Button that opened the modal (if any).
      */
-    async addCourseModuleBackupToSharingCart(courseModuleId) {
+    async addCourseModuleBackupToSharingCart(courseModuleId, returnElement = null) {
         const courseModuleName = this.#course.getCourseModuleName(courseModuleId);
         const saver = (settings) => {
             Ajax.call([{
@@ -672,6 +678,7 @@ export default class BlockElement {
             courseModuleName,
             saver
         );
+        modal.setReturnElement(returnElement);
         await modal.show();
     }
 
@@ -754,52 +761,13 @@ export default class BlockElement {
      * @param {DropTarget|null} dropTarget Set when the item was dragged to a position in the course.
      */
     importItem(item, sectionId, modal, options = {}, dropTarget = null) {
-        this.#course.clearClipboard();
-
-        // A nested section that is unchecked drops everything beneath it, whatever the state of the child boxes.
-        const isUnderUncheckedSection = (checkbox) => {
-            let parent = checkbox.closest('.form-check')?.parentElement?.closest('.form-check');
-            while (parent) {
-                const parentCheckbox = parent.querySelector(':scope > label > input[type="checkbox"]');
-                if (parentCheckbox && parentCheckbox.dataset.type === 'section' && !parentCheckbox.checked) {
-                    return true;
-                }
-                parent = parent.parentElement?.closest('.form-check');
-            }
-            return false;
-        };
-
-        const replaceSectionDetails = Boolean(
-            modal.querySelector('input[data-action="replace_section_details"]')?.checked
-        );
-
-        const courseModuleIds = [];
-        const sectionIds = [];
-        modal.querySelectorAll('input[type="checkbox"]:checked').forEach((checkbox) => {
-            // Option boxes (e.g. replace section details) are not content selections.
-            if (checkbox.dataset.type === 'option' || isUnderUncheckedSection(checkbox)) {
-                return;
-            }
-            if (checkbox.dataset.type === 'section') {
-                sectionIds.push(checkbox.dataset.id);
-            } else {
-                courseModuleIds.push(checkbox.dataset.id);
-            }
-        });
-
-        // The backend treats an empty list as "all nested sections", so signal "none" explicitly.
+        const {courseModuleIds, sectionIds, replaceSectionDetails} = RestoreSelection.read(modal);
         const hasNestedSections = modal.querySelector('input[type="checkbox"][data-type="section"]') !== null;
-        if (hasNestedSections && sectionIds.length === 0) {
-            sectionIds.push(0);
-        }
+        const emptySubsection = item.isSubsection() && item.getItemChildrenRecursively().length === 0;
 
-        if (item.isSection() && courseModuleIds.length === 0 && (!hasNestedSections || sectionIds[0] === 0)) {
-            modal.querySelectorAll('.form-check-input').forEach(async(item) => {
-                item.setCustomValidity(
-                    await getString('atleast_one_course_module_must_be_included', 'block_sharing_cart')
-                );
-                item.reportValidity();
-            });
+        if ((item.isSection() || (item.isSubsection() && !emptySubsection)) && courseModuleIds.length === 0 &&
+                (!hasNestedSections || sectionIds[0] === 0)) {
+            RestoreSelection.reportEmpty(modal).catch(Notification.exception);
             return false;
         }
 
@@ -807,12 +775,15 @@ export default class BlockElement {
             courseModuleIds.push(item.getItemOldInstanceId());
         }
 
+        this.#course.clearClipboard();
+
         Ajax.call([{
             methodname: 'block_sharing_cart_restore_item_from_sharing_cart_into_section',
             args: {
                 itemid: item.getItemId(),
                 sectionid: sectionId,
                 coursemodulestoinclude: courseModuleIds,
+                moduleselectionexplicit: true,
                 sectionstoinclude: sectionIds,
                 insertasnewsection: Boolean(options.asNewSection),
                 courseid: options.courseId ?? 0,
@@ -822,7 +793,7 @@ export default class BlockElement {
             },
             done: async(success) => {
                 if (success) {
-                    await this.#queue.loadQueue(true);
+                    await this.#queue.restoreAccepted();
                 }
             },
             fail: (data) => {
@@ -843,6 +814,8 @@ export default class BlockElement {
         e.preventDefault();
         e.stopPropagation();
 
+        const returnElement = dropTarget ? null : e.currentTarget;
+        const clipboardSource = returnElement ? this.#course.getClipboardSource() : null;
         options = options ?? {};
 
         const strings = await getStrings([
@@ -890,6 +863,10 @@ export default class BlockElement {
             }
         );
 
+        if (returnElement && !returnElement.isConnected) {
+            return;
+        }
+
         const modal = await ModalSaveCancel.create({
             title: strings[0] + ': ' +
                 '"' + item.getItemName().slice(0, 50).trim() + '"' +
@@ -901,11 +878,27 @@ export default class BlockElement {
                 cancel: strings[3],
             },
             removeOnClose: true,
+            returnElement,
         });
         modal.getRoot().on(ModalEvents.shown, () => this.#baseFactory.moodle().template().runTemplateJS(js));
+        RestoreSelection.bind(modal.getRoot()[0]);
         modal.getRoot().on(
             ModalEvents.save,
-            this.importItem.bind(this, item, sectionId, modal.getRoot()[0], options, dropTarget)
+            (event) => {
+                if (!this.importItem(item, sectionId, modal.getRoot()[0], options, dropTarget)) {
+                    event.preventDefault();
+                    return;
+                }
+                if (returnElement) {
+                    const fallback = this.#element.closest('.block_sharing_cart')?.querySelector('.card-title') ?? this.#element;
+                    if (clipboardSource?.isConnected && clipboardSource.getClientRects().length > 0) {
+                        modal.setReturnElement(clipboardSource);
+                    } else {
+                        fallback.setAttribute('tabindex', '-1');
+                        modal.setReturnElement(fallback);
+                    }
+                }
+            }
         );
         await modal.show();
     }

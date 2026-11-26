@@ -71,10 +71,23 @@ function block_sharing_cart_output_fragment_item($args) {
 function block_sharing_cart_output_fragment_item_restore_form($args) {
     global $OUTPUT, $USER;
 
+    $context = $args['context'] ?? null;
+    if (!$context instanceof \context_course || !has_capability('moodle/restore:restoreactivity', $context)) {
+        return '';
+    }
     $itemid = clean_param($args['itemid'], PARAM_INT);
 
     // Id of the section. being targeted for an import.
     $clipboardtargetid = clean_param($args['clipboardtargetid'], PARAM_INT);
+    $asnewsection = (bool)clean_param($args['asnewsection'] ?? 0, PARAM_BOOL);
+    if ($clipboardtargetid > 0) {
+        $section = get_fast_modinfo($context->instanceid)->get_section_info_by_id($clipboardtargetid);
+        if (!$section || !$section->uservisible) {
+            return '';
+        }
+    } else if ($clipboardtargetid !== 0 || !$asnewsection) {
+        return '';
+    }
 
     $basefactory = \block_sharing_cart\app\factory::make();
     $item = $basefactory->item()->repository()->get_by_id($itemid);
@@ -92,9 +105,6 @@ function block_sharing_cart_output_fragment_item_restore_form($args) {
             'block_sharing_cart'
         );
     }
-
-    // Whether the item is inserted as a new section (no merge, so nothing to replace).
-    $asnewsection = (bool)clean_param($args['asnewsection'] ?? 0, PARAM_BOOL);
 
     $template = new \block_sharing_cart\output\modal\import_item_modal_body(
         $basefactory,
